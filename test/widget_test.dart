@@ -323,5 +323,32 @@ void main() {
     // Pop back to Dashboard
     await tester.pageBack();
     await tester.pumpAndSettle();
+
+    // --- STEP 8: TEST REPORTS, ANALYTICS & BYOK AI ASSISTANT ---
+    // Switch to Reports & AI tab
+    await tester.tap(find.text('Reports & AI'));
+    await tester.pumpAndSettle();
+
+    // In ReportsAnalyticsScreen, verify sections
+    expect(find.text('Reports & Analytics'), findsOneWidget);
+    expect(find.text('PocketAI Financial Advisor'), findsOneWidget);
+    expect(find.text('6-Month Cash Flow Trends'), findsOneWidget);
+    expect(find.text('Top Expense Categories (This Month)'), findsOneWidget);
+    expect(find.text('3-Month Forward Cash Flow Forecast'), findsOneWidget);
+
+    // Tap on PocketAI Advisor banner
+    await tester.tap(find.text('PocketAI Financial Advisor'));
+    await tester.pumpAndSettle();
+
+    // In AiAssistantScreen, verify provider choices & settings
+    expect(find.text('PocketAI Financial Advisor'), findsWidgets);
+    expect(find.text('AI PROVIDER & BYOK SETTINGS'), findsOneWidget);
+    expect(find.text('Google Gemini'), findsOneWidget);
+    expect(find.text('Groq (Llama 3.3)'), findsOneWidget);
+    expect(find.text('Generate Full Audit'), findsOneWidget);
+
+    // Pop back to Reports
+    await tester.pageBack();
+    await tester.pumpAndSettle();
   });
 }

@@ -175,4 +175,12 @@ abstract class CategoryConstants {
       ),
     );
   }
+
+  static IconData getIconForCategory(String name, [TransactionType type = TransactionType.expense]) {
+    return getCategoryByName(name, type).icon;
+  }
+
+  static Color getColorForCategory(String name, [TransactionType type = TransactionType.expense]) {
+    return getCategoryByName(name, type).color;
+  }
 }

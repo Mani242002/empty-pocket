@@ -161,3 +161,9 @@ final recentTransactionsProvider = Provider<List<TransactionEntity>>((ref) {
     orElse: () => [],
   );
 });
+
+/// Provider for category spending breakdown of current month
+final monthlyCategoryBreakdownProvider = Provider<List<CategorySpendingSummary>>((ref) {
+  final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
+  return FinancialCalculator.calculateCategoryBreakdown(monthlyTransactions);
+});

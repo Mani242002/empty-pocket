@@ -6,6 +6,7 @@ import '../../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../features/transactions/presentation/screens/add_edit_transaction_sheet.dart';
 import '../../../features/transactions/presentation/screens/transactions_screen.dart';
 import '../../../features/budgets/presentation/screens/budgets_screen.dart';
+import '../../../features/reports/presentation/screens/reports_analytics_screen.dart';
 import '../../../features/settings/presentation/screens/settings_screen.dart';
 
 class MainNavigationScaffold extends StatefulWidget {
@@ -106,26 +107,14 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: financialColors.cardBorder),
-                  ),
-                  tileColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: financialColors.investment.withAlpha(isDark ? 40 : 25),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.pie_chart_rounded, color: financialColors.investment, size: 20),
-                  ),
-                  title: const Text('Set Monthly Budget', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Define spending limits by category'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
+                _buildModalSecondaryAction(
+                  context,
+                  title: 'Set Monthly Category Budget',
+                  subtitle: 'Define spending limits',
+                  icon: Icons.pie_chart_outline_rounded,
                   onTap: () {
                     Navigator.pop(ctx);
-                    _onTabSelected(2); // switch to budgets
+                    _onTabSelected(2);
                   },
                 ),
               ],
@@ -148,26 +137,23 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Material(
-      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: color.withAlpha(isDark ? 60 : 40)),
-      ),
+      color: color.withAlpha(isDark ? 35 : 20),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withAlpha(isDark ? 40 : 25),
-                  shape: BoxShape.circle,
+                  color: color,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 18),
+                child: Icon(icon, color: Colors.white, size: 20),
               ),
               const SizedBox(height: 12),
               Text(
@@ -190,6 +176,58 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
     );
   }
 
+  Widget _buildModalSecondaryAction(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Material(
+      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.primaryEmerald, size: 22),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: context.financialColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.financialColors.textMuted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screens = [
@@ -199,6 +237,7 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
       ),
       const TransactionsScreen(),
       const BudgetsScreen(),
+      const ReportsAnalyticsScreen(),
       const SettingsScreen(),
     ];
 
@@ -230,6 +269,11 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
             icon: Icon(Icons.pie_chart_outline_rounded),
             selectedIcon: Icon(Icons.pie_chart_rounded),
             label: 'Budgets',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights_rounded),
+            label: 'Reports & AI',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

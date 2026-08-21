@@ -5,6 +5,7 @@ import '../domain/entities/debt_entity.dart';
 import '../domain/entities/financial_health_entity.dart';
 import '../domain/entities/investment_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
+import '../domain/entities/reports_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
 
@@ -712,5 +713,126 @@ abstract class FinancialCalculator {
       diversificationPillar: diversificationPillar,
       actionableTips: actionableTips,
     );
+  }
+
+  // --- Milestone 8: Reports, Analytics & AI Context ---
+
+  /// Calculate historical Month-over-Month (MoM) cash flow trends for the past N months
+  static List<MonthlyTrendData> calculateMonthlyTrends(
+    List<TransactionEntity> transactions, {
+    int monthsCount = 6,
+  }) {
+    final now = DateTime.now();
+    final List<MonthlyTrendData> trends = [];
+
+    for (int i = monthsCount - 1; i >= 0; i--) {
+      final monthDate = DateTime(now.year, now.month - i, 1);
+      final monthTxs = filterByMonth(transactions, monthDate);
+      final income = calculateTotalIncome(monthTxs);
+      final expense = calculateTotalExpense(monthTxs);
+      final netSavings = income - expense;
+      final savingsRate = calculateSavingsRate(income, expense);
+
+      trends.add(
+        MonthlyTrendData(
+          month: monthDate,
+          totalIncome: income,
+          totalExpense: expense,
+          netSavings: netSavings,
+          savingsRate: savingsRate,
+        ),
+      );
+    }
+
+    return trends;
+  }
+
+  /// Calculate 3-Month forward cash-flow forecast based on recurring obligations and EMIs
+  static List<CashFlowForecastItem> calculateCashFlowForecast({
+    required double currentCashBalance,
+    required double estimatedMonthlyIncome,
+    required double totalMonthlyRecurringExpenses,
+    required double totalMonthlyDebtEmi,
+    int forecastMonths = 3,
+  }) {
+    final now = DateTime.now();
+    final List<CashFlowForecastItem> forecast = [];
+    double cumulative = currentCashBalance;
+
+    final fixedExpenses = totalMonthlyRecurringExpenses + totalMonthlyDebtEmi;
+    final netCash = estimatedMonthlyIncome - fixedExpenses;
+
+    for (int i = 1; i <= forecastMonths; i++) {
+      final forecastDate = DateTime(now.year, now.month + i, 1);
+      cumulative += netCash;
+
+      forecast.add(
+        CashFlowForecastItem(
+          month: forecastDate,
+          projectedIncome: estimatedMonthlyIncome,
+          projectedFixedExpenses: fixedExpenses,
+          projectedNetCash: netCash,
+          projectedCumulativeBalance: cumulative,
+        ),
+      );
+    }
+
+    return forecast;
+  }
+
+  /// Calculate payment source breakdown across all expense transactions
+  static List<PaymentSourceBreakdown> calculatePaymentSourceBreakdown(List<TransactionEntity> transactions) {
+    final expenses = transactions.where((t) => t.type == TransactionType.expense).toList();
+    if (expenses.isEmpty) return [];
+
+    final totalExpense = expenses.fold(0.0, (sum, t) => sum + t.amount);
+    final Map<String, List<TransactionEntity>> grouped = {};
+
+    for (final tx in expenses) {
+      grouped.putIfAbsent(tx.paymentSource, () => []).add(tx);
+    }
+
+    final List<PaymentSourceBreakdown> breakdown = [];
+    grouped.forEach((source, items) {
+      final amount = items.fold(0.0, (sum, t) => sum + t.amount);
+      final percentage = totalExpense > 0 ? (amount / totalExpense) * 100 : 0.0;
+
+      breakdown.add(
+        PaymentSourceBreakdown(
+          source: source,
+          amount: amount,
+          percentage: percentage,
+          count: items.length,
+        ),
+      );
+    });
+
+    breakdown.sort((a, b) => b.amount.compareTo(a.amount));
+    return breakdown;
+  }
+
+  /// Format an executive financial context string to provide as context to PocketAI
+  static String generateFinancialContextSummary({
+    required double monthlyIncome,
+    required double monthlyExpense,
+    required double monthlyNetBalance,
+    required double savingsRate,
+    required OverallSavingsSummary savingsSummary,
+    required OverallPortfolioSummary portfolioSummary,
+    required OverallLiabilitiesSummary liabilitiesSummary,
+    required FinancialHealthSummary healthSummary,
+  }) {
+    final net = healthSummary.netWorth;
+    return '''
+- Monthly Income: ₹${monthlyIncome.toStringAsFixed(2)}
+- Monthly Expenses: ₹${monthlyExpense.toStringAsFixed(2)}
+- Monthly Net Savings: ₹${monthlyNetBalance.toStringAsFixed(2)} (${savingsRate.toStringAsFixed(1)}% savings rate)
+- Liquid Cash / Accounts: ₹${net.cashBalance.toStringAsFixed(2)}
+- Savings Goals Total: ₹${savingsSummary.totalSaved.toStringAsFixed(2)} across ${savingsSummary.activeGoalsCount} active goals (Emergency Fund: ₹${savingsSummary.emergencyFundSaved.toStringAsFixed(2)})
+- Investments Portfolio: ₹${portfolioSummary.totalCurrentValue.toStringAsFixed(2)} (Invested: ₹${portfolioSummary.totalInvested.toStringAsFixed(2)}, Returns: ₹${portfolioSummary.totalProfitLoss.toStringAsFixed(2)} / ${portfolioSummary.overallReturnPercentage.toStringAsFixed(1)}%)
+- Outstanding Liabilities / Debts: ₹${liabilitiesSummary.totalOutstanding.toStringAsFixed(2)} (Total Monthly EMI: ₹${liabilitiesSummary.totalMonthlyEmi.toStringAsFixed(2)})
+- Consolidated Net Worth: ₹${net.netWorth.toStringAsFixed(2)}
+- Financial Health Score: ${healthSummary.overallScore}/100 (${healthSummary.grade.displayName})
+''';
   }
 }
