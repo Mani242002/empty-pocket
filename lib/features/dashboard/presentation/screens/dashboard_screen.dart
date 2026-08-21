@@ -11,6 +11,9 @@ import '../../../budgets/presentation/state/budgets_provider.dart';
 import '../../../debts/presentation/screens/add_edit_debt_sheet.dart';
 import '../../../debts/presentation/screens/debts_screen.dart';
 import '../../../debts/presentation/state/debts_provider.dart';
+import '../../../investments/presentation/screens/add_edit_investment_sheet.dart';
+import '../../../investments/presentation/screens/investments_screen.dart';
+import '../../../investments/presentation/state/investments_provider.dart';
 import '../../../savings/presentation/screens/add_edit_savings_goal_sheet.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
@@ -45,6 +48,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final budgetSummary = ref.watch(overallMonthlyBudgetSummaryProvider);
     final savingsSummary = ref.watch(overallSavingsSummaryProvider);
     final liabilitiesSummary = ref.watch(overallLiabilitiesSummaryProvider);
+    final portfolioSummary = ref.watch(overallPortfolioSummaryProvider);
     final recentTransactions = ref.watch(recentTransactionsProvider);
 
     return Scaffold(
@@ -525,6 +529,133 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 'Emergency fund, travel, etc.',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: financialColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Investments & Portfolio Card
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.trending_up_rounded, color: financialColors.income, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Investments & Assets',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (portfolioSummary.totalHoldingsCount > 0)
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                child: const Text('Manage'),
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const InvestmentsScreen()),
+                                  );
+                                },
+                              )
+                            else
+                              TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Add Asset'),
+                                onPressed: () => AddEditInvestmentSheet.show(context),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (portfolioSummary.totalHoldingsCount > 0) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                CurrencyFormatter.format(portfolioSummary.totalCurrentValue),
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: financialColors.income,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: (portfolioSummary.isProfit ? financialColors.income : financialColors.expense)
+                                      .withAlpha(isDark ? 35 : 20),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${portfolioSummary.isProfit ? '+' : ''}${CurrencyFormatter.format(portfolioSummary.totalProfitLoss)} (${portfolioSummary.overallReturnPercentage.toStringAsFixed(1)}%)',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: portfolioSummary.isProfit ? financialColors.income : financialColors.expense,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Invested: ${CurrencyFormatter.format(portfolioSummary.totalInvested)}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  '${portfolioSummary.totalHoldingsCount} Assets Tracked',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Start tracking mutual funds, stocks, gold & FDs',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: financialColors.textMuted,
+                                  ),
                                 ),
                               ),
                             ],

@@ -1,6 +1,7 @@
 import 'dart:math';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/debt_entity.dart';
+import '../domain/entities/investment_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
@@ -401,5 +402,77 @@ abstract class FinancialCalculator {
   static double calculateDebtToIncomeRatio(double totalMonthlyEmi, double monthlyIncome) {
     if (monthlyIncome <= 0) return 0.0;
     return (totalMonthlyEmi / monthlyIncome) * 100;
+  }
+
+  // --- Milestone 6: Investments & Asset Allocation Calculations ---
+
+  /// Calculate metrics for a single investment holding
+  static InvestmentMetrics calculateInvestmentMetrics(InvestmentEntity investment) {
+    final invested = investment.investedAmount;
+    final current = investment.currentValue;
+    final pnl = current - invested;
+    final returnPct = invested > 0 ? (pnl / invested) * 100 : 0.0;
+    final isProfit = current >= invested;
+
+    return InvestmentMetrics(
+      investment: investment,
+      unrealizedProfitLoss: pnl,
+      returnPercentage: returnPct,
+      isProfit: isProfit,
+    );
+  }
+
+  /// Calculate asset allocation distribution across all asset classes
+  static List<AssetAllocationItem> calculateAssetAllocation(List<InvestmentEntity> investments) {
+    if (investments.isEmpty) return [];
+
+    final totalPortfolioValue = investments.fold(0.0, (sum, i) => sum + i.currentValue);
+
+    final Map<AssetClass, List<InvestmentEntity>> grouped = {};
+    for (final inv in investments) {
+      grouped.putIfAbsent(inv.assetClass, () => []).add(inv);
+    }
+
+    final List<AssetAllocationItem> allocations = [];
+    grouped.forEach((assetClass, items) {
+      final classInvested = items.fold(0.0, (sum, i) => sum + i.investedAmount);
+      final classCurrent = items.fold(0.0, (sum, i) => sum + i.currentValue);
+      final percentage = totalPortfolioValue > 0 ? (classCurrent / totalPortfolioValue) * 100 : 0.0;
+
+      allocations.add(
+        AssetAllocationItem(
+          assetClass: assetClass,
+          investedAmount: classInvested,
+          currentValue: classCurrent,
+          percentageOfPortfolio: percentage,
+          itemsCount: items.length,
+        ),
+      );
+    });
+
+    allocations.sort((a, b) => b.currentValue.compareTo(a.currentValue));
+    return allocations;
+  }
+
+  /// Calculate aggregated portfolio summary
+  static OverallPortfolioSummary calculateOverallPortfolioSummary(List<InvestmentEntity> investments) {
+    if (investments.isEmpty) return OverallPortfolioSummary.empty;
+
+    final totalInvested = investments.fold(0.0, (sum, i) => sum + i.investedAmount);
+    final totalCurrentValue = investments.fold(0.0, (sum, i) => sum + i.currentValue);
+    final totalProfitLoss = totalCurrentValue - totalInvested;
+    final overallReturn = totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0.0;
+    final isProfit = totalCurrentValue >= totalInvested;
+    final allocations = calculateAssetAllocation(investments);
+
+    return OverallPortfolioSummary(
+      totalInvested: totalInvested,
+      totalCurrentValue: totalCurrentValue,
+      totalProfitLoss: totalProfitLoss,
+      overallReturnPercentage: overallReturn,
+      isProfit: isProfit,
+      assetAllocations: allocations,
+      totalHoldingsCount: investments.length,
+    );
   }
 }

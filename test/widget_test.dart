@@ -5,12 +5,13 @@ import 'package:empty_pocket/app/app.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
 import 'package:empty_pocket/core/repositories/budget_repository.dart';
 import 'package:empty_pocket/core/repositories/debt_repository.dart';
+import 'package:empty_pocket/core/repositories/investment_repository.dart';
 import 'package:empty_pocket/core/repositories/recurring_repository.dart';
 import 'package:empty_pocket/core/repositories/savings_goal_repository.dart';
 import 'package:empty_pocket/core/repositories/transaction_repository.dart';
 
 void main() {
-  testWidgets('Complete flow: transactions, budgeting, recurring, savings, and debt liabilities',
+  testWidgets('Complete flow: transactions, budgeting, recurring, savings, debts, and investments',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
@@ -49,6 +50,7 @@ void main() {
     final inMemoryRecurringRepo = InMemoryRecurringRepository();
     final inMemorySavingsRepo = InMemorySavingsGoalRepository();
     final inMemoryDebtRepo = InMemoryDebtRepository();
+    final inMemoryInvestmentRepo = InMemoryInvestmentRepository();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -58,6 +60,7 @@ void main() {
           recurringRepositoryProvider.overrideWithValue(inMemoryRecurringRepo),
           savingsGoalRepositoryProvider.overrideWithValue(inMemorySavingsRepo),
           debtRepositoryProvider.overrideWithValue(inMemoryDebtRepo),
+          investmentRepositoryProvider.overrideWithValue(inMemoryInvestmentRepo),
         ],
         child: const EmptyPocketApp(),
       ),
@@ -211,7 +214,7 @@ void main() {
     expect(find.text('Outstanding: ₹3,00,000.00'), findsOneWidget);
 
     // Tap "Manage" on Loans card
-    await tester.tap(find.text('Manage'));
+    await tester.tap(find.text('Manage').first);
     await tester.pumpAndSettle();
 
     // In DebtsScreen, verify loan card
@@ -240,5 +243,62 @@ void main() {
     // Verify final updated balance: 19,351 - 10,000 = 9,351
     expect(find.text('₹9,351.00'), findsOneWidget);
     expect(find.text('EMI: Axis Car Loan'), findsOneWidget);
+
+    // --- STEP 6: TEST INVESTMENTS & ASSET ALLOCATION ---
+    // Tap "Add Asset" on Dashboard
+    await tester.tap(find.text('Add Asset'));
+    await tester.pumpAndSettle();
+
+    // Enter Holding Name: Nifty 50 Index Fund
+    await tester.enterText(find.byType(TextFormField).first, 'Nifty 50 Index Fund');
+    await tester.pumpAndSettle();
+
+    // Enter Invested: 50000
+    await tester.enterText(find.byType(TextFormField).at(1), '50000');
+    await tester.pumpAndSettle();
+
+    // Enter Current Value: 60000
+    await tester.enterText(find.byType(TextFormField).at(2), '60000');
+    await tester.pumpAndSettle();
+
+    // Save Holding
+    await tester.tap(find.text('Save Investment Holding'));
+    await tester.pumpAndSettle();
+
+    // Verify Dashboard updated with investment portfolio
+    expect(find.text('₹60,000.00'), findsOneWidget);
+    expect(find.text('+₹10,000.00 (20.0%)'), findsOneWidget);
+
+    // Tap "Manage" on Investments card
+    await tester.tap(find.text('Manage').first);
+    await tester.pumpAndSettle();
+
+    // In InvestmentsScreen, verify portfolio details
+    expect(find.text('Investments & Assets'), findsOneWidget);
+    expect(find.text('Nifty 50 Index Fund'), findsOneWidget);
+    expect(find.text('Asset Allocation'), findsOneWidget);
+
+    // Tap "Update Value" on Nifty 50 card
+    await tester.tap(find.text('Update Value'));
+    await tester.pumpAndSettle();
+
+    // Update value to 65000
+    await tester.enterText(find.byType(TextFormField).first, '65000');
+    await tester.pumpAndSettle();
+
+    // Submit valuation update
+    await tester.tap(find.text('Update Valuation'));
+    await tester.pumpAndSettle();
+
+    // Verify updated portfolio value
+    expect(find.text('₹65,000.00'), findsWidgets);
+    expect(find.text('+30.0%'), findsOneWidget);
+
+    // Pop back to Dashboard
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // Verify Dashboard reflects updated portfolio value
+    expect(find.text('₹65,000.00'), findsOneWidget);
   });
 }

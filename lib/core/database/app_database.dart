@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/debt_entity.dart';
+import '../domain/entities/investment_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
@@ -9,7 +10,7 @@ import '../domain/entities/transaction_entity.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 5;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
@@ -18,6 +19,7 @@ class AppDatabase {
   static const String tableGoalContributions = 'goal_contributions';
   static const String tableDebts = 'debts';
   static const String tableDebtPayments = 'debt_payments';
+  static const String tableInvestments = 'investments';
 
   Database? db;
 
@@ -76,6 +78,9 @@ class AppDatabase {
 
     // Debts & Payments Tables
     await _createDebtsTables(db);
+
+    // Investments Table
+    await _createInvestmentsTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -88,6 +93,9 @@ class AppDatabase {
     }
     if (oldVersion < 4) {
       await _createDebtsTables(db);
+    }
+    if (oldVersion < 5) {
+      await _createInvestmentsTable(db);
     }
   }
 
@@ -197,6 +205,29 @@ class AppDatabase {
 
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON $tableDebtPayments(debt_id)',
+    );
+  }
+
+  Future<void> _createInvestmentsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableInvestments (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        asset_class TEXT NOT NULL,
+        invested_amount REAL NOT NULL,
+        current_value REAL NOT NULL,
+        units REAL,
+        buy_price REAL,
+        current_price REAL,
+        institution TEXT,
+        notes TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_investments_asset ON $tableInvestments(asset_class)',
     );
   }
 
@@ -472,6 +503,46 @@ class AppDatabase {
     );
 
     return maps.map((map) => DebtPaymentEntity.fromMap(map)).toList();
+  }
+
+  // --- Investments ---
+
+  Future<int> insertInvestment(InvestmentEntity investment) async {
+    final database = await this.database;
+    return await database.insert(
+      tableInvestments,
+      investment.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> updateInvestment(InvestmentEntity investment) async {
+    final database = await this.database;
+    return await database.update(
+      tableInvestments,
+      investment.toMap(),
+      where: 'id = ?',
+      whereArgs: [investment.id],
+    );
+  }
+
+  Future<int> deleteInvestment(String id) async {
+    final database = await this.database;
+    return await database.delete(
+      tableInvestments,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<InvestmentEntity>> getAllInvestments() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableInvestments,
+      orderBy: 'current_value DESC',
+    );
+
+    return maps.map((map) => InvestmentEntity.fromMap(map)).toList();
   }
 
   Future<void> close() async {
