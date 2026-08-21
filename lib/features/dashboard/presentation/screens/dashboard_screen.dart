@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
+import '../../../../core/domain/entities/budget_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../budgets/presentation/screens/set_budget_sheet.dart';
+import '../../../budgets/presentation/state/budgets_provider.dart';
 import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../../../transactions/presentation/widgets/transaction_list_item.dart';
@@ -34,6 +37,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final today = DateFormat('EEEE, d MMMM').format(DateTime.now());
 
     final summary = ref.watch(monthlyFinancialSummaryProvider);
+    final budgetSummary = ref.watch(overallMonthlyBudgetSummaryProvider);
     final recentTransactions = ref.watch(recentTransactionsProvider);
 
     return Scaffold(
@@ -269,7 +273,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         label: 'Set Budget',
                         icon: Icons.pie_chart_outline_rounded,
                         color: financialColors.investment,
-                        onTap: widget.onSetBudget,
+                        onTap: () => SetBudgetSheet.show(context),
                       ),
                     ),
                   ],
@@ -277,10 +281,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
-            // Monthly Budget & Savings Rate Card
+            // Monthly Budget Status Card
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                 child: Card(
                   child: Padding(
                     padding: const EdgeInsets.all(18),
@@ -291,57 +295,111 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Monthly Savings Rate',
+                              'Monthly Budget Status',
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: financialColors.income.withAlpha(isDark ? 40 : 25),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${summary.savingsRate.toStringAsFixed(1)}% Saved',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: financialColors.income,
-                                  fontWeight: FontWeight.w700,
+                            if (budgetSummary.budgetedCategoriesCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getBudgetHealthColor(context, budgetSummary.health).withAlpha(isDark ? 40 : 25),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: _getBudgetHealthColor(context, budgetSummary.health).withAlpha(isDark ? 60 : 40),
+                                  ),
                                 ),
+                                child: Text(
+                                  budgetSummary.health.displayName,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: _getBudgetHealthColor(context, budgetSummary.health),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              )
+                            else
+                              TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Set Limit'),
+                                onPressed: () => SetBudgetSheet.show(context),
                               ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: summary.savingsRate / 100,
-                            minHeight: 8,
-                            backgroundColor: isDark
-                                ? AppColors.darkSurfaceVariant
-                                : AppColors.lightSurfaceVariant,
-                            valueColor: AlwaysStoppedAnimation<Color>(financialColors.income),
+                        if (budgetSummary.budgetedCategoriesCount > 0) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: (budgetSummary.overallPercentage / 100).clamp(0.0, 1.0),
+                              minHeight: 8,
+                              backgroundColor: isDark
+                                  ? AppColors.darkSurfaceVariant
+                                  : AppColors.lightSurfaceVariant,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _getBudgetHealthColor(context, budgetSummary.health),
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Spent: ${CurrencyFormatter.format(summary.totalExpense)}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: financialColors.textMuted,
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Spent: ${CurrencyFormatter.format(budgetSummary.totalSpent)} / ${CurrencyFormatter.format(budgetSummary.totalLimit)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: financialColors.textMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Earned: ${CurrencyFormatter.format(summary.totalIncome)}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: financialColors.textMuted,
+                              Text(
+                                budgetSummary.totalOverspent > 0
+                                    ? 'Over by ${CurrencyFormatter.format(budgetSummary.totalOverspent)}'
+                                    : '${CurrencyFormatter.format(budgetSummary.totalRemaining)} left',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: budgetSummary.totalOverspent > 0
+                                      ? financialColors.expense
+                                      : financialColors.textMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
+                            ],
+                          ),
+                        ] else ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: 0.0,
+                              minHeight: 8,
+                              backgroundColor: isDark
+                                  ? AppColors.darkSurfaceVariant
+                                  : AppColors.lightSurfaceVariant,
+                              valueColor: AlwaysStoppedAnimation<Color>(financialColors.income),
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Total Spent: ${CurrencyFormatter.format(summary.totalExpense)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: financialColors.textMuted,
+                                ),
+                              ),
+                              Text(
+                                'No category limits configured',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: financialColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -569,5 +627,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  Color _getBudgetHealthColor(BuildContext context, BudgetHealth health) {
+    final fc = context.financialColors;
+    switch (health) {
+      case BudgetHealth.safe:
+        return fc.income;
+      case BudgetHealth.warning:
+        return fc.warning;
+      case BudgetHealth.exceeded:
+        return fc.expense;
+    }
   }
 }

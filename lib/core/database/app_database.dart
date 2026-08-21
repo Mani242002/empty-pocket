@@ -1,13 +1,17 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../domain/entities/budget_entity.dart';
+import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/transaction_entity.dart';
 
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   static const String tableTransactions = 'transactions';
+  static const String tableBudgets = 'budgets';
+  static const String tableRecurring = 'recurring_expenses';
 
   Database? db;
 
@@ -27,10 +31,12 @@ class AppDatabase {
       path,
       version: _databaseVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
+    // Transactions Table
     await db.execute('''
       CREATE TABLE $tableTransactions (
         id TEXT PRIMARY KEY,
@@ -52,11 +58,65 @@ class AppDatabase {
     await db.execute(
       'CREATE INDEX idx_transactions_type ON $tableTransactions(type)',
     );
+
+    // Budgets Table
+    await _createBudgetsTable(db);
+
+    // Recurring Expenses Table
+    await _createRecurringTable(db);
   }
 
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createBudgetsTable(db);
+      await _createRecurringTable(db);
+    }
+  }
+
+  Future<void> _createBudgetsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableBudgets (
+        id TEXT PRIMARY KEY,
+        category TEXT NOT NULL,
+        limit_amount REAL NOT NULL,
+        month INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_budgets_month ON $tableBudgets(month)',
+    );
+  }
+
+  Future<void> _createRecurringTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableRecurring (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        amount REAL NOT NULL,
+        category TEXT NOT NULL,
+        frequency TEXT NOT NULL,
+        payment_source TEXT NOT NULL,
+        start_date INTEGER NOT NULL,
+        next_due_date INTEGER NOT NULL,
+        is_active INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_recurring_due ON $tableRecurring(next_due_date ASC)',
+    );
+  }
+
+  // --- Transactions ---
+
   Future<int> insertTransaction(TransactionEntity transaction) async {
-    final db = await database;
-    return await db.insert(
+    final database = await this.database;
+    return await database.insert(
       tableTransactions,
       transaction.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -64,8 +124,8 @@ class AppDatabase {
   }
 
   Future<int> updateTransaction(TransactionEntity transaction) async {
-    final db = await database;
-    return await db.update(
+    final database = await this.database;
+    return await database.update(
       tableTransactions,
       transaction.toMap(),
       where: 'id = ?',
@@ -74,8 +134,8 @@ class AppDatabase {
   }
 
   Future<int> deleteTransaction(String id) async {
-    final db = await database;
-    return await db.delete(
+    final database = await this.database;
+    return await database.delete(
       tableTransactions,
       where: 'id = ?',
       whereArgs: [id],
@@ -83,8 +143,8 @@ class AppDatabase {
   }
 
   Future<List<TransactionEntity>> getAllTransactions() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
       tableTransactions,
       orderBy: 'date DESC, created_at DESC',
     );
@@ -93,8 +153,101 @@ class AppDatabase {
   }
 
   Future<int> clearAllTransactions() async {
-    final db = await database;
-    return await db.delete(tableTransactions);
+    final database = await this.database;
+    return await database.delete(tableTransactions);
+  }
+
+  // --- Budgets ---
+
+  Future<int> insertBudget(BudgetEntity budget) async {
+    final database = await this.database;
+    return await database.insert(
+      tableBudgets,
+      budget.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> updateBudget(BudgetEntity budget) async {
+    final database = await this.database;
+    return await database.update(
+      tableBudgets,
+      budget.toMap(),
+      where: 'id = ?',
+      whereArgs: [budget.id],
+    );
+  }
+
+  Future<int> deleteBudget(String id) async {
+    final database = await this.database;
+    return await database.delete(
+      tableBudgets,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<BudgetEntity>> getBudgetsForMonth(DateTime month) async {
+    final database = await this.database;
+    final monthStart = DateTime(month.year, month.month, 1).millisecondsSinceEpoch;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableBudgets,
+      where: 'month = ?',
+      whereArgs: [monthStart],
+      orderBy: 'category ASC',
+    );
+
+    return maps.map((map) => BudgetEntity.fromMap(map)).toList();
+  }
+
+  Future<List<BudgetEntity>> getAllBudgets() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableBudgets,
+      orderBy: 'month DESC, category ASC',
+    );
+
+    return maps.map((map) => BudgetEntity.fromMap(map)).toList();
+  }
+
+  // --- Recurring Expenses ---
+
+  Future<int> insertRecurringExpense(RecurringExpenseEntity item) async {
+    final database = await this.database;
+    return await database.insert(
+      tableRecurring,
+      item.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> updateRecurringExpense(RecurringExpenseEntity item) async {
+    final database = await this.database;
+    return await database.update(
+      tableRecurring,
+      item.toMap(),
+      where: 'id = ?',
+      whereArgs: [item.id],
+    );
+  }
+
+  Future<int> deleteRecurringExpense(String id) async {
+    final database = await this.database;
+    return await database.delete(
+      tableRecurring,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<RecurringExpenseEntity>> getAllRecurringExpenses() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableRecurring,
+      orderBy: 'next_due_date ASC, title ASC',
+    );
+
+    return maps.map((map) => RecurringExpenseEntity.fromMap(map)).toList();
   }
 
   Future<void> close() async {

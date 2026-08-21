@@ -1,3 +1,6 @@
+import 'dart:math';
+import '../domain/entities/budget_entity.dart';
+import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/transaction_entity.dart';
 
 class CategorySpendingSummary {
@@ -138,5 +141,131 @@ abstract class FinancialCalculator {
 
     summary.sort((a, b) => b.amount.compareTo(a.amount));
     return summary;
+  }
+
+  // --- Milestone 3: Budgeting Calculations ---
+
+  /// Calculate single category budget status against actual expense transactions
+  static CategoryBudgetStatus calculateCategoryBudgetStatus(
+    BudgetEntity budget,
+    List<TransactionEntity> monthlyTransactions,
+  ) {
+    final categoryExpenses = monthlyTransactions.where((t) {
+      return t.type == TransactionType.expense &&
+          t.category.toLowerCase() == budget.category.toLowerCase();
+    });
+
+    final spent = categoryExpenses.fold(0.0, (sum, t) => sum + t.amount);
+    final limit = budget.limitAmount;
+    final remaining = max(0.0, limit - spent);
+    final overspent = max(0.0, spent - limit);
+    final percentage = limit > 0 ? (spent / limit) * 100 : 0.0;
+
+    BudgetHealth health;
+    if (percentage >= 100.0) {
+      health = BudgetHealth.exceeded;
+    } else if (percentage >= 80.0) {
+      health = BudgetHealth.warning;
+    } else {
+      health = BudgetHealth.safe;
+    }
+
+    return CategoryBudgetStatus(
+      budget: budget,
+      spentAmount: spent,
+      remainingAmount: remaining,
+      overspentAmount: overspent,
+      spentPercentage: percentage,
+      health: health,
+    );
+  }
+
+  /// Calculate all category budget statuses
+  static List<CategoryBudgetStatus> calculateAllCategoryBudgetStatuses(
+    List<BudgetEntity> budgets,
+    List<TransactionEntity> monthlyTransactions,
+  ) {
+    return budgets
+        .map((b) => calculateCategoryBudgetStatus(b, monthlyTransactions))
+        .toList()
+      ..sort((a, b) => b.spentPercentage.compareTo(a.spentPercentage)); // highest utilization first
+  }
+
+  /// Calculate overall aggregated budget summary for the active month
+  static OverallBudgetSummary calculateOverallBudgetSummary(
+    List<BudgetEntity> budgets,
+    List<TransactionEntity> monthlyTransactions,
+  ) {
+    if (budgets.isEmpty) {
+      // If no budgets configured, calculate unbudgeted total expenses
+      final totalSpent = calculateTotalExpense(monthlyTransactions);
+      return OverallBudgetSummary(
+        totalLimit: 0.0,
+        totalSpent: totalSpent,
+        totalRemaining: 0.0,
+        totalOverspent: 0.0,
+        overallPercentage: 0.0,
+        health: BudgetHealth.safe,
+        budgetedCategoriesCount: 0,
+      );
+    }
+
+    final statuses = calculateAllCategoryBudgetStatuses(budgets, monthlyTransactions);
+
+    final totalLimit = statuses.fold(0.0, (sum, s) => sum + s.limitAmount);
+    final totalSpent = statuses.fold(0.0, (sum, s) => sum + s.spentAmount);
+    final totalRemaining = max(0.0, totalLimit - totalSpent);
+    final totalOverspent = statuses.fold(0.0, (sum, s) => sum + s.overspentAmount);
+    final overallPercentage = totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0.0;
+
+    BudgetHealth health;
+    if (overallPercentage >= 100.0 || totalOverspent > 0) {
+      health = BudgetHealth.exceeded;
+    } else if (overallPercentage >= 80.0) {
+      health = BudgetHealth.warning;
+    } else {
+      health = BudgetHealth.safe;
+    }
+
+    return OverallBudgetSummary(
+      totalLimit: totalLimit,
+      totalSpent: totalSpent,
+      totalRemaining: totalRemaining,
+      totalOverspent: totalOverspent,
+      overallPercentage: overallPercentage,
+      health: health,
+      budgetedCategoriesCount: budgets.length,
+    );
+  }
+
+  // --- Milestone 3: Recurring Expense Calculations ---
+
+  /// Calculate next due date based on frequency
+  static DateTime calculateNextDueDate(DateTime fromDate, RecurringFrequency frequency) {
+    switch (frequency) {
+      case RecurringFrequency.daily:
+        return fromDate.add(const Duration(days: 1));
+      case RecurringFrequency.weekly:
+        return fromDate.add(const Duration(days: 7));
+      case RecurringFrequency.monthly:
+        return DateTime(fromDate.year, fromDate.month + 1, fromDate.day);
+      case RecurringFrequency.yearly:
+        return DateTime(fromDate.year + 1, fromDate.month, fromDate.day);
+    }
+  }
+
+  /// Filter upcoming active recurring expenses within daysAhead window
+  static List<RecurringExpenseEntity> getUpcomingRecurringExpenses(
+    List<RecurringExpenseEntity> expenses, {
+    int daysAhead = 30,
+  }) {
+    final active = expenses.where((e) => e.isActive).toList();
+    final filtered = active.where((e) {
+      final days = e.daysUntilDue;
+      return days >= -1 && days <= daysAhead; // include today/overdue and next 30 days
+    }).toList();
+
+    filtered.sort((a, b) => a.nextDueDate.compareTo(b.nextDueDate));
+    return filtered;
   }
 }
