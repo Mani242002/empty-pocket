@@ -1,5 +1,6 @@
 import 'dart:math';
 import '../domain/entities/budget_entity.dart';
+import '../domain/entities/debt_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
@@ -320,5 +321,85 @@ abstract class FinancialCalculator {
   /// Calculate recommended emergency fund amount based on monthly expenses
   static double calculateRecommendedEmergencyFund(double averageMonthlyExpense, {int months = 6}) {
     return max(0.0, averageMonthlyExpense * months);
+  }
+
+  // --- Milestone 5: Loans & Debts Calculations ---
+
+  /// Calculate standard monthly EMI: E = P * r * (1+r)^n / ((1+r)^n - 1)
+  static double calculateStandardEmi(
+    double principal,
+    double annualInterestRate,
+    int tenureMonths,
+  ) {
+    if (principal <= 0 || tenureMonths <= 0) return 0.0;
+
+    if (annualInterestRate <= 0) {
+      return principal / tenureMonths;
+    }
+
+    final monthlyRate = (annualInterestRate / 12) / 100;
+    final factor = pow(1 + monthlyRate, tenureMonths).toDouble();
+    final emi = principal * monthlyRate * (factor / (factor - 1));
+
+    return emi;
+  }
+
+  /// Calculate total interest payable over the loan duration
+  static double calculateTotalInterest(
+    double principal,
+    double monthlyEmi,
+    int tenureMonths,
+  ) {
+    final totalPayment = monthlyEmi * tenureMonths;
+    return max(0.0, totalPayment - principal);
+  }
+
+  /// Calculate progress metrics for a single debt/loan
+  static DebtRepaymentMetrics calculateDebtProgress(DebtEntity debt) {
+    final principal = debt.principalAmount;
+    final remaining = debt.remainingAmount;
+    final paid = max(0.0, principal - remaining);
+    final paidPercentage = principal > 0 ? min(100.0, (paid / principal) * 100) : 0.0;
+    final isPaidOff = remaining <= 0 || debt.status == DebtStatus.paidOff;
+
+    final monthsRemaining = (debt.monthlyEmi > 0 && !isPaidOff)
+        ? (remaining / debt.monthlyEmi).ceil()
+        : 0;
+
+    return DebtRepaymentMetrics(
+      debt: debt,
+      paidAmount: paid,
+      paidPercentage: paidPercentage,
+      isPaidOff: isPaidOff,
+      estimatedMonthsRemaining: monthsRemaining,
+    );
+  }
+
+  /// Calculate overall liabilities summary across all debts
+  static OverallLiabilitiesSummary calculateOverallLiabilitiesSummary(List<DebtEntity> debts) {
+    if (debts.isEmpty) return OverallLiabilitiesSummary.empty;
+
+    final activeDebts = debts.where((d) => d.status == DebtStatus.active && d.remainingAmount > 0).toList();
+    final paidOffDebts = debts.where((d) => d.status == DebtStatus.paidOff || d.remainingAmount <= 0).toList();
+
+    final totalOutstanding = activeDebts.fold(0.0, (sum, d) => sum + d.remainingAmount);
+    final totalMonthlyEmi = activeDebts.fold(0.0, (sum, d) => sum + d.monthlyEmi);
+    final totalOriginalPrincipal = debts.fold(0.0, (sum, d) => sum + d.principalAmount);
+    final totalPaidOff = max(0.0, totalOriginalPrincipal - totalOutstanding);
+
+    return OverallLiabilitiesSummary(
+      totalOutstanding: totalOutstanding,
+      totalMonthlyEmi: totalMonthlyEmi,
+      totalOriginalPrincipal: totalOriginalPrincipal,
+      totalPaidOff: totalPaidOff,
+      activeDebtsCount: activeDebts.length,
+      paidOffDebtsCount: paidOffDebts.length,
+    );
+  }
+
+  /// Calculate Debt-to-Income (DTI) ratio percentage: (Total Monthly EMI / Monthly Income) * 100
+  static double calculateDebtToIncomeRatio(double totalMonthlyEmi, double monthlyIncome) {
+    if (monthlyIncome <= 0) return 0.0;
+    return (totalMonthlyEmi / monthlyIncome) * 100;
   }
 }

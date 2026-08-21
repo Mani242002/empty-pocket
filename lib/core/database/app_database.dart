@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../domain/entities/budget_entity.dart';
+import '../domain/entities/debt_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
@@ -8,13 +9,15 @@ import '../domain/entities/transaction_entity.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
   static const String tableRecurring = 'recurring_expenses';
   static const String tableSavingsGoals = 'savings_goals';
   static const String tableGoalContributions = 'goal_contributions';
+  static const String tableDebts = 'debts';
+  static const String tableDebtPayments = 'debt_payments';
 
   Database? db;
 
@@ -70,6 +73,9 @@ class AppDatabase {
 
     // Savings Goals & Contributions Tables
     await _createSavingsTables(db);
+
+    // Debts & Payments Tables
+    await _createDebtsTables(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -79,6 +85,9 @@ class AppDatabase {
     }
     if (oldVersion < 3) {
       await _createSavingsTables(db);
+    }
+    if (oldVersion < 4) {
+      await _createDebtsTables(db);
     }
   }
 
@@ -150,6 +159,44 @@ class AppDatabase {
 
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_contributions_goal ON $tableGoalContributions(goal_id)',
+    );
+  }
+
+  Future<void> _createDebtsTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableDebts (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        type TEXT NOT NULL,
+        principal_amount REAL NOT NULL,
+        remaining_amount REAL NOT NULL,
+        interest_rate REAL NOT NULL,
+        tenure_months INTEGER NOT NULL,
+        monthly_emi REAL NOT NULL,
+        start_date INTEGER NOT NULL,
+        due_date_day INTEGER NOT NULL,
+        lender_name TEXT,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableDebtPayments (
+        id TEXT PRIMARY KEY,
+        debt_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        principal_portion REAL NOT NULL,
+        interest_portion REAL NOT NULL,
+        date INTEGER NOT NULL,
+        notes TEXT,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON $tableDebtPayments(debt_id)',
     );
   }
 
@@ -357,6 +404,74 @@ class AppDatabase {
     );
 
     return maps.map((map) => GoalContributionEntity.fromMap(map)).toList();
+  }
+
+  // --- Debts & Liabilities ---
+
+  Future<int> insertDebt(DebtEntity debt) async {
+    final database = await this.database;
+    return await database.insert(
+      tableDebts,
+      debt.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> updateDebt(DebtEntity debt) async {
+    final database = await this.database;
+    return await database.update(
+      tableDebts,
+      debt.toMap(),
+      where: 'id = ?',
+      whereArgs: [debt.id],
+    );
+  }
+
+  Future<int> deleteDebt(String id) async {
+    final database = await this.database;
+    await database.delete(
+      tableDebtPayments,
+      where: 'debt_id = ?',
+      whereArgs: [id],
+    );
+    return await database.delete(
+      tableDebts,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<DebtEntity>> getAllDebts() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableDebts,
+      orderBy: 'status ASC, remaining_amount DESC',
+    );
+
+    return maps.map((map) => DebtEntity.fromMap(map)).toList();
+  }
+
+  // --- Debt Payments ---
+
+  Future<int> insertDebtPayment(DebtPaymentEntity payment) async {
+    final database = await this.database;
+    return await database.insert(
+      tableDebtPayments,
+      payment.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<DebtPaymentEntity>> getPaymentsForDebt(String debtId) async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableDebtPayments,
+      where: 'debt_id = ?',
+      whereArgs: [debtId],
+      orderBy: 'date DESC, created_at DESC',
+    );
+
+    return maps.map((map) => DebtPaymentEntity.fromMap(map)).toList();
   }
 
   Future<void> close() async {

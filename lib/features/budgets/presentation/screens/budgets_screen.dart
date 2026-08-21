@@ -73,6 +73,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'budgets_fab',
         onPressed: () {
           if (_tabController.index == 0) {
             SetBudgetSheet.show(context, targetMonth: ref.read(selectedMonthProvider));
