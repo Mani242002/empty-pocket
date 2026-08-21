@@ -1,6 +1,8 @@
 import 'dart:math';
+import 'package:flutter/material.dart';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/debt_entity.dart';
+import '../domain/entities/financial_health_entity.dart';
 import '../domain/entities/investment_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
@@ -308,6 +310,7 @@ abstract class FinancialCalculator {
 
     final activeCount = goals.where((g) => g.status == GoalStatus.active && g.currentAmount < g.targetAmount).length;
     final completedCount = goals.where((g) => g.status == GoalStatus.completed || g.currentAmount >= g.targetAmount).length;
+    final emergencySaved = goals.where((g) => g.isEmergencyFund).fold(0.0, (sum, g) => sum + g.currentAmount);
 
     return OverallSavingsSummary(
       totalTarget: totalTarget,
@@ -316,6 +319,7 @@ abstract class FinancialCalculator {
       overallPercentage: overallPercentage,
       activeGoalsCount: activeCount,
       completedGoalsCount: completedCount,
+      emergencyFundSaved: emergencySaved,
     );
   }
 
@@ -473,6 +477,240 @@ abstract class FinancialCalculator {
       isProfit: isProfit,
       assetAllocations: allocations,
       totalHoldingsCount: investments.length,
+    );
+  }
+
+  // --- Milestone 7: Net Worth & Financial Health Calculations ---
+
+  /// Calculate consolidated Net Worth composition from all financial pillars
+  static NetWorthComposition calculateNetWorthComposition({
+    required double cashBalance,
+    required double savingsGoalsAmount,
+    required double investmentsAmount,
+    required double totalLiabilities,
+  }) {
+    final effectiveCash = cashBalance > 0 ? cashBalance : 0.0;
+    final totalAssets = effectiveCash + savingsGoalsAmount + investmentsAmount;
+    final netWorth = totalAssets - totalLiabilities;
+    final debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : (totalLiabilities > 0 ? 100.0 : 0.0);
+
+    return NetWorthComposition(
+      cashBalance: cashBalance,
+      savingsGoalsAmount: savingsGoalsAmount,
+      investmentsAmount: investmentsAmount,
+      totalAssets: totalAssets,
+      totalLiabilities: totalLiabilities,
+      netWorth: netWorth,
+      debtToAssetRatio: debtRatio,
+    );
+  }
+
+  /// Calculate holistic 4-pillar Financial Health Summary (0 - 100 Score)
+  static FinancialHealthSummary calculateFinancialHealthSummary({
+    required double cashBalance,
+    required double monthlyIncome,
+    required double monthlyExpense,
+    required double savingsGoalsAmount,
+    required double emergencyFundSaved,
+    required double investmentsAmount,
+    required int distinctAssetClassesCount,
+    required double totalLiabilities,
+    required double totalMonthlyEmi,
+  }) {
+    final netWorthComp = calculateNetWorthComposition(
+      cashBalance: cashBalance,
+      savingsGoalsAmount: savingsGoalsAmount,
+      investmentsAmount: investmentsAmount,
+      totalLiabilities: totalLiabilities,
+    );
+
+    // 1. Emergency Buffer Pillar (0 - 25 pts)
+    int emergencyScore = 10;
+    String emergencyStatus = 'Underfunded';
+    String emergencyTip = 'Build at least 3-6 months of expenses in an emergency fund.';
+
+    if (monthlyExpense <= 0) {
+      emergencyScore = 15;
+      emergencyStatus = 'No expenses logged';
+      emergencyTip = 'Log your monthly expenses to calculate your safety runway.';
+    } else {
+      final totalLiquid = emergencyFundSaved + (cashBalance > 0 ? cashBalance : 0.0);
+      final monthsCovered = totalLiquid / monthlyExpense;
+
+      if (monthsCovered >= 6.0) {
+        emergencyScore = 25;
+        emergencyStatus = 'Fully funded (${monthsCovered.toStringAsFixed(1)} months)';
+        emergencyTip = 'Excellent! You have a 6+ month emergency safety shield.';
+      } else if (monthsCovered >= 3.0) {
+        emergencyScore = 20;
+        emergencyStatus = 'Healthy (${monthsCovered.toStringAsFixed(1)} months)';
+        emergencyTip = 'Good buffer. Consider expanding to 6 months for complete safety.';
+      } else if (monthsCovered >= 1.0) {
+        emergencyScore = 12;
+        emergencyStatus = 'Basic (${monthsCovered.toStringAsFixed(1)} months)';
+        emergencyTip = 'Increase liquid reserves to reach the minimum 3-month target.';
+      } else {
+        emergencyScore = 5;
+        emergencyStatus = 'Critical (< 1 month)';
+        emergencyTip = 'Prioritize allocating funds to an Emergency Fund immediately.';
+      }
+    }
+
+    final emergencyPillar = HealthPillarScore(
+      name: 'Emergency Buffer',
+      score: emergencyScore,
+      statusText: emergencyStatus,
+      tip: emergencyTip,
+      color: const Color(0xFFF59E0B),
+      icon: Icons.shield_rounded,
+    );
+
+    // 2. Savings Rate Pillar (0 - 25 pts)
+    int savingsScore = 10;
+    String savingsStatus = 'Moderate';
+    String savingsTip = 'Target saving 20%+ of monthly income.';
+
+    if (monthlyIncome <= 0) {
+      savingsScore = 10;
+      savingsStatus = 'No income recorded';
+      savingsTip = 'Record your monthly income to assess cash flow retention.';
+    } else {
+      final savingsRate = calculateSavingsRate(monthlyIncome, monthlyExpense);
+
+      if (savingsRate >= 35.0) {
+        savingsScore = 25;
+        savingsStatus = 'High (${savingsRate.toStringAsFixed(1)}%)';
+        savingsTip = 'Superb cash retention! Direct surplus into compound investments.';
+      } else if (savingsRate >= 20.0) {
+        savingsScore = 20;
+        savingsStatus = 'Healthy (${savingsRate.toStringAsFixed(1)}%)';
+        savingsTip = 'Healthy savings rate meeting standard financial guidelines.';
+      } else if (savingsRate >= 10.0) {
+        savingsScore = 12;
+        savingsStatus = 'Moderate (${savingsRate.toStringAsFixed(1)}%)';
+        savingsTip = 'Try to cut non-essential expenses to push savings above 20%.';
+      } else {
+        savingsScore = 5;
+        savingsStatus = 'Low (${savingsRate.toStringAsFixed(1)}%)';
+        savingsTip = 'Expenses are consuming most income. Review your monthly budget limits.';
+      }
+    }
+
+    final savingsRatePillar = HealthPillarScore(
+      name: 'Savings Rate',
+      score: savingsScore,
+      statusText: savingsStatus,
+      tip: savingsTip,
+      color: const Color(0xFF10B981),
+      icon: Icons.savings_rounded,
+    );
+
+    // 3. Debt Burden Pillar (0 - 25 pts)
+    int debtScore = 25;
+    String debtStatus = '0% Debt-Free';
+    String debtTip = 'Outstanding! You carry zero debt burden.';
+
+    if (totalLiabilities > 0) {
+      final dti = calculateDebtToIncomeRatio(totalMonthlyEmi, monthlyIncome);
+
+      if (dti <= 15.0) {
+        debtScore = 22;
+        debtStatus = 'Low Burden (${dti.toStringAsFixed(1)}% DTI)';
+        debtTip = 'Your monthly debt obligations are very safe and manageable.';
+      } else if (dti <= 35.0) {
+        debtScore = 17;
+        debtStatus = 'Manageable (${dti.toStringAsFixed(1)}% DTI)';
+        debtTip = 'Debt is under control. Avoid taking additional high-interest loans.';
+      } else if (dti <= 50.0) {
+        debtScore = 10;
+        debtStatus = 'High Burden (${dti.toStringAsFixed(1)}% DTI)';
+        debtTip = 'EMIs consume over a third of income. Consider loan prepayments.';
+      } else {
+        debtScore = 4;
+        debtStatus = 'Critical Burden (${dti.toStringAsFixed(1)}% DTI)';
+        debtTip = 'High debt exposure. Focus aggressively on paying off high-interest debts.';
+      }
+    }
+
+    final debtPillar = HealthPillarScore(
+      name: 'Debt Burden',
+      score: debtScore,
+      statusText: debtStatus,
+      tip: debtTip,
+      color: const Color(0xFF06B6D4),
+      icon: Icons.credit_score_rounded,
+    );
+
+    // 4. Asset Diversification Pillar (0 - 25 pts)
+    int diversificationScore = 8;
+    String diversificationStatus = 'Cash Only';
+    String diversificationTip = 'Start investing in mutual funds, stocks, gold, or FDs.';
+
+    if (investmentsAmount > 0 && distinctAssetClassesCount >= 3) {
+      diversificationScore = 25;
+      diversificationStatus = 'Well-Diversified ($distinctAssetClassesCount Asset Classes)';
+      diversificationTip = 'Excellent asset allocation across varied risk profiles.';
+    } else if (investmentsAmount > 0 && distinctAssetClassesCount == 2) {
+      diversificationScore = 20;
+      diversificationStatus = 'Moderate Spread ($distinctAssetClassesCount Asset Classes)';
+      diversificationTip = 'Consider adding a non-correlated asset like Gold or Fixed Deposits.';
+    } else if (investmentsAmount > 0) {
+      diversificationScore = 14;
+      diversificationStatus = 'Basic Spread ($distinctAssetClassesCount Asset Class)';
+      diversificationTip = 'Spread your portfolio across multiple asset categories.';
+    } else if (savingsGoalsAmount > 0) {
+      diversificationScore = 10;
+      diversificationStatus = 'Savings Only';
+      diversificationTip = 'Move surplus savings above your emergency fund into investments.';
+    }
+
+    final diversificationPillar = HealthPillarScore(
+      name: 'Asset Spread',
+      score: diversificationScore,
+      statusText: diversificationStatus,
+      tip: diversificationTip,
+      color: const Color(0xFF8B5CF6),
+      icon: Icons.pie_chart_rounded,
+    );
+
+    // Overall Score & Grade
+    final overallScore = (emergencyScore + savingsScore + debtScore + diversificationScore).clamp(0, 100);
+
+    HealthGrade grade;
+    if (overallScore >= 85) {
+      grade = HealthGrade.excellent;
+    } else if (overallScore >= 70) {
+      grade = HealthGrade.strong;
+    } else if (overallScore >= 50) {
+      grade = HealthGrade.moderate;
+    } else {
+      grade = HealthGrade.needsAttention;
+    }
+
+    // Generate prioritized actionable tips
+    final List<String> actionableTips = [];
+    final pillars = [emergencyPillar, savingsRatePillar, debtPillar, diversificationPillar]
+      ..sort((a, b) => a.score.compareTo(b.score));
+
+    for (final p in pillars) {
+      if (p.score < 22) {
+        actionableTips.add(p.tip);
+      }
+    }
+
+    if (actionableTips.isEmpty) {
+      actionableTips.add('Your financial health is in top shape! Maintain your disciplined habits.');
+    }
+
+    return FinancialHealthSummary(
+      netWorth: netWorthComp,
+      overallScore: overallScore,
+      grade: grade,
+      emergencyBufferPillar: emergencyPillar,
+      savingsRatePillar: savingsRatePillar,
+      debtBurdenPillar: debtPillar,
+      diversificationPillar: diversificationPillar,
+      actionableTips: actionableTips,
     );
   }
 }

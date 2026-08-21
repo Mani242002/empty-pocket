@@ -14,6 +14,8 @@ import '../../../debts/presentation/state/debts_provider.dart';
 import '../../../investments/presentation/screens/add_edit_investment_sheet.dart';
 import '../../../investments/presentation/screens/investments_screen.dart';
 import '../../../investments/presentation/state/investments_provider.dart';
+import '../../../net_worth/presentation/screens/financial_health_screen.dart';
+import '../../../net_worth/presentation/state/net_worth_provider.dart';
 import '../../../savings/presentation/screens/add_edit_savings_goal_sheet.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
@@ -49,6 +51,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final savingsSummary = ref.watch(overallSavingsSummaryProvider);
     final liabilitiesSummary = ref.watch(overallLiabilitiesSummaryProvider);
     final portfolioSummary = ref.watch(overallPortfolioSummaryProvider);
+    final healthSummary = ref.watch(financialHealthSummaryProvider);
     final recentTransactions = ref.watch(recentTransactionsProvider);
 
     return Scaffold(
@@ -239,6 +242,68 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Net Worth & Health Score banner
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const FinancialHealthScreen()),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.darkSurfaceVariant.withAlpha(180)
+                                  : AppColors.lightSurfaceVariant,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: financialColors.cardBorder),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: healthSummary.grade.color.withAlpha(isDark ? 40 : 25),
+                                  ),
+                                  child: Icon(
+                                    healthSummary.grade.icon,
+                                    color: healthSummary.grade.color,
+                                    size: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Net Worth: ${CurrencyFormatter.format(healthSummary.netWorth.netWorth)}',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Health Score: ${healthSummary.overallScore}/100 • ${healthSummary.grade.displayName}',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: healthSummary.grade.color,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right_rounded, color: financialColors.textMuted, size: 20),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

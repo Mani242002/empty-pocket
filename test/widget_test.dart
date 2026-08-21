@@ -300,5 +300,28 @@ void main() {
 
     // Verify Dashboard reflects updated portfolio value
     expect(find.text('₹65,000.00'), findsOneWidget);
+
+    // --- STEP 7: TEST NET WORTH & FINANCIAL HEALTH ENGINE ---
+    // Verify Net Worth banner is present on Dashboard
+    expect(find.text('Net Worth: -₹1,90,649.00'), findsOneWidget);
+
+    // Tap on the Net Worth & Health Score banner
+    await tester.tap(find.text('Net Worth: -₹1,90,649.00'));
+    await tester.pumpAndSettle();
+
+    // In FinancialHealthScreen, verify all sections
+    expect(find.text('Financial Health & Net Worth'), findsOneWidget);
+    expect(find.text('FINANCIAL HEALTH SCORE'), findsOneWidget);
+    expect(find.text('CONSOLIDATED NET WORTH'), findsOneWidget);
+    expect(find.text('4 Pillars of Financial Fitness'), findsOneWidget);
+    expect(find.text('Complete Balance Sheet'), findsOneWidget);
+    expect(find.text('Liquid Cash & Accounts'), findsOneWidget);
+    expect(find.text('Savings & Emergency Reserves'), findsOneWidget);
+    expect(find.text('Investments & Market Assets'), findsOneWidget);
+    expect(find.text('Total Liabilities (Loans & Debts)'), findsOneWidget);
+
+    // Pop back to Dashboard
+    await tester.pageBack();
+    await tester.pumpAndSettle();
   });
 }

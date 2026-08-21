@@ -199,6 +199,7 @@ class OverallSavingsSummary {
   final double overallPercentage;
   final int activeGoalsCount;
   final int completedGoalsCount;
+  final double emergencyFundSaved;
 
   const OverallSavingsSummary({
     required this.totalTarget,
@@ -207,6 +208,7 @@ class OverallSavingsSummary {
     required this.overallPercentage,
     required this.activeGoalsCount,
     required this.completedGoalsCount,
+    this.emergencyFundSaved = 0.0,
   });
 
   static const OverallSavingsSummary empty = OverallSavingsSummary(
@@ -216,5 +218,6 @@ class OverallSavingsSummary {
     overallPercentage: 0.0,
     activeGoalsCount: 0,
     completedGoalsCount: 0,
+    emergencyFundSaved: 0.0,
   );
 }
