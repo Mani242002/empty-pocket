@@ -125,5 +125,5 @@ flutter install
 
 ## 📜 License & Disclaimers
 
-- **License**: MIT / Open Source
+- **License**: GPL - 3.0 / Open Source
 - **Financial Disclaimer**: EmptyPocket is a personal budgeting and financial tracking tool. Any AI insights are educational in nature and do not constitute certified financial or tax advice.
