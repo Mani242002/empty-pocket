@@ -1,0 +1,250 @@
+import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
+import '../../../features/dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../features/transactions/presentation/screens/transactions_screen.dart';
+import '../../../features/budgets/presentation/screens/budgets_screen.dart';
+import '../../../features/settings/presentation/screens/settings_screen.dart';
+
+class MainNavigationScaffold extends StatefulWidget {
+  const MainNavigationScaffold({super.key});
+
+  @override
+  State<MainNavigationScaffold> createState() => _MainNavigationScaffoldState();
+}
+
+class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
+  int _currentIndex = 0;
+
+  void _onTabSelected(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  void _showQuickAddBottomSheet() {
+    final theme = Theme.of(context);
+    final financialColors = context.financialColors;
+    final isDark = theme.brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: financialColors.cardBorder,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Quick Action',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Record a transaction or create a plan',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: financialColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildModalActionButton(
+                        context,
+                        title: 'Add Expense',
+                        subtitle: 'Money going out',
+                        icon: Icons.arrow_upward_rounded,
+                        color: financialColors.expense,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _onTabSelected(1); // switch to transactions
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Add Expense form ready for Milestone 2.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildModalActionButton(
+                        context,
+                        title: 'Add Income',
+                        subtitle: 'Money coming in',
+                        icon: Icons.arrow_downward_rounded,
+                        color: financialColors.income,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _onTabSelected(1);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Add Income form ready for Milestone 2.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: financialColors.cardBorder),
+                  ),
+                  tileColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: financialColors.investment.withAlpha(isDark ? 40 : 25),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.pie_chart_rounded, color: financialColors.investment, size: 20),
+                  ),
+                  title: const Text('Set Monthly Budget', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Define spending limits by category'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _onTabSelected(2); // switch to budgets
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildModalActionButton(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Material(
+      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: color.withAlpha(isDark ? 60 : 40)),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(isDark ? 40 : 25),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: context.financialColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screens = [
+      DashboardScreen(
+        onAddTransaction: _showQuickAddBottomSheet,
+        onViewAllTransactions: () => _onTabSelected(1),
+        onSetBudget: () => _onTabSelected(2),
+      ),
+      TransactionsScreen(
+        onAddTransaction: _showQuickAddBottomSheet,
+      ),
+      const BudgetsScreen(),
+      const SettingsScreen(),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: screens,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showQuickAddBottomSheet,
+        tooltip: 'Quick Add',
+        child: const Icon(Icons.add_rounded, size: 28),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: _onTabSelected,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard_rounded),
+            label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long_rounded),
+            label: 'Transactions',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.pie_chart_outline_rounded),
+            selectedIcon: Icon(Icons.pie_chart_rounded),
+            label: 'Budgets',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings_rounded),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+}
