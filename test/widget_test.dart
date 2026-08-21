@@ -344,11 +344,46 @@ void main() {
     expect(find.text('PocketAI Financial Advisor'), findsWidgets);
     expect(find.text('AI PROVIDER & BYOK SETTINGS'), findsOneWidget);
     expect(find.text('Google Gemini'), findsOneWidget);
-    expect(find.text('Groq (Llama 3.3)'), findsOneWidget);
+    expect(find.text('Groq (Qwen 3.6)'), findsOneWidget);
     expect(find.text('Generate Full Audit'), findsOneWidget);
 
     // Pop back to Reports
     await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // --- STEP 9: TEST SETTINGS, BACKUP & PRIVACY LOCKDOWN ---
+    // Switch to Settings tab
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    // In SettingsScreen, verify all sections
+    expect(find.text('Settings & Privacy'), findsOneWidget);
+    expect(find.text('Theme Mode'), findsOneWidget);
+    expect(find.text('POCKETAI FINANCIAL ADVISOR'), findsOneWidget);
+    expect(find.text('AI Provider & Model'), findsOneWidget);
+    expect(find.text('DATA BACKUP & PORTABILITY'), findsOneWidget);
+    expect(find.text('Export Full Backup (JSON)'), findsOneWidget);
+    expect(find.text('Restore Database (JSON)'), findsOneWidget);
+    expect(find.text('Export Transactions (CSV)'), findsOneWidget);
+    expect(find.text('DANGER ZONE'), findsOneWidget);
+    expect(find.text('Factory Reset / Wipe All Data'), findsOneWidget);
+
+    // Test JSON Export dialog
+    await tester.tap(find.text('Export Full Backup (JSON)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Full Database Backup'), findsOneWidget);
+    expect(find.text('Copy JSON'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    // Test CSV Export dialog
+    await tester.tap(find.text('Export Transactions (CSV)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Transactions CSV Export'), findsOneWidget);
+    expect(find.text('Copy CSV'), findsOneWidget);
+    await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
   });
 }

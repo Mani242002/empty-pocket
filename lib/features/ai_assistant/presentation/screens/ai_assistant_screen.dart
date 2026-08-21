@@ -315,7 +315,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               Expanded(
                 child: ChoiceChip(
                   avatar: const Icon(Icons.bolt_rounded, size: 16),
-                  label: const Text('Groq (Llama 3.3)'),
+                  label: const Text('Groq (Qwen 3.6)'),
                   selected: config.providerType == AiProviderType.groq,
                   onSelected: (sel) {
                     if (sel) {

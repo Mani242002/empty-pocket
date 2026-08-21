@@ -16,18 +16,18 @@ enum AiProviderType {
   String get defaultModel {
     switch (this) {
       case AiProviderType.gemini:
-        return 'gemini-1.5-flash';
+        return 'gemini-3.7-flash';
       case AiProviderType.groq:
-        return 'llama-3.3-70b-versatile';
+        return 'qwen/qwen3.6-27b';
     }
   }
 
   List<String> get availableModels {
     switch (this) {
       case AiProviderType.gemini:
-        return ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+        return ['gemini-3.7-flash'];
       case AiProviderType.groq:
-        return ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
+        return ['qwen/qwen3.6-27b'];
     }
   }
 
@@ -59,7 +59,7 @@ class AiProviderConfig {
     this.providerType = AiProviderType.gemini,
     this.apiKey = '',
     String? selectedModel,
-  }) : selectedModel = selectedModel ?? (providerType == AiProviderType.gemini ? 'gemini-1.5-flash' : 'llama-3.3-70b-versatile');
+  }) : selectedModel = selectedModel ?? (providerType == AiProviderType.gemini ? 'gemini-3.7-flash' : 'qwen/qwen3.6-27b');
 
   bool get isConfigured => apiKey.trim().isNotEmpty;
 

@@ -1,22 +1,335 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../app/theme/theme_provider.dart';
-import '../../../transactions/presentation/state/transactions_provider.dart';
+import '../../../ai_assistant/presentation/screens/ai_assistant_screen.dart';
+import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
+import '../state/backup_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  void _showExportJsonDialog(BuildContext context, WidgetRef ref) async {
+    try {
+      final jsonStr = await ref.read(backupOperationsProvider.notifier).exportFullJsonBackup();
+      if (!context.mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.file_download_outlined, color: AppColors.primaryEmerald),
+              SizedBox(width: 8),
+              Text('Full Database Backup'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Complete offline backup of your transactions, budgets, savings goals, loans, investments, and recurring bills.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 180),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SingleChildScrollView(
+                  child: Text(
+                    jsonStr,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('Copy JSON'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: jsonStr));
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Database backup copied to clipboard'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e'), backgroundColor: AppColors.expense),
+        );
+      }
+    }
+  }
+
+  void _showExportCsvDialog(BuildContext context, WidgetRef ref) async {
+    try {
+      final csvStr = await ref.read(backupOperationsProvider.notifier).exportTransactionsCsv();
+      if (!context.mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.table_chart_outlined, color: AppColors.primaryEmerald),
+              SizedBox(width: 8),
+              Text('Transactions CSV Export'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Spreadsheet-compatible CSV format with dates, amounts, categories, and payment methods.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 180),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SingleChildScrollView(
+                  child: Text(
+                    csvStr.isEmpty ? 'No transactions logged yet' : csvStr,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('Copy CSV'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: csvStr));
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('CSV transactions copied to clipboard'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('CSV export failed: $e'), backgroundColor: AppColors.expense),
+        );
+      }
+    }
+  }
+
+  void _showRestoreSheet(BuildContext context, WidgetRef ref) {
+    final textController = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withAlpha(80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Restore Database from JSON',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Paste a previously exported EmptyPocket backup JSON. Restoring will replace existing local data.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: textController,
+              maxLines: 6,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              decoration: InputDecoration(
+                hintText: 'Paste backup JSON string here...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  icon: const Icon(Icons.restore_rounded, size: 16),
+                  label: const Text('Restore Database'),
+                  onPressed: () async {
+                    final text = textController.text.trim();
+                    if (text.isEmpty) return;
+
+                    try {
+                      await ref.read(backupOperationsProvider.notifier).restoreFromJson(text);
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Database restored successfully!'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: AppColors.income,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Restore error: $e'),
+                            backgroundColor: AppColors.expense,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFactoryResetDialog(BuildContext context, WidgetRef ref) {
+    final confirmController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.expense),
+            SizedBox(width: 8),
+            Text('Factory Reset All Data'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This will PERMANENTLY ERASE all transactions, budgets, savings goals, loans, investments, and recurring expenses from your device.',
+              style: TextStyle(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'To confirm, please type DELETE below:',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: confirmController,
+              decoration: const InputDecoration(
+                hintText: 'DELETE',
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
+            onPressed: () async {
+              if (confirmController.text.trim() == 'DELETE') {
+                Navigator.pop(ctx);
+                await ref.read(backupOperationsProvider.notifier).wipeAllData();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All local data wiped. App reset to factory state.'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Confirmation code incorrect. Reset cancelled.'),
+                    backgroundColor: AppColors.warning,
+                  ),
+                );
+              }
+            },
+            child: const Text('Wipe Everything'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final currentThemeMode = ref.watch(themeModeProvider);
+    final isAppLockEnabled = ref.watch(appLockProvider);
+    final aiConfig = ref.watch(aiProviderConfigProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('Settings & Privacy'),
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -32,9 +345,7 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   Text(
                     'Theme Mode',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 12),
                   SegmentedButton<ThemeMode>(
@@ -67,8 +378,51 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-          // Section: Privacy & Security
-          _buildSectionHeader(context, 'Privacy & Security'),
+          // Section: PocketAI Advisor Configuration
+          _buildSectionHeader(context, 'PocketAI Financial Advisor'),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
+                _buildListTile(
+                  context,
+                  icon: Icons.auto_awesome_rounded,
+                  iconColor: AppColors.primaryEmerald,
+                  title: 'AI Provider & Model',
+                  subtitle: '${aiConfig.providerType.displayName} (${aiConfig.selectedModel})',
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+                    );
+                  },
+                ),
+                const Divider(),
+                _buildListTile(
+                  context,
+                  icon: Icons.key_rounded,
+                  iconColor: financialColors.investment,
+                  title: 'API Key Status',
+                  subtitle: aiConfig.isConfigured ? 'Active (Saved on Device)' : 'Not Configured (BYOK)',
+                  trailing: Icon(
+                    aiConfig.isConfigured ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                    color: aiConfig.isConfigured ? AppColors.income : AppColors.warning,
+                    size: 20,
+                  ),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Section: Privacy & App Security
+          _buildSectionHeader(context, 'Privacy & App Security'),
           const SizedBox(height: 8),
           Card(
             child: Column(
@@ -87,35 +441,31 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.wifi_off_rounded,
                   iconColor: financialColors.info,
                   title: 'Network Activity',
-                  subtitle: 'Zero background traffic / No tracking',
+                  subtitle: 'Zero analytics / Zero background telemetry',
                   trailing: const Icon(Icons.check_circle_rounded, color: AppColors.income, size: 20),
                 ),
                 const Divider(),
-                _buildListTile(
-                  context,
-                  icon: Icons.lock_outline_rounded,
-                  iconColor: financialColors.investment,
-                  title: 'App Lock (Biometric / PIN)',
-                  subtitle: 'Disabled',
-                  onTap: () {
+                SwitchListTile.adaptive(
+                  secondary: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: financialColors.investment.withAlpha(25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.lock_outline_rounded, color: financialColors.investment, size: 20),
+                  ),
+                  title: const Text('App Lock (Biometric / PIN)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: Text(
+                    isAppLockEnabled ? 'Enabled' : 'Disabled',
+                    style: TextStyle(color: financialColors.textMuted, fontSize: 12),
+                  ),
+                  value: isAppLockEnabled,
+                  onChanged: (val) {
+                    ref.read(appLockProvider.notifier).toggleAppLock(val);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('App lock will be configured in upcoming security update.'),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(),
-                _buildListTile(
-                  context,
-                  icon: Icons.psychology_outlined,
-                  iconColor: financialColors.savings,
-                  title: 'BYOK AI Insights',
-                  subtitle: 'Optional Bring-Your-Own-Key model',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('BYOK AI is planned for Milestone 8.'),
+                      SnackBar(
+                        content: Text('App lock ${val ? 'enabled' : 'disabled'}.'),
+                        behavior: SnackBarBehavior.floating,
                       ),
                     );
                   },
@@ -126,71 +476,62 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-          // Section: Data Management
-          _buildSectionHeader(context, 'Data Management'),
+          // Section: Data & Backup
+          _buildSectionHeader(context, 'Data Backup & Portability'),
           const SizedBox(height: 8),
           Card(
             child: Column(
               children: [
                 _buildListTile(
                   context,
-                  icon: Icons.file_upload_outlined,
+                  icon: Icons.file_download_outlined,
                   iconColor: financialColors.info,
-                  title: 'Export Encrypted Backup',
-                  subtitle: 'Save a password-protected backup file',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Encrypted export will be added in Milestone 7.'),
-                      ),
-                    );
-                  },
+                  title: 'Export Full Backup (JSON)',
+                  subtitle: 'Export complete offline database for safe keeping',
+                  onTap: () => _showExportJsonDialog(context, ref),
                 ),
                 const Divider(),
                 _buildListTile(
                   context,
-                  icon: Icons.delete_sweep_rounded,
-                  iconColor: AppColors.expense,
-                  title: 'Clear All Transactions',
-                  subtitle: 'Erase all locally stored income & expenses',
-                  onTap: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Clear All Transactions?'),
-                        content: const Text(
-                          'This will permanently delete all your stored transactions. This action cannot be undone.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(false),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.expense,
-                            ),
-                            onPressed: () => Navigator.of(ctx).pop(true),
-                            child: const Text('Clear Everything'),
-                          ),
-                        ],
-                      ),
-                    );
+                  icon: Icons.file_upload_outlined,
+                  iconColor: financialColors.investment,
+                  title: 'Restore Database (JSON)',
+                  subtitle: 'Restore financial records from a backup JSON string',
+                  onTap: () => _showRestoreSheet(context, ref),
+                ),
+                const Divider(),
+                _buildListTile(
+                  context,
+                  icon: Icons.table_chart_outlined,
+                  iconColor: AppColors.primaryEmerald,
+                  title: 'Export Transactions (CSV)',
+                  subtitle: 'Export spreadsheet-ready log for Excel / Sheets',
+                  onTap: () => _showExportCsvDialog(context, ref),
+                ),
+              ],
+            ),
+          ),
 
-                    if (confirmed == true && context.mounted) {
-                      await ref
-                          .read(transactionListNotifierProvider.notifier)
-                          .clearAll();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('All local transactions have been cleared.'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    }
-                  },
+          const SizedBox(height: 20),
+
+          // Section: Danger Zone
+          _buildSectionHeader(context, 'Danger Zone'),
+          const SizedBox(height: 8),
+          Card(
+            color: AppColors.expense.withAlpha(15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: AppColors.expense.withAlpha(60)),
+            ),
+            child: Column(
+              children: [
+                _buildListTile(
+                  context,
+                  icon: Icons.delete_forever_rounded,
+                  iconColor: AppColors.expense,
+                  title: 'Factory Reset / Wipe All Data',
+                  subtitle: 'Permanently erase all local financial data',
+                  onTap: () => _showFactoryResetDialog(context, ref),
                 ),
               ],
             ),
@@ -209,7 +550,7 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.info_outline_rounded,
                   iconColor: AppColors.primaryEmerald,
                   title: 'Version',
-                  subtitle: 'v0.1.0-alpha',
+                  subtitle: 'v1.0.0-release',
                 ),
                 const Divider(),
                 _buildListTile(
@@ -284,10 +625,7 @@ class SettingsScreen extends ConsumerWidget {
           color: context.financialColors.textMuted,
         ),
       ),
-      trailing: trailing ??
-          (onTap != null
-              ? const Icon(Icons.chevron_right_rounded, size: 20)
-              : null),
+      trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right_rounded, size: 20) : null),
       onTap: onTap,
     );
   }
