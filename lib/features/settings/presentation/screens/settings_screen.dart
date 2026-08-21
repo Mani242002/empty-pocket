@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../app/theme/theme_provider.dart';
+import '../../../transactions/presentation/state/transactions_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -148,16 +149,47 @@ class SettingsScreen extends ConsumerWidget {
                 const Divider(),
                 _buildListTile(
                   context,
-                  icon: Icons.file_download_outlined,
-                  iconColor: financialColors.warning,
-                  title: 'Import Backup',
-                  subtitle: 'Restore financial records from backup',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Backup restore will be added in Milestone 7.'),
+                  icon: Icons.delete_sweep_rounded,
+                  iconColor: AppColors.expense,
+                  title: 'Clear All Transactions',
+                  subtitle: 'Erase all locally stored income & expenses',
+                  onTap: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Clear All Transactions?'),
+                        content: const Text(
+                          'This will permanently delete all your stored transactions. This action cannot be undone.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.expense,
+                            ),
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: const Text('Clear Everything'),
+                          ),
+                        ],
                       ),
                     );
+
+                    if (confirmed == true && context.mounted) {
+                      await ref
+                          .read(transactionListNotifierProvider.notifier)
+                          .clearAll();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('All local transactions have been cleared.'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
                   },
                 ),
               ],

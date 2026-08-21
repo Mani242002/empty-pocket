@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
+import '../../../core/domain/entities/transaction_entity.dart';
 import '../../../features/dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../features/transactions/presentation/screens/add_edit_transaction_sheet.dart';
 import '../../../features/transactions/presentation/screens/transactions_screen.dart';
 import '../../../features/budgets/presentation/screens/budgets_screen.dart';
 import '../../../features/settings/presentation/screens/settings_screen.dart';
@@ -77,12 +79,9 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
                         color: financialColors.expense,
                         onTap: () {
                           Navigator.pop(ctx);
-                          _onTabSelected(1); // switch to transactions
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Add Expense form ready for Milestone 2.'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          AddEditTransactionSheet.show(
+                            context,
+                            initialType: TransactionType.expense,
                           );
                         },
                       ),
@@ -97,12 +96,9 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
                         color: financialColors.income,
                         onTap: () {
                           Navigator.pop(ctx);
-                          _onTabSelected(1);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Add Income form ready for Milestone 2.'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          AddEditTransactionSheet.show(
+                            context,
+                            initialType: TransactionType.income,
                           );
                         },
                       ),
@@ -198,13 +194,10 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
   Widget build(BuildContext context) {
     final screens = [
       DashboardScreen(
-        onAddTransaction: _showQuickAddBottomSheet,
         onViewAllTransactions: () => _onTabSelected(1),
         onSetBudget: () => _onTabSelected(2),
       ),
-      TransactionsScreen(
-        onAddTransaction: _showQuickAddBottomSheet,
-      ),
+      const TransactionsScreen(),
       const BudgetsScreen(),
       const SettingsScreen(),
     ];
