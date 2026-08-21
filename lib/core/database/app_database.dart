@@ -2,16 +2,19 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
+import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
 
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 2;
+  static const int _databaseVersion = 3;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
   static const String tableRecurring = 'recurring_expenses';
+  static const String tableSavingsGoals = 'savings_goals';
+  static const String tableGoalContributions = 'goal_contributions';
 
   Database? db;
 
@@ -64,12 +67,18 @@ class AppDatabase {
 
     // Recurring Expenses Table
     await _createRecurringTable(db);
+
+    // Savings Goals & Contributions Tables
+    await _createSavingsTables(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createBudgetsTable(db);
       await _createRecurringTable(db);
+    }
+    if (oldVersion < 3) {
+      await _createSavingsTables(db);
     }
   }
 
@@ -109,6 +118,38 @@ class AppDatabase {
 
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_recurring_due ON $tableRecurring(next_due_date ASC)',
+    );
+  }
+
+  Future<void> _createSavingsTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableSavingsGoals (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        target_amount REAL NOT NULL,
+        current_amount REAL NOT NULL,
+        category TEXT NOT NULL,
+        target_date INTEGER NOT NULL,
+        is_emergency_fund INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableGoalContributions (
+        id TEXT PRIMARY KEY,
+        goal_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        date INTEGER NOT NULL,
+        notes TEXT,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_contributions_goal ON $tableGoalContributions(goal_id)',
     );
   }
 
@@ -248,6 +289,74 @@ class AppDatabase {
     );
 
     return maps.map((map) => RecurringExpenseEntity.fromMap(map)).toList();
+  }
+
+  // --- Savings Goals ---
+
+  Future<int> insertSavingsGoal(SavingsGoalEntity goal) async {
+    final database = await this.database;
+    return await database.insert(
+      tableSavingsGoals,
+      goal.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> updateSavingsGoal(SavingsGoalEntity goal) async {
+    final database = await this.database;
+    return await database.update(
+      tableSavingsGoals,
+      goal.toMap(),
+      where: 'id = ?',
+      whereArgs: [goal.id],
+    );
+  }
+
+  Future<int> deleteSavingsGoal(String id) async {
+    final database = await this.database;
+    await database.delete(
+      tableGoalContributions,
+      where: 'goal_id = ?',
+      whereArgs: [id],
+    );
+    return await database.delete(
+      tableSavingsGoals,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<SavingsGoalEntity>> getAllSavingsGoals() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableSavingsGoals,
+      orderBy: 'is_emergency_fund DESC, target_date ASC',
+    );
+
+    return maps.map((map) => SavingsGoalEntity.fromMap(map)).toList();
+  }
+
+  // --- Goal Contributions ---
+
+  Future<int> insertGoalContribution(GoalContributionEntity contribution) async {
+    final database = await this.database;
+    return await database.insert(
+      tableGoalContributions,
+      contribution.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<GoalContributionEntity>> getContributionsForGoal(String goalId) async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableGoalContributions,
+      where: 'goal_id = ?',
+      whereArgs: [goalId],
+      orderBy: 'date DESC, created_at DESC',
+    );
+
+    return maps.map((map) => GoalContributionEntity.fromMap(map)).toList();
   }
 
   Future<void> close() async {

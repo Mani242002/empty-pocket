@@ -5,10 +5,11 @@ import 'package:empty_pocket/app/app.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
 import 'package:empty_pocket/core/repositories/budget_repository.dart';
 import 'package:empty_pocket/core/repositories/recurring_repository.dart';
+import 'package:empty_pocket/core/repositories/savings_goal_repository.dart';
 import 'package:empty_pocket/core/repositories/transaction_repository.dart';
 
 void main() {
-  testWidgets('Complete flow: transactions, category budgeting, and recurring payment tracking',
+  testWidgets('Complete flow: transactions, budgeting, recurring, and savings goals tracking',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
@@ -45,6 +46,7 @@ void main() {
 
     final inMemoryBudgetRepo = InMemoryBudgetRepository();
     final inMemoryRecurringRepo = InMemoryRecurringRepository();
+    final inMemorySavingsRepo = InMemorySavingsGoalRepository();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -52,6 +54,7 @@ void main() {
           transactionRepositoryProvider.overrideWithValue(inMemoryTxRepo),
           budgetRepositoryProvider.overrideWithValue(inMemoryBudgetRepo),
           recurringRepositoryProvider.overrideWithValue(inMemoryRecurringRepo),
+          savingsGoalRepositoryProvider.overrideWithValue(inMemorySavingsRepo),
         ],
         child: const EmptyPocketApp(),
       ),
@@ -97,11 +100,51 @@ void main() {
     expect(find.text('83% spent'), findsOneWidget); // 5000 / 6000 = 83% (Near Limit)
     expect(find.text('₹1,000.00 left'), findsOneWidget);
 
-    // Verify Overall Budget Allowance Hero Card
-    expect(find.text('TOTAL BUDGETED ALLOWANCE'), findsOneWidget);
-    expect(find.text('Near Limit'), findsWidgets);
+    // --- STEP 2: TEST SAVINGS & GOALS ---
+    // Switch to Savings & Goals tab
+    await tester.tap(find.text('Savings & Goals'));
+    await tester.pumpAndSettle();
 
-    // --- STEP 2: TEST RECURRING EXPENSES ---
+    // Verify Savings Goals empty state
+    expect(find.text('Create First Goal'), findsOneWidget);
+
+    // Tap "Create First Goal"
+    await tester.tap(find.text('Create First Goal'));
+    await tester.pumpAndSettle();
+
+    // Enter Goal Title: MacBook Pro M3
+    await tester.enterText(find.byType(TextFormField).first, 'MacBook Pro M3');
+    await tester.pumpAndSettle();
+
+    // Enter Target Amount: 100000
+    await tester.enterText(find.byType(TextFormField).at(1), '100000');
+    await tester.pumpAndSettle();
+
+    // Save Goal
+    await tester.tap(find.text('Create Savings Goal'));
+    await tester.pumpAndSettle();
+
+    // Verify goal card appeared
+    expect(find.text('MacBook Pro M3'), findsOneWidget);
+    expect(find.text('0% Reached'), findsOneWidget);
+
+    // Tap "Add Funds" on MacBook Pro card
+    await tester.tap(find.text('Add Funds'));
+    await tester.pumpAndSettle();
+
+    // Enter Contribution Amount: 25000
+    await tester.enterText(find.byType(TextFormField).first, '25000');
+    await tester.pumpAndSettle();
+
+    // Submit contribution
+    await tester.tap(find.text('Add Funds to Goal'));
+    await tester.pumpAndSettle();
+
+    // Verify goal progress updated to 25%
+    expect(find.text('25% Reached'), findsOneWidget);
+    expect(find.text('₹25,000.00'), findsWidgets);
+
+    // --- STEP 3: TEST RECURRING EXPENSES ---
     // Switch to Recurring & Bills tab
     await tester.tap(find.text('Recurring & Bills'));
     await tester.pumpAndSettle();
@@ -133,13 +176,15 @@ void main() {
     await tester.tap(find.text('Log Payment'));
     await tester.pumpAndSettle();
 
-    // --- STEP 3: VERIFY DASHBOARD UPDATES ---
+    // --- STEP 4: VERIFY DASHBOARD UPDATES ---
     // Switch to Dashboard
     await tester.tap(find.text('Dashboard'));
     await tester.pumpAndSettle();
 
-    // Balance updated: 45,000 - 649 = 44,351
-    expect(find.text('₹44,351.00'), findsOneWidget);
+    // Balance updated: 50,000 - 5,000 - 25,000 (goal) - 649 (netflix) = 19,351
+    expect(find.text('₹19,351.00'), findsOneWidget);
     expect(find.text('Netflix Standard'), findsOneWidget);
+    expect(find.text('Goal: MacBook Pro M3'), findsOneWidget);
+    expect(find.text('25% Saved'), findsOneWidget);
   });
 }

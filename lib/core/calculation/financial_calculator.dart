@@ -1,6 +1,7 @@
 import 'dart:math';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
+import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
 
 class CategorySpendingSummary {
@@ -197,7 +198,6 @@ abstract class FinancialCalculator {
     List<TransactionEntity> monthlyTransactions,
   ) {
     if (budgets.isEmpty) {
-      // If no budgets configured, calculate unbudgeted total expenses
       final totalSpent = calculateTotalExpense(monthlyTransactions);
       return OverallBudgetSummary(
         totalLimit: 0.0,
@@ -262,10 +262,63 @@ abstract class FinancialCalculator {
     final active = expenses.where((e) => e.isActive).toList();
     final filtered = active.where((e) {
       final days = e.daysUntilDue;
-      return days >= -1 && days <= daysAhead; // include today/overdue and next 30 days
+      return days >= -1 && days <= daysAhead;
     }).toList();
 
     filtered.sort((a, b) => a.nextDueDate.compareTo(b.nextDueDate));
     return filtered;
+  }
+
+  // --- Milestone 4: Savings Goals Calculations ---
+
+  /// Calculate progress metrics for a savings goal
+  static GoalProgressMetrics calculateGoalProgress(SavingsGoalEntity goal) {
+    final target = goal.targetAmount;
+    final current = goal.currentAmount;
+    final percentage = target > 0 ? min(100.0, (current / target) * 100) : 0.0;
+    final remaining = max(0.0, target - current);
+    final isCompleted = current >= target;
+
+    final now = DateTime.now();
+    int monthsRemaining = ((goal.targetDate.year - now.year) * 12) + (goal.targetDate.month - now.month);
+    if (monthsRemaining <= 0) monthsRemaining = 1;
+
+    final recommendedMonthly = isCompleted ? 0.0 : (remaining / monthsRemaining);
+
+    return GoalProgressMetrics(
+      goal: goal,
+      percentage: percentage,
+      remainingAmount: remaining,
+      isCompleted: isCompleted,
+      monthsRemaining: monthsRemaining,
+      recommendedMonthlySavings: recommendedMonthly,
+    );
+  }
+
+  /// Calculate overall savings summary across all goals
+  static OverallSavingsSummary calculateOverallSavingsSummary(List<SavingsGoalEntity> goals) {
+    if (goals.isEmpty) return OverallSavingsSummary.empty;
+
+    final totalTarget = goals.fold(0.0, (sum, g) => sum + g.targetAmount);
+    final totalSaved = goals.fold(0.0, (sum, g) => sum + g.currentAmount);
+    final totalRemaining = max(0.0, totalTarget - totalSaved);
+    final overallPercentage = totalTarget > 0 ? min(100.0, (totalSaved / totalTarget) * 100) : 0.0;
+
+    final activeCount = goals.where((g) => g.status == GoalStatus.active && g.currentAmount < g.targetAmount).length;
+    final completedCount = goals.where((g) => g.status == GoalStatus.completed || g.currentAmount >= g.targetAmount).length;
+
+    return OverallSavingsSummary(
+      totalTarget: totalTarget,
+      totalSaved: totalSaved,
+      totalRemaining: totalRemaining,
+      overallPercentage: overallPercentage,
+      activeGoalsCount: activeCount,
+      completedGoalsCount: completedCount,
+    );
+  }
+
+  /// Calculate recommended emergency fund amount based on monthly expenses
+  static double calculateRecommendedEmergencyFund(double averageMonthlyExpense, {int months = 6}) {
+    return max(0.0, averageMonthlyExpense * months);
   }
 }

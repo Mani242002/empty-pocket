@@ -8,6 +8,8 @@ import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../budgets/presentation/screens/set_budget_sheet.dart';
 import '../../../budgets/presentation/state/budgets_provider.dart';
+import '../../../savings/presentation/screens/add_edit_savings_goal_sheet.dart';
+import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../../../transactions/presentation/widgets/transaction_list_item.dart';
@@ -38,6 +40,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final summary = ref.watch(monthlyFinancialSummaryProvider);
     final budgetSummary = ref.watch(overallMonthlyBudgetSummaryProvider);
+    final savingsSummary = ref.watch(overallSavingsSummaryProvider);
     final recentTransactions = ref.watch(recentTransactionsProvider);
 
     return Scaffold(
@@ -393,6 +396,129 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               ),
                               Text(
                                 'No category limits configured',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: financialColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Savings & Goals Card
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.savings_rounded, color: financialColors.savings, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Savings Goals',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (savingsSummary.totalTarget > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: financialColors.savings.withAlpha(isDark ? 40 : 25),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${savingsSummary.overallPercentage.toStringAsFixed(0)}% Saved',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: financialColors.savings,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              )
+                            else
+                              TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Add Goal'),
+                                onPressed: () => AddEditSavingsGoalSheet.show(context),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (savingsSummary.totalTarget > 0) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: (savingsSummary.overallPercentage / 100).clamp(0.0, 1.0),
+                              minHeight: 8,
+                              backgroundColor: isDark
+                                  ? AppColors.darkSurfaceVariant
+                                  : AppColors.lightSurfaceVariant,
+                              valueColor: AlwaysStoppedAnimation<Color>(financialColors.savings),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Saved: ${CurrencyFormatter.format(savingsSummary.totalSaved)} / ${CurrencyFormatter.format(savingsSummary.totalTarget)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: financialColors.textMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '${savingsSummary.activeGoalsCount} active • ${savingsSummary.completedGoalsCount} reached',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: financialColors.textMuted,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: 0.0,
+                              minHeight: 8,
+                              backgroundColor: isDark
+                                  ? AppColors.darkSurfaceVariant
+                                  : AppColors.lightSurfaceVariant,
+                              valueColor: AlwaysStoppedAnimation<Color>(financialColors.savings),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'No savings goals set',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: financialColors.textMuted,
+                                ),
+                              ),
+                              Text(
+                                'Emergency fund, travel, etc.',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: financialColors.textMuted,
                                 ),
