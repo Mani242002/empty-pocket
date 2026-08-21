@@ -8,6 +8,7 @@ import '../../../../core/repositories/recurring_repository.dart';
 import '../../../../core/repositories/savings_goal_repository.dart';
 import '../../../../core/repositories/transaction_repository.dart';
 import '../../../../core/services/backup_service.dart';
+import '../../../../core/services/overlay_service.dart';
 import '../../../budgets/presentation/state/budgets_provider.dart';
 import '../../../budgets/presentation/state/recurring_provider.dart';
 import '../../../debts/presentation/state/debts_provider.dart';
@@ -42,6 +43,46 @@ class AppLockNotifier extends StateNotifier<bool> {
 
 final appLockProvider = StateNotifierProvider<AppLockNotifier, bool>((ref) {
   return AppLockNotifier();
+});
+
+class FloatingBubbleNotifier extends StateNotifier<bool> {
+  static const String _keyBubble = 'floating_bubble_enabled';
+
+  FloatingBubbleNotifier() : super(false) {
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = prefs.getBool(_keyBubble) ?? false;
+    } catch (_) {}
+  }
+
+  Future<bool> toggleBubble(bool enabled) async {
+    if (enabled) {
+      final granted = await OverlayService.isPermissionGranted();
+      if (!granted) {
+        final res = await OverlayService.requestPermission();
+        if (res != true) return false;
+      }
+      await OverlayService.showFloatingBubble();
+    } else {
+      await OverlayService.closeOverlay();
+    }
+
+    state = enabled;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyBubble, enabled);
+    } catch (_) {}
+    return true;
+  }
+}
+
+final floatingBubbleProvider =
+    StateNotifierProvider<FloatingBubbleNotifier, bool>((ref) {
+  return FloatingBubbleNotifier();
 });
 
 class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {

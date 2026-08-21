@@ -325,6 +325,7 @@ class SettingsScreen extends ConsumerWidget {
     final financialColors = context.financialColors;
     final currentThemeMode = ref.watch(themeModeProvider);
     final isAppLockEnabled = ref.watch(appLockProvider);
+    final isBubbleEnabled = ref.watch(floatingBubbleProvider);
     final aiConfig = ref.watch(aiProviderConfigProvider);
 
     return Scaffold(
@@ -468,6 +469,35 @@ class SettingsScreen extends ConsumerWidget {
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
+                  },
+                ),
+                const Divider(),
+                SwitchListTile.adaptive(
+                  secondary: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryEmerald.withAlpha(25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.bubble_chart_rounded, color: AppColors.primaryEmerald, size: 20),
+                  ),
+                  title: const Text('24/7 Floating Quick-Add Bubble', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: Text(
+                    isBubbleEnabled ? 'Active (Overlay on top of any app)' : 'Disabled (Tap to enable chat head)',
+                    style: TextStyle(color: financialColors.textMuted, fontSize: 12),
+                  ),
+                  value: isBubbleEnabled,
+                  onChanged: (val) async {
+                    final success = await ref.read(floatingBubbleProvider.notifier).toggleBubble(val);
+                    if (!success && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please grant "Display over other apps" permission in Android settings.'),
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: AppColors.warning,
+                        ),
+                      );
+                    }
                   },
                 ),
               ],

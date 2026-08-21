@@ -21,6 +21,8 @@ class AppDatabase {
   static const String tableDebtPayments = 'debt_payments';
   static const String tableInvestments = 'investments';
 
+  static final AppDatabase instance = AppDatabase();
+
   Database? db;
 
   AppDatabase({this.db});
