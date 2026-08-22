@@ -11,9 +11,12 @@ class FloatingBubbleOverlayApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
+      theme: ThemeData.dark(useMaterial3: true).copyWith(
+        scaffoldBackgroundColor: Colors.transparent,
+      ),
+      home: const Scaffold(
         backgroundColor: Colors.transparent,
         body: FloatingBubbleOverlayScreen(),
       ),
@@ -312,15 +315,27 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                     final isSelected = _selectedCategory == cat;
                     return Padding(
                       padding: const EdgeInsets.only(right: 6),
-                      child: ChoiceChip(
-                        label: Text(cat, style: TextStyle(fontSize: 11, color: isSelected ? Colors.black : Colors.white)),
-                        selected: isSelected,
-                        selectedColor: AppColors.primaryEmerald,
-                        backgroundColor: Colors.white12,
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        onSelected: (sel) {
-                          if (sel) setState(() => _selectedCategory = cat);
-                        },
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedCategory = cat),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.primaryEmerald : Colors.white10,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected ? AppColors.primaryEmerald : Colors.white24,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            cat,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: isSelected ? Colors.black : Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),

@@ -57,20 +57,22 @@ class OverlayService {
     } catch (_) {}
   }
 
-  /// Expand the overlay to full quick-entry modal size
+  /// Expand the overlay to full quick-entry modal size and enable keyboard focus
   static Future<void> expandOverlay() async {
     try {
+      await FlutterOverlayWindow.updateFlag(OverlayFlag.focusPointer);
       await FlutterOverlayWindow.resizeOverlay(
-        340,
-        480,
+        350,
+        500,
         false,
       );
     } catch (_) {}
   }
 
-  /// Collapse the overlay back to small floating bubble
+  /// Collapse the overlay back to small floating bubble and restore default touch flag
   static Future<void> collapseOverlay() async {
     try {
+      await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);
       await FlutterOverlayWindow.resizeOverlay(
         120,
         120,
