@@ -1,9 +1,6 @@
-import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 class OverlayService {
-  static const MethodChannel _channel = MethodChannel('dev.emptypocket.app/overlay');
-
   /// Check if the device has granted "Display over other apps" permission
   static Future<bool> isPermissionGranted() async {
     try {
@@ -49,7 +46,7 @@ class OverlayService {
       await FlutterOverlayWindow.showOverlay(
         enableDrag: true,
         overlayTitle: "EmptyPocket Quick-Add",
-        overlayContent: "Tap to quickly log expense or income",
+        overlayContent: "Tap to record expense or income",
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPrivate,
         alignment: OverlayAlignment.centerLeft,
@@ -57,29 +54,6 @@ class OverlayService {
         height: 120,
         width: 120,
       );
-    } catch (_) {}
-  }
-
-  /// Open the Quick-Add dialog in the main app via MethodChannel.
-  /// This only works when called from the MAIN Flutter engine.
-  static Future<void> openQuickAdd() async {
-    try {
-      await _channel.invokeMethod('openQuickAdd');
-    } catch (_) {}
-  }
-
-  /// Send a message from the overlay engine to the main app engine
-  /// using the flutter_overlay_window built-in messaging channel.
-  static Future<void> sendToMainApp(dynamic data) async {
-    try {
-      await FlutterOverlayWindow.shareData(data);
-    } catch (_) {}
-  }
-
-  /// Minimize the app back to previous task (Paytm, etc.)
-  static Future<void> minimizeApp() async {
-    try {
-      await _channel.invokeMethod('minimizeApp');
     } catch (_) {}
   }
 
