@@ -28,13 +28,7 @@ class OverlayService {
     }
   }
 
-  /// Show the floating bubble on top of other apps.
-  ///
-  /// Uses [OverlayAlignment.centerLeft] so that the window coordinate origin
-  /// is at the left edge of the screen (vertically centered). This is required
-  /// for [PositionGravity.auto] snap-to-edge to work correctly — the native
-  /// TrayAnimationTimerTask calculates snap destinations as absolute pixel
-  /// offsets from the left edge.
+  /// Show the floating bubble on top of other apps centered on screen.
   static Future<void> showFloatingBubble() async {
     final granted = await isPermissionGranted();
     if (!granted) {
@@ -49,8 +43,8 @@ class OverlayService {
         overlayContent: "Tap to record expense or income",
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPrivate,
-        alignment: OverlayAlignment.centerLeft,
-        positionGravity: PositionGravity.auto,
+        alignment: OverlayAlignment.center,
+        positionGravity: PositionGravity.none,
         height: 120,
         width: 120,
       );
@@ -63,24 +57,16 @@ class OverlayService {
   static const int _expandedHeight = 500;
 
   /// Expand the overlay to full quick-entry modal size and enable keyboard focus.
-  /// Dynamically detects if the bubble is on the right half of the screen and
-  /// shifts the window leftwards so the card opens cleanly into view.
+  /// Always moves to (0, 0) so the modal opens in the EXACT CENTER of the screen
+  /// with 100% visibility, regardless of where the bubble was placed.
   static Future<void> expandOverlay() async {
     try {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.focusPointer);
 
       _savedPosition = await FlutterOverlayWindow.getOverlayPosition();
-      if (_savedPosition != null) {
-        final currentX = _savedPosition!.x;
-        final currentY = _savedPosition!.y;
-        final diffX = _expandedWidth - _bubbleSize;
-
-        // If docked on the right side (x > 150), shift leftwards by the width difference
-        if (currentX > 150) {
-          final targetX = (currentX - diffX).clamp(0.0, 5000.0);
-          await FlutterOverlayWindow.moveOverlay(OverlayPosition(targetX, currentY));
-        }
-      }
+      
+      // Move to center of screen (0, 0)
+      await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
 
       await FlutterOverlayWindow.resizeOverlay(
         _expandedWidth,
