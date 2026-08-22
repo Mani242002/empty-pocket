@@ -43,9 +43,9 @@ class OverlayService {
         overlayContent: "Tap to record expense or income",
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPrivate,
-        positionGravity: PositionGravity.auto,
-        height: 120,
-        width: 120,
+        positionGravity: PositionGravity.none,
+        height: 70,
+        width: 70,
       );
     } catch (_) {}
   }
@@ -54,8 +54,8 @@ class OverlayService {
   static Future<void> expandOverlay() async {
     try {
       await FlutterOverlayWindow.resizeOverlay(
-        340,
-        480,
+        360,
+        520,
         false,
       );
     } catch (_) {}
@@ -65,8 +65,8 @@ class OverlayService {
   static Future<void> collapseOverlay() async {
     try {
       await FlutterOverlayWindow.resizeOverlay(
-        120,
-        120,
+        70,
+        70,
         true,
       );
     } catch (_) {}
