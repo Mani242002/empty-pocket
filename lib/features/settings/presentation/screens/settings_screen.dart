@@ -407,8 +407,10 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   icon: Icons.key_rounded,
                   iconColor: financialColors.investment,
-                  title: 'API Key Status',
-                  subtitle: aiConfig.isConfigured ? 'Active (Saved on Device)' : 'Not Configured (BYOK)',
+                  title: 'API Key & Provider Vault',
+                  subtitle: aiConfig.isConfigured
+                      ? 'Active: ${aiConfig.providerType.displayName} (${aiConfig.activeModel})'
+                      : 'Dual-Key Vault (Gemini & Groq BYOK)',
                   trailing: Icon(
                     aiConfig.isConfigured ? Icons.check_circle_rounded : Icons.info_outline_rounded,
                     color: aiConfig.isConfigured ? AppColors.income : AppColors.warning,

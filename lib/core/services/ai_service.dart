@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 import '../domain/entities/ai_assistant_entity.dart';
 
 class AiService {
@@ -55,6 +56,109 @@ Please provide my comprehensive financial audit.
     return _parseAuditResponse(text);
   }
 
+  /// Generate a specialized markdown financial report based on report type
+  Future<AiReportItem> generateSpecializedReport({
+    required AiProviderConfig config,
+    required AiReportType type,
+    required String financialContext,
+    String? customPromptText,
+  }) async {
+    String systemPrompt;
+    String userPrompt;
+
+    switch (type) {
+      case AiReportType.fullAudit:
+        systemPrompt = '''
+You are an expert personal finance fiduciary advisor.
+Analyze the user's offline financial summary and output a comprehensive Markdown report.
+Format with clean Markdown headings, bullet points, bold key figures (with ₹ amounts), and clear actionable insights.
+Include:
+### 📊 Executive Summary
+### 🌟 Key Strengths & Wins
+### ⚠️ Potential Financial Risks
+### 🎯 30-Day Action Plan
+''';
+        userPrompt = 'Here is my financial summary:\n$financialContext\n\nPlease generate my Comprehensive Financial Health Audit.';
+        break;
+
+      case AiReportType.budgetOptimization:
+        systemPrompt = '''
+You are a budget optimization and cost-cutting specialist.
+Analyze the user's spending categories, budget limits, and income.
+Structure your output with:
+### 📉 Expense Category Analysis
+### 💡 Immediate Cost Reduction Opportunities
+### ⚖️ Recommended 50/30/20 Budget Rebalancing
+Use clear markdown bullet points and exact ₹ amount recommendations.
+''';
+        userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease analyze my spending and optimize my monthly budget.';
+        break;
+
+      case AiReportType.debtPayoff:
+        systemPrompt = '''
+You are a debt freedom and loan repayment strategist.
+Analyze the user's active debts, interest rates, EMIs, and monthly net cash flow.
+Structure your output with:
+### 💳 Debt Portfolio Overview & Debt-to-Income
+### 🚀 Avalanche vs. Snowball Strategy Analysis
+### 🗓️ Accelerated Payoff Roadmap
+Provide concrete payoff timeline estimates and interest-saving tips with ₹ amounts.
+''';
+        userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease evaluate my debt liabilities and create an accelerated payoff strategy.';
+        break;
+
+      case AiReportType.investmentReview:
+        systemPrompt = '''
+You are an asset allocation and portfolio strategist.
+Analyze the user's investment holdings, asset distribution, and monthly savings rate.
+Structure your output with:
+### 📈 Asset Allocation & Diversification Health
+### ⚖️ Risk Profile vs. Portfolio Balance
+### 🚀 Strategic Rebalancing & Wealth Building Recommendations
+''';
+        userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease review my investment portfolio and asset allocation.';
+        break;
+
+      case AiReportType.emergencyRunway:
+        systemPrompt = '''
+You are a financial risk and contingency planning expert.
+Evaluate the user's liquid savings against their fixed monthly expenses and debts.
+Structure your output with:
+### 🛡️ Current Safety Runway (Months of Survival)
+### 🎯 Ideal Emergency Fund Target
+### 🪜 Step-by-step Plan to Build & Maintain Runway
+''';
+        userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease calculate my emergency safety runway and buffer recommendations.';
+        break;
+
+      case AiReportType.custom:
+        systemPrompt = '''
+You are "PocketAI", an expert personal finance strategist for EmptyPocket.
+Provide a clear, helpful, and insightful Markdown response answering the user's question using their private financial data.
+''';
+        userPrompt = 'User Question: ${customPromptText ?? "Analyze my financial situation"}\n\nFinancial Data Context:\n$financialContext';
+        break;
+    }
+
+    final markdown = await _generateRawText(
+      config: config,
+      systemPrompt: systemPrompt,
+      userPrompt: userPrompt,
+    );
+
+    return AiReportItem(
+      id: const Uuid().v4(),
+      title: type == AiReportType.custom && customPromptText != null && customPromptText.isNotEmpty
+          ? (customPromptText.length > 40 ? '${customPromptText.substring(0, 40)}...' : customPromptText)
+          : type.title,
+      type: type,
+      markdownContent: markdown.trim(),
+      modelUsed: config.activeModel,
+      providerUsed: config.providerType,
+      timestamp: DateTime.now(),
+    );
+  }
+
   /// Send a contextual chat message to the assistant
   Future<String> sendChatMessage({
     required AiProviderConfig config,
@@ -69,6 +173,7 @@ Context:
 $financialContext
 
 Guidelines:
+- Format your response in clean, beautiful GitHub Markdown with bold text, bullet points, and headings where helpful.
 - Give concise, highly relevant, and mathematically grounded answers.
 - Use currency formatting (₹) when discussing amounts.
 - If asked whether they can afford a purchase, evaluate their liquid balance, monthly savings, and emergency buffer before answering.
@@ -105,8 +210,13 @@ Guidelines:
     required String userPrompt,
     List<AiChatMessage>? history,
   }) async {
+    final key = config.geminiApiKey.trim();
+    if (key.isEmpty) {
+      throw Exception('Google Gemini API Key is missing. Please configure it in AI Settings.');
+    }
+
     final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/${config.selectedModel}:generateContent?key=${config.apiKey.trim()}',
+      'https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=$key',
     );
 
     final List<Map<String, dynamic>> contents = [];
@@ -152,7 +262,7 @@ Guidelines:
         'contents': contents,
         'generationConfig': {
           'temperature': 0.7,
-          'maxOutputTokens': 1500,
+          'maxOutputTokens': 2000,
         },
       }),
     );
@@ -184,6 +294,11 @@ Guidelines:
     required String userPrompt,
     List<AiChatMessage>? history,
   }) async {
+    final key = config.groqApiKey.trim();
+    if (key.isEmpty) {
+      throw Exception('Groq API Key is missing. Please configure it in AI Settings.');
+    }
+
     final url = Uri.parse('https://api.groq.com/openai/v1/chat/completions');
 
     final List<Map<String, String>> messages = [
@@ -204,14 +319,14 @@ Guidelines:
     final response = await _httpClient.post(
       url,
       headers: {
-        'Authorization': 'Bearer ${config.apiKey.trim()}',
+        'Authorization': 'Bearer $key',
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
-        'model': config.selectedModel,
+        'model': config.groqModel,
         'messages': messages,
         'temperature': 0.7,
-        'max_tokens': 1500,
+        'max_tokens': 2000,
       }),
     );
 

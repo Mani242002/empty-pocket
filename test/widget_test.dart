@@ -342,10 +342,10 @@ void main() {
 
     // In AiAssistantScreen, verify provider choices & settings
     expect(find.text('PocketAI Financial Advisor'), findsWidgets);
-    expect(find.text('AI PROVIDER & BYOK SETTINGS'), findsOneWidget);
-    expect(find.text('Google Gemini'), findsOneWidget);
-    expect(find.text('Groq (Qwen 3.6)'), findsOneWidget);
-    expect(find.text('Generate Full Audit'), findsOneWidget);
+    expect(find.text('AI PROVIDERS & DUAL KEY VAULT'), findsOneWidget);
+    expect(find.text('Google Gemini'), findsWidgets);
+    expect(find.text('Groq Models'), findsWidgets);
+    expect(find.text('Full Health Audit'), findsOneWidget);
 
     // Pop back to Reports
     await tester.pageBack();
