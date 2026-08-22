@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import '../database/app_database.dart';
 import '../domain/entities/backup_entity.dart';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/debt_entity.dart';
@@ -159,7 +160,13 @@ class BackupService {
     required InvestmentRepository investmentRepo,
     required RecurringRepository recurringRepo,
   }) async {
-    await transactionRepo.clearAllTransactions();
+    try {
+      await AppDatabase.instance.clearAllData();
+    } catch (_) {}
+
+    try {
+      await transactionRepo.clearAllTransactions();
+    } catch (_) {}
 
     final allBudgets = await budgetRepo.getAllBudgets();
     for (final b in allBudgets) {

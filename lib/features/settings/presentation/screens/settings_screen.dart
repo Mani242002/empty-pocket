@@ -6,6 +6,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../app/theme/theme_provider.dart';
 import '../../../ai_assistant/presentation/screens/ai_assistant_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
+import '../../../../core/presentation/widgets/app_lock_gate.dart';
 import '../state/backup_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -292,7 +293,8 @@ class SettingsScreen extends ConsumerWidget {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
             onPressed: () async {
-              if (confirmController.text.trim() == 'DELETE') {
+              final input = confirmController.text.trim().toUpperCase();
+              if (input == 'DELETE') {
                 Navigator.pop(ctx);
                 await ref.read(backupOperationsProvider.notifier).wipeAllData();
                 if (context.mounted) {
@@ -300,13 +302,15 @@ class SettingsScreen extends ConsumerWidget {
                     const SnackBar(
                       content: Text('All local data wiped. App reset to factory state.'),
                       behavior: SnackBarBehavior.floating,
+                      backgroundColor: AppColors.primaryEmerald,
                     ),
                   );
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Confirmation code incorrect. Reset cancelled.'),
+                    content: Text('Please type DELETE to confirm data wipe.'),
+                    behavior: SnackBarBehavior.floating,
                     backgroundColor: AppColors.warning,
                   ),
                 );
@@ -457,18 +461,52 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   title: const Text('App Lock (Biometric / PIN)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                   subtitle: Text(
-                    isAppLockEnabled ? 'Enabled' : 'Disabled',
+                    isAppLockEnabled ? 'Enabled (Requires authentication on open)' : 'Disabled',
                     style: TextStyle(color: financialColors.textMuted, fontSize: 12),
                   ),
                   value: isAppLockEnabled,
-                  onChanged: (val) {
-                    ref.read(appLockProvider.notifier).toggleAppLock(val);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('App lock ${val ? 'enabled' : 'disabled'}.'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                  onChanged: (val) async {
+                    if (val) {
+                      final security = ref.read(securityServiceProvider);
+                      final isAvailable = await security.isBiometricsAvailable();
+                      if (!isAvailable && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('No screen lock or biometric credentials configured on this device.'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: AppColors.warning,
+                          ),
+                        );
+                        return;
+                      }
+
+                      final success = await security.authenticate(
+                        reason: 'Authenticate to enable App Lock for EmptyPocket',
+                      );
+                      if (!success) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Authentication cancelled or failed.'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: AppColors.warning,
+                            ),
+                          );
+                        }
+                        return;
+                      }
+                    }
+
+                    await ref.read(appLockProvider.notifier).toggleAppLock(val);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('App lock ${val ? 'enabled' : 'disabled'}.'),
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: val ? AppColors.primaryEmerald : null,
+                        ),
+                      );
+                    }
                   },
                 ),
                 const Divider(),

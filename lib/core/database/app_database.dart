@@ -547,6 +547,21 @@ class AppDatabase {
     return maps.map((map) => InvestmentEntity.fromMap(map)).toList();
   }
 
+  /// Clear all tables in a single atomic transaction
+  Future<void> clearAllData() async {
+    final client = await database;
+    await client.transaction((txn) async {
+      await txn.delete(tableTransactions);
+      await txn.delete(tableBudgets);
+      await txn.delete(tableRecurring);
+      await txn.delete(tableSavingsGoals);
+      await txn.delete(tableGoalContributions);
+      await txn.delete(tableDebts);
+      await txn.delete(tableDebtPayments);
+      await txn.delete(tableInvestments);
+    });
+  }
+
   Future<void> close() async {
     final currentDb = db;
     if (currentDb != null && currentDb.isOpen) {

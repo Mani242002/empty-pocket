@@ -1,11 +1,11 @@
 package dev.emptypocket.app
 
 import android.content.Intent
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val OVERLAY_CHANNEL = "dev.emptypocket.app/overlay"
     private var methodChannel: MethodChannel? = null
 

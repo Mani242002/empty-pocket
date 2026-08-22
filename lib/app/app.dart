@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/presentation/widgets/app_lock_gate.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
 import 'presentation/screens/main_navigation_scaffold.dart';
@@ -18,7 +19,9 @@ class EmptyPocketApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      home: const MainNavigationScaffold(),
+      home: const AppLockGate(
+        child: MainNavigationScaffold(),
+      ),
     );
   }
 }
