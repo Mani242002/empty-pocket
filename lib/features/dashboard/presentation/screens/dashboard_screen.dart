@@ -20,6 +20,7 @@ import '../../../savings/presentation/screens/add_edit_savings_goal_sheet.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
+import '../../../ai_assistant/presentation/screens/ai_chat_screen.dart';
 import '../../../transactions/presentation/widgets/transaction_list_item.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -103,35 +104,79 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                       ],
                     ),
-                    // Privacy badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: financialColors.cardBorder,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.shield_outlined,
-                            size: 14,
-                            color: financialColors.income,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Offline & Private',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    Row(
+                      children: [
+                        // PocketAI Chat Button
+                        InkWell(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const AiChatScreen()),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.primaryEmerald.withAlpha(80),
+                                width: 1,
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome_rounded,
+                                  size: 14,
+                                  color: AppColors.primaryEmerald,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'PocketAI',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primaryEmerald,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Privacy badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: financialColors.cardBorder,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.shield_outlined,
+                                size: 14,
+                                color: financialColors.income,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Offline',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

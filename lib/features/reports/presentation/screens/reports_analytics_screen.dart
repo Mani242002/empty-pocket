@@ -7,6 +7,8 @@ import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/reports_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../ai_assistant/presentation/screens/ai_assistant_screen.dart';
+import '../../../ai_assistant/presentation/screens/ai_chat_screen.dart';
+import '../../../ai_assistant/presentation/screens/ai_reports_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../state/reports_provider.dart';
@@ -52,7 +54,7 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
           InkWell(
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+                MaterialPageRoute(builder: (_) => const AiReportsScreen()),
               );
             },
             borderRadius: BorderRadius.circular(20),
@@ -81,7 +83,7 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                       shape: BoxShape.circle,
                       color: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 30),
                     ),
-                    child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryEmerald, size: 22),
+                    child: const Icon(Icons.description_outlined, color: AppColors.primaryEmerald, size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -89,20 +91,52 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'PocketAI Financial Advisor',
+                          'AI Financial Reports & Audits',
                           style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           aiConfig.isConfigured
-                              ? 'Tap to chat or run instant AI audit with ${aiConfig.providerType.displayName}'
-                              : 'Bring your own Gemini or Groq API key for private AI advice',
+                              ? 'Generate & export comprehensive reports with ${aiConfig.providerType.displayName}'
+                              : 'Private offline health audits with your Gemini or Groq key',
                           style: theme.textTheme.bodySmall?.copyWith(color: financialColors.textMuted),
                         ),
                       ],
                     ),
                   ),
                   const Icon(Icons.chevron_right_rounded, color: AppColors.primaryEmerald),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Quick Chat Launcher Card
+          InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AiChatScreen()),
+              );
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                border: Border.all(color: financialColors.cardBorder),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primaryEmerald, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Chat with PocketAI Financial Advisor',
+                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.primaryEmerald),
                 ],
               ),
             ),

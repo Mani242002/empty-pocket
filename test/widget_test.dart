@@ -331,21 +331,20 @@ void main() {
 
     // In ReportsAnalyticsScreen, verify sections
     expect(find.text('Reports & Analytics'), findsOneWidget);
-    expect(find.text('PocketAI Financial Advisor'), findsOneWidget);
+    expect(find.text('AI Financial Reports & Audits'), findsOneWidget);
+    expect(find.text('Chat with PocketAI Financial Advisor'), findsOneWidget);
     expect(find.text('6-Month Cash Flow Trends'), findsOneWidget);
     expect(find.text('Top Expense Categories (This Month)'), findsOneWidget);
     expect(find.text('3-Month Forward Cash Flow Forecast'), findsOneWidget);
 
-    // Tap on PocketAI Advisor banner
-    await tester.tap(find.text('PocketAI Financial Advisor'));
+    // Tap on AI Reports banner
+    await tester.tap(find.text('AI Financial Reports & Audits'));
     await tester.pumpAndSettle();
 
-    // In AiAssistantScreen, verify provider choices & settings
-    expect(find.text('PocketAI Financial Advisor'), findsWidgets);
-    expect(find.text('AI PROVIDERS & DUAL KEY VAULT'), findsOneWidget);
-    expect(find.text('Google Gemini'), findsWidgets);
-    expect(find.text('Groq Models'), findsWidgets);
+    // In AiReportsScreen, verify reports & options
+    expect(find.text('AI Financial Reports'), findsWidgets);
     expect(find.text('Full Health Audit'), findsOneWidget);
+    expect(find.text('+ New Report'), findsOneWidget);
 
     // Pop back to Reports
     await tester.pageBack();
@@ -360,7 +359,7 @@ void main() {
     expect(find.text('Settings & Privacy'), findsOneWidget);
     expect(find.text('Theme Mode'), findsOneWidget);
     expect(find.text('POCKETAI FINANCIAL ADVISOR'), findsOneWidget);
-    expect(find.text('AI Provider & Model'), findsOneWidget);
+    expect(find.text('AI Providers & BYOK Keys'), findsOneWidget);
     expect(find.text('DATA BACKUP & PORTABILITY'), findsOneWidget);
     expect(find.text('Export Full Backup (JSON)'), findsOneWidget);
     expect(find.text('Restore Database (JSON)'), findsOneWidget);

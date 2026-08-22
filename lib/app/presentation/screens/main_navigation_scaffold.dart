@@ -9,6 +9,7 @@ import '../../../features/transactions/presentation/screens/transactions_screen.
 import '../../../features/budgets/presentation/screens/budgets_screen.dart';
 import '../../../features/reports/presentation/screens/reports_analytics_screen.dart';
 import '../../../features/settings/presentation/screens/settings_screen.dart';
+import '../../../features/ai_assistant/presentation/screens/ai_chat_screen.dart';
 
 class MainNavigationScaffold extends StatefulWidget {
   const MainNavigationScaffold({super.key});
@@ -129,6 +130,19 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
                   ],
                 ),
                 const SizedBox(height: 12),
+                _buildModalSecondaryAction(
+                  context,
+                  title: 'Ask PocketAI Financial Advisor',
+                  subtitle: 'Get instant insights, budget tips & advice',
+                  icon: Icons.auto_awesome_rounded,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AiChatScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
                 _buildModalSecondaryAction(
                   context,
                   title: 'Set Monthly Category Budget',

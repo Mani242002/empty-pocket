@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
 
+class AiModelOption {
+  final String id;
+  final String displayName;
+
+  const AiModelOption({
+    required this.id,
+    required this.displayName,
+  });
+}
+
 enum AiProviderType {
   gemini,
   groq;
@@ -22,13 +32,30 @@ enum AiProviderType {
     }
   }
 
-  List<String> get availableModels {
+  List<AiModelOption> get modelOptions {
     switch (this) {
       case AiProviderType.gemini:
-        return ['gemini-3.7-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+        return const [
+          AiModelOption(id: 'gemini-3.7-flash', displayName: 'Gemini 3.7 Flash'),
+          AiModelOption(id: 'gemini-3.6-flash', displayName: 'Gemini 3.6 Flash'),
+          AiModelOption(id: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash'),
+        ];
       case AiProviderType.groq:
-        return ['qwen/qwen3.6-27b', 'llama-3.3-70b-versatile', 'mixtral-8x7b-32768'];
+        return const [
+          AiModelOption(id: 'qwen/qwen3.6-27b', displayName: 'Qwen 3.6'),
+          AiModelOption(id: 'openai/gpt-oss-120b', displayName: 'GPT OSS Large'),
+          AiModelOption(id: 'openai/gpt-oss-20b', displayName: 'GPT OSS Mini'),
+          AiModelOption(id: 'groq/compound', displayName: 'Groq Compound'),
+        ];
     }
+  }
+
+  List<String> get availableModels => modelOptions.map((m) => m.id).toList();
+
+  String getModelDisplayName(String modelId) {
+    final match = modelOptions.where((m) => m.id == modelId);
+    if (match.isNotEmpty) return match.first.displayName;
+    return modelId;
   }
 
   String get keyUrl {
@@ -69,9 +96,12 @@ class AiProviderConfig {
   String get activeApiKey =>
       providerType == AiProviderType.gemini ? geminiApiKey : groqApiKey;
 
-  /// Active model based on currently selected provider
+  /// Active model identifier based on currently selected provider
   String get activeModel =>
       providerType == AiProviderType.gemini ? geminiModel : groqModel;
+
+  /// Display name of the active model
+  String get activeModelDisplayName => providerType.getModelDisplayName(activeModel);
 
   /// Backwards-compatible getter for apiKey
   String get apiKey => activeApiKey;
@@ -88,14 +118,22 @@ class AiProviderConfig {
   /// True if Groq key is configured
   bool get isGroqConfigured => groqApiKey.trim().isNotEmpty;
 
+  /// List of providers that have been configured with valid keys
+  List<AiProviderType> get configuredProviders {
+    final list = <AiProviderType>[];
+    if (isGeminiConfigured) list.add(AiProviderType.gemini);
+    if (isGroqConfigured) list.add(AiProviderType.groq);
+    return list;
+  }
+
   AiProviderConfig copyWith({
     AiProviderType? providerType,
     String? geminiApiKey,
     String? groqApiKey,
     String? geminiModel,
     String? groqModel,
-    String? apiKey, // Backwards compatibility
-    String? selectedModel, // Backwards compatibility
+    String? apiKey,
+    String? selectedModel,
   }) {
     final activeProvider = providerType ?? this.providerType;
     String newGeminiKey = geminiApiKey ?? this.geminiApiKey;
@@ -191,6 +229,7 @@ class AiReportItem {
   final AiReportType type;
   final String markdownContent;
   final String modelUsed;
+  final String modelDisplayName;
   final AiProviderType providerUsed;
   final DateTime timestamp;
 
@@ -200,6 +239,7 @@ class AiReportItem {
     required this.type,
     required this.markdownContent,
     required this.modelUsed,
+    required this.modelDisplayName,
     required this.providerUsed,
     required this.timestamp,
   });

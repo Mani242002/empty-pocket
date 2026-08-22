@@ -154,6 +154,7 @@ Provide a clear, helpful, and insightful Markdown response answering the user's 
       type: type,
       markdownContent: markdown.trim(),
       modelUsed: config.activeModel,
+      modelDisplayName: config.activeModelDisplayName,
       providerUsed: config.providerType,
       timestamp: DateTime.now(),
     );

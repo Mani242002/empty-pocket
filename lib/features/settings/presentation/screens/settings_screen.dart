@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../app/theme/theme_provider.dart';
-import '../../../ai_assistant/presentation/screens/ai_assistant_screen.dart';
+import '../../../ai_assistant/presentation/screens/ai_settings_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../../core/presentation/widgets/app_lock_gate.dart';
 import '../state/backup_provider.dart';
@@ -391,26 +391,12 @@ class SettingsScreen extends ConsumerWidget {
               children: [
                 _buildListTile(
                   context,
-                  icon: Icons.auto_awesome_rounded,
-                  iconColor: AppColors.primaryEmerald,
-                  title: 'AI Provider & Model',
-                  subtitle: '${aiConfig.providerType.displayName} (${aiConfig.selectedModel})',
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
-                    );
-                  },
-                ),
-                const Divider(),
-                _buildListTile(
-                  context,
                   icon: Icons.key_rounded,
                   iconColor: financialColors.investment,
-                  title: 'API Key & Provider Vault',
+                  title: 'AI Providers & BYOK Keys',
                   subtitle: aiConfig.isConfigured
-                      ? 'Active: ${aiConfig.providerType.displayName} (${aiConfig.activeModel})'
-                      : 'Dual-Key Vault (Gemini & Groq BYOK)',
+                      ? 'Active: ${aiConfig.providerType.displayName} (${aiConfig.activeModelDisplayName})'
+                      : 'Configure Gemini & Groq keys on device',
                   trailing: Icon(
                     aiConfig.isConfigured ? Icons.check_circle_rounded : Icons.info_outline_rounded,
                     color: aiConfig.isConfigured ? AppColors.income : AppColors.warning,
@@ -418,7 +404,7 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+                      MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
                     );
                   },
                 ),

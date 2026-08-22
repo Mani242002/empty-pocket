@@ -548,7 +548,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
 
           // Model dropdown
           DropdownButtonFormField<String>(
-            value: selectedModel,
+            initialValue: selectedModel,
             isDense: true,
             decoration: const InputDecoration(
               labelText: 'Model',
