@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/domain/entities/transaction_entity.dart';
@@ -17,7 +18,27 @@ class MainNavigationScaffold extends StatefulWidget {
 }
 
 class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
+  static const MethodChannel _overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupOverlayListener();
+  }
+
+  void _setupOverlayListener() {
+    _overlayChannel.setMethodCallHandler((call) async {
+      if (call.method == 'triggerQuickAdd') {
+        if (mounted) {
+          AddEditTransactionSheet.show(
+            context,
+            initialType: TransactionType.expense,
+          );
+        }
+      }
+    });
+  }
 
   void _onTabSelected(int index) {
     setState(() {

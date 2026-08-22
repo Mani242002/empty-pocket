@@ -60,22 +60,30 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
   }
 
   Future<bool> toggleBubble(bool enabled) async {
-    if (enabled) {
-      final granted = await OverlayService.isPermissionGranted();
-      if (!granted) {
-        final res = await OverlayService.requestPermission();
-        if (res != true) return false;
-      }
-      await OverlayService.showFloatingBubble();
-    } else {
-      await OverlayService.closeOverlay();
-    }
-
     state = enabled;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyBubble, enabled);
     } catch (_) {}
+
+    if (enabled) {
+      final granted = await OverlayService.isPermissionGranted();
+      if (!granted) {
+        final res = await OverlayService.requestPermission();
+        if (res != true) {
+          state = false;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(_keyBubble, false);
+          return false;
+        }
+      }
+      await OverlayService.showFloatingBubble();
+    } else {
+      try {
+        await OverlayService.closeOverlay();
+      } catch (_) {}
+    }
+
     return true;
   }
 }

@@ -1,7 +1,8 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 class OverlayService {
-  static OverlayPosition? _savedPosition;
+  static const MethodChannel _channel = MethodChannel('dev.emptypocket.app/overlay');
 
   /// Check if the device has granted "Display over other apps" permission
   static Future<bool> isPermissionGranted() async {
@@ -39,44 +40,35 @@ class OverlayService {
     }
 
     try {
+      // Close any previous instance first to avoid duplicates
+      await FlutterOverlayWindow.closeOverlay();
+    } catch (_) {}
+
+    try {
       await FlutterOverlayWindow.showOverlay(
         enableDrag: true,
         overlayTitle: "EmptyPocket Quick-Add",
-        overlayContent: "Tap to record expense or income",
+        overlayContent: "Tap to quickly log expense or income",
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPrivate,
         positionGravity: PositionGravity.none,
-        height: 110,
-        width: 110,
+        height: 80,
+        width: 80,
       );
     } catch (_) {}
   }
 
-  /// Expand the overlay to full screen centered modal
-  static Future<void> expandOverlay() async {
+  /// Open the Quick-Add dialog in the main app
+  static Future<void> openQuickAdd() async {
     try {
-      _savedPosition = await FlutterOverlayWindow.getOverlayPosition();
-      // Center on screen and cover full display for modal
-      await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
-      await FlutterOverlayWindow.resizeOverlay(
-        WindowSize.matchParent,
-        WindowSize.fullCover,
-        false,
-      );
+      await _channel.invokeMethod('openQuickAdd');
     } catch (_) {}
   }
 
-  /// Collapse the overlay back to small floating bubble and restore docked position
-  static Future<void> collapseOverlay() async {
+  /// Minimize the app back to previous task (Paytm, etc.)
+  static Future<void> minimizeApp() async {
     try {
-      await FlutterOverlayWindow.resizeOverlay(
-        110,
-        110,
-        true,
-      );
-      if (_savedPosition != null) {
-        await FlutterOverlayWindow.moveOverlay(_savedPosition!);
-      }
+      await _channel.invokeMethod('minimizeApp');
     } catch (_) {}
   }
 
