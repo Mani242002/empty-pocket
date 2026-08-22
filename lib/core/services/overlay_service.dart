@@ -57,13 +57,34 @@ class OverlayService {
     } catch (_) {}
   }
 
-  /// Expand the overlay to full quick-entry modal size and enable keyboard focus
+  static OverlayPosition? _savedPosition;
+  static const int _bubbleSize = 120;
+  static const int _expandedWidth = 350;
+  static const int _expandedHeight = 500;
+
+  /// Expand the overlay to full quick-entry modal size and enable keyboard focus.
+  /// Dynamically detects if the bubble is on the right half of the screen and
+  /// shifts the window leftwards so the card opens cleanly into view.
   static Future<void> expandOverlay() async {
     try {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.focusPointer);
+
+      _savedPosition = await FlutterOverlayWindow.getOverlayPosition();
+      if (_savedPosition != null) {
+        final currentX = _savedPosition!.x;
+        final currentY = _savedPosition!.y;
+        final diffX = _expandedWidth - _bubbleSize;
+
+        // If docked on the right side (x > 150), shift leftwards by the width difference
+        if (currentX > 150) {
+          final targetX = (currentX - diffX).clamp(0.0, 5000.0);
+          await FlutterOverlayWindow.moveOverlay(OverlayPosition(targetX, currentY));
+        }
+      }
+
       await FlutterOverlayWindow.resizeOverlay(
-        350,
-        500,
+        _expandedWidth,
+        _expandedHeight,
         false,
       );
     } catch (_) {}
@@ -73,9 +94,14 @@ class OverlayService {
   static Future<void> collapseOverlay() async {
     try {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);
+
+      if (_savedPosition != null) {
+        await FlutterOverlayWindow.moveOverlay(_savedPosition!);
+      }
+
       await FlutterOverlayWindow.resizeOverlay(
-        120,
-        120,
+        _bubbleSize,
+        _bubbleSize,
         true,
       );
     } catch (_) {}
