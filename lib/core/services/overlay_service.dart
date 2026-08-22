@@ -52,8 +52,8 @@ class OverlayService {
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPrivate,
         positionGravity: PositionGravity.none,
-        height: 80,
-        width: 80,
+        height: 220,
+        width: 220,
       );
     } catch (_) {}
   }

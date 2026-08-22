@@ -18,9 +18,10 @@ class MainActivity : FlutterActivity() {
                 "openQuickAdd" -> {
                     val intent = packageManager.getLaunchIntentForPackage(packageName)
                     if (intent != null) {
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                         intent.putExtra("action", "quick_add")
                         startActivity(intent)
+                        methodChannel?.invokeMethod("triggerQuickAdd", null)
                         result.success(true)
                     } else {
                         result.error("LAUNCH_FAILED", "Could not create launch intent", null)
