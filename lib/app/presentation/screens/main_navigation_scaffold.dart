@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/domain/entities/transaction_entity.dart';
@@ -19,14 +22,23 @@ class MainNavigationScaffold extends StatefulWidget {
 
 class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
   static const MethodChannel _overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
+  StreamSubscription? _overlayMessageSub;
   int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _setupOverlayListener();
+    _setupOverlayMessageListener();
   }
 
+  @override
+  void dispose() {
+    _overlayMessageSub?.cancel();
+    super.dispose();
+  }
+
+  /// Listen for MethodChannel calls from MainActivity (triggerQuickAdd).
   void _setupOverlayListener() {
     _overlayChannel.setMethodCallHandler((call) async {
       if (call.method == 'triggerQuickAdd') {
@@ -36,6 +48,21 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
             initialType: TransactionType.expense,
           );
         }
+      }
+    });
+  }
+
+  /// Listen for messages from the floating bubble overlay via
+  /// FlutterOverlayWindow's built-in cross-engine messaging channel.
+  /// The overlay sends {'action': 'openQuickAdd'} when the bubble is tapped.
+  void _setupOverlayMessageListener() {
+    _overlayMessageSub = FlutterOverlayWindow.overlayListener.listen((data) {
+      if (data is Map && data['action'] == 'openQuickAdd') {
+        // Bring the main Activity to the foreground first.
+        // MainActivity.openQuickAdd launches the activity with
+        // FLAG_ACTIVITY_REORDER_TO_FRONT and then invokes triggerQuickAdd,
+        // which is handled by _setupOverlayListener above.
+        _overlayChannel.invokeMethod('openQuickAdd');
       }
     });
   }

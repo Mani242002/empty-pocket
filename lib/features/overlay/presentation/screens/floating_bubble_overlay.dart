@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/services/overlay_service.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 class FloatingBubbleOverlayApp extends StatelessWidget {
   const FloatingBubbleOverlayApp({super.key});
@@ -23,8 +23,11 @@ class FloatingBubbleOverlayScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: GestureDetector(
-        onTap: () {
-          OverlayService.openQuickAdd();
+        onTap: () async {
+          // Send message to main app via the overlay messaging channel.
+          // The main app listens on FlutterOverlayWindow.overlayListener
+          // and opens the Quick-Add sheet when it receives this action.
+          await FlutterOverlayWindow.shareData({'action': 'openQuickAdd'});
         },
         child: Container(
           width: 58,

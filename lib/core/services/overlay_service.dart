@@ -31,7 +31,13 @@ class OverlayService {
     }
   }
 
-  /// Show the floating bubble on top of other apps
+  /// Show the floating bubble on top of other apps.
+  ///
+  /// Uses [OverlayAlignment.centerLeft] so that the window coordinate origin
+  /// is at the left edge of the screen (vertically centered). This is required
+  /// for [PositionGravity.auto] snap-to-edge to work correctly — the native
+  /// TrayAnimationTimerTask calculates snap destinations as absolute pixel
+  /// offsets from the left edge.
   static Future<void> showFloatingBubble() async {
     final granted = await isPermissionGranted();
     if (!granted) {
@@ -46,6 +52,7 @@ class OverlayService {
         overlayContent: "Tap to quickly log expense or income",
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPrivate,
+        alignment: OverlayAlignment.centerLeft,
         positionGravity: PositionGravity.auto,
         height: 120,
         width: 120,
@@ -53,10 +60,19 @@ class OverlayService {
     } catch (_) {}
   }
 
-  /// Open the Quick-Add dialog in the main app
+  /// Open the Quick-Add dialog in the main app via MethodChannel.
+  /// This only works when called from the MAIN Flutter engine.
   static Future<void> openQuickAdd() async {
     try {
       await _channel.invokeMethod('openQuickAdd');
+    } catch (_) {}
+  }
+
+  /// Send a message from the overlay engine to the main app engine
+  /// using the flutter_overlay_window built-in messaging channel.
+  static Future<void> sendToMainApp(dynamic data) async {
+    try {
+      await FlutterOverlayWindow.shareData(data);
     } catch (_) {}
   }
 
