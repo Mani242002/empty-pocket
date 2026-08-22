@@ -1,6 +1,8 @@
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 class OverlayService {
+  static OverlayPosition? _savedPosition;
+
   /// Check if the device has granted "Display over other apps" permission
   static Future<bool> isPermissionGranted() async {
     try {
@@ -44,31 +46,37 @@ class OverlayService {
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPrivate,
         positionGravity: PositionGravity.none,
-        height: 70,
-        width: 70,
+        height: 110,
+        width: 110,
       );
     } catch (_) {}
   }
 
-  /// Expand the overlay to full quick-entry modal size
+  /// Expand the overlay to full screen centered modal
   static Future<void> expandOverlay() async {
     try {
+      _savedPosition = await FlutterOverlayWindow.getOverlayPosition();
+      // Center on screen and cover full display for modal
+      await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
       await FlutterOverlayWindow.resizeOverlay(
-        360,
-        520,
+        WindowSize.matchParent,
+        WindowSize.fullCover,
         false,
       );
     } catch (_) {}
   }
 
-  /// Collapse the overlay back to small floating bubble
+  /// Collapse the overlay back to small floating bubble and restore docked position
   static Future<void> collapseOverlay() async {
     try {
       await FlutterOverlayWindow.resizeOverlay(
-        70,
-        70,
+        110,
+        110,
         true,
       );
+      if (_savedPosition != null) {
+        await FlutterOverlayWindow.moveOverlay(_savedPosition!);
+      }
     } catch (_) {}
   }
 
