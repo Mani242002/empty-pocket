@@ -40,20 +40,15 @@ class OverlayService {
     }
 
     try {
-      // Close any previous instance first to avoid duplicates
-      await FlutterOverlayWindow.closeOverlay();
-    } catch (_) {}
-
-    try {
       await FlutterOverlayWindow.showOverlay(
         enableDrag: true,
         overlayTitle: "EmptyPocket Quick-Add",
         overlayContent: "Tap to quickly log expense or income",
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPrivate,
-        positionGravity: PositionGravity.none,
-        height: 220,
-        width: 220,
+        positionGravity: PositionGravity.auto,
+        height: 120,
+        width: 120,
       );
     } catch (_) {}
   }
@@ -69,6 +64,28 @@ class OverlayService {
   static Future<void> minimizeApp() async {
     try {
       await _channel.invokeMethod('minimizeApp');
+    } catch (_) {}
+  }
+
+  /// Expand the overlay to full quick-entry modal size
+  static Future<void> expandOverlay() async {
+    try {
+      await FlutterOverlayWindow.resizeOverlay(
+        340,
+        480,
+        false,
+      );
+    } catch (_) {}
+  }
+
+  /// Collapse the overlay back to small floating bubble
+  static Future<void> collapseOverlay() async {
+    try {
+      await FlutterOverlayWindow.resizeOverlay(
+        120,
+        120,
+        true,
+      );
     } catch (_) {}
   }
 
