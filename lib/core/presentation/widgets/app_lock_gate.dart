@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_theme.dart';
 import '../../../features/settings/presentation/state/backup_provider.dart';
 import '../../services/security_service.dart';
 
@@ -108,27 +107,26 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              // Security Shield Emblem
+              // Security Shield Emblem with EP Logo
               Container(
-                width: 90,
-                height: 90,
+                width: 96,
+                height: 96,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primaryEmerald.withAlpha(25),
-                  border: Border.all(color: AppColors.primaryEmerald.withAlpha(80), width: 2),
+                  color: Colors.black,
+                  border: Border.all(color: AppColors.primaryEmerald.withAlpha(120), width: 2.5),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primaryEmerald.withAlpha(40),
-                      blurRadius: 24,
+                      color: AppColors.primaryEmerald.withAlpha(60),
+                      blurRadius: 28,
                       offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Icon(
-                    Icons.lock_outline_rounded,
-                    color: AppColors.primaryEmerald,
-                    size: 44,
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/icon/app_icon.png',
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),

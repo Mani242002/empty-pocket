@@ -73,15 +73,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(6),
+                              width: 32,
+                              height: 32,
                               decoration: BoxDecoration(
-                                color: AppColors.primaryEmerald.withAlpha(isDark ? 50 : 30),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: AppColors.primaryEmerald.withAlpha(80),
+                                  width: 1,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.account_balance_wallet_rounded,
-                                color: AppColors.primaryEmerald,
-                                size: 20,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(7),
+                                child: Image.asset(
+                                  'assets/icon/app_icon.png',
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
