@@ -186,11 +186,12 @@ class InvestmentEntity {
           currentValue == other.currentValue;
 
   @override
-  int get hashCode =>
-      id.hashCode ^
-      name.hashCode ^
-      investedAmount.hashCode ^
-      currentValue.hashCode;
+  int get hashCode => Object.hash(
+        id,
+        name,
+        investedAmount,
+        currentValue,
+      );
 }
 
 /// Calculated metrics for a single investment holding

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:empty_pocket/app/app.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
 import 'package:empty_pocket/core/repositories/budget_repository.dart';
@@ -11,6 +12,10 @@ import 'package:empty_pocket/core/repositories/savings_goal_repository.dart';
 import 'package:empty_pocket/core/repositories/transaction_repository.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({'app_lock_enabled': false});
+  });
+
   testWidgets('Complete flow: transactions, budgeting, recurring, savings, debts, and investments',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
@@ -65,6 +70,7 @@ void main() {
         child: const EmptyPocketApp(),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 100));
     await tester.pumpAndSettle();
 
     // Verify brand and header

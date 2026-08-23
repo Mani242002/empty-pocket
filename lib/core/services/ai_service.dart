@@ -216,8 +216,9 @@ Guidelines:
       throw Exception('Google Gemini API Key is missing. Please configure it in AI Settings.');
     }
 
+    // Pass API key via x-goog-api-key header instead of query parameter to prevent logging leaks
     final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=$key',
+      'https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent',
     );
 
     final List<Map<String, dynamic>> contents = [];
@@ -236,9 +237,10 @@ Guidelines:
       ],
     });
 
-    // Conversation history
+    // Conversation history (Sliding window of most recent messages)
     if (history != null && history.isNotEmpty) {
-      for (final msg in history.take(8)) {
+      final recentHistory = history.length > 12 ? history.sublist(history.length - 12) : history;
+      for (final msg in recentHistory) {
         contents.add({
           'role': msg.isUser ? 'user' : 'model',
           'parts': [
@@ -258,7 +260,10 @@ Guidelines:
 
     final response = await _httpClient.post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': key,
+      },
       body: jsonEncode({
         'contents': contents,
         'generationConfig': {
@@ -266,11 +271,22 @@ Guidelines:
           'maxOutputTokens': 2000,
         },
       }),
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () => throw Exception(
+        'Request timed out after 30 seconds. Check your network connection and try again.',
+      ),
     );
 
     if (response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body);
-      final message = errorBody['error']?['message'] ?? 'Gemini API call failed (${response.statusCode})';
+      String message;
+      try {
+        final errorBody = jsonDecode(response.body);
+        message = errorBody['error']?['message'] ?? 'Gemini API call failed (${response.statusCode})';
+      } on FormatException {
+        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        message = 'Gemini API call failed (${response.statusCode}): $preview';
+      }
       throw Exception(message);
     }
 
@@ -285,7 +301,12 @@ Guidelines:
       throw Exception('Empty content returned by Gemini.');
     }
 
-    return parts.first['text'] as String;
+    final text = parts.first['text'];
+    if (text == null) {
+      throw Exception('Gemini returned an empty text response. The content may have been filtered.');
+    }
+
+    return text as String;
   }
 
   /// Groq OpenAI-Compatible REST API Implementation
@@ -307,7 +328,8 @@ Guidelines:
     ];
 
     if (history != null && history.isNotEmpty) {
-      for (final msg in history.take(8)) {
+      final recentHistory = history.length > 12 ? history.sublist(history.length - 12) : history;
+      for (final msg in recentHistory) {
         messages.add({
           'role': msg.isUser ? 'user' : 'assistant',
           'content': msg.text,
@@ -329,11 +351,22 @@ Guidelines:
         'temperature': 0.7,
         'max_tokens': 2000,
       }),
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () => throw Exception(
+        'Request timed out after 30 seconds. Check your network connection and try again.',
+      ),
     );
 
     if (response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body);
-      final message = errorBody['error']?['message'] ?? 'Groq API call failed (${response.statusCode})';
+      String message;
+      try {
+        final errorBody = jsonDecode(response.body);
+        message = errorBody['error']?['message'] ?? 'Groq API call failed (${response.statusCode})';
+      } on FormatException {
+        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        message = 'Groq API call failed (${response.statusCode}): $preview';
+      }
       throw Exception(message);
     }
 
@@ -343,7 +376,12 @@ Guidelines:
       throw Exception('No choices returned by Groq.');
     }
 
-    return choices.first['message']['content'] as String;
+    final content = choices.first['message']?['content'];
+    if (content == null) {
+      throw Exception('Groq returned an empty content response.');
+    }
+
+    return content as String;
   }
 
   AiAuditReport _parseAuditResponse(String text) {
@@ -360,15 +398,24 @@ Guidelines:
       if (trimmed.isEmpty) continue;
 
       final upper = trimmed.toUpperCase();
-      if (upper.contains('STRENGTH')) {
-        currentSection = 'strengths';
-        continue;
-      } else if (upper.contains('RISK') || upper.contains('WEAKNESS') || upper.contains('CONCERN')) {
-        currentSection = 'risks';
-        continue;
-      } else if (upper.contains('RECOMMENDATION') || upper.contains('ACTION') || upper.contains('NEXT STEP')) {
-        currentSection = 'recommendations';
-        continue;
+      final isHeading = trimmed.startsWith('#') ||
+          trimmed.startsWith(RegExp(r'^\d+[\.\)]')) ||
+          upper == trimmed;
+
+      if (isHeading) {
+        if (upper.contains('STRENGTH') || upper.contains('WIN')) {
+          currentSection = 'strengths';
+          continue;
+        } else if (upper.contains('RISK') || upper.contains('WEAKNESS') || upper.contains('CONCERN') || upper.contains('FLAG')) {
+          currentSection = 'risks';
+          continue;
+        } else if (upper.contains('RECOMMENDATION') || upper.contains('ACTION') || upper.contains('NEXT STEP') || upper.contains('PLAN')) {
+          currentSection = 'recommendations';
+          continue;
+        } else if (upper.contains('EXECUTIVE') || upper.contains('OVERVIEW') || upper.contains('SUMMARY')) {
+          currentSection = 'overview';
+          continue;
+        }
       }
 
       final cleanLine = trimmed.replaceAll(RegExp(r'^[\*\-\d\.\)]+\s*'), '');

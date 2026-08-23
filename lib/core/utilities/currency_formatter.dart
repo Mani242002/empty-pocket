@@ -7,10 +7,11 @@ class CurrencyFormatter {
     String symbol = '₹',
     bool showDecimals = true,
   }) {
+    final pattern = showDecimals ? '$symbol#,##,##0.00' : '$symbol#,##,##0';
     final format = NumberFormat.currency(
       symbol: symbol,
       decimalDigits: showDecimals ? 2 : 0,
-      customPattern: '$symbol#,##,##0.00',
+      customPattern: pattern,
     );
     return format.format(amount);
   }

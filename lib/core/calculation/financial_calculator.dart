@@ -25,14 +25,21 @@ class CategorySpendingSummary {
 
 /// Pure financial calculation engine for EmptyPocket
 abstract class FinancialCalculator {
-  /// Calculate total income from list of transactions
+  /// Calculate total income from list of transactions.
+  ///
+  /// Note: Transfer transactions ([TransactionType.transfer]) are intentionally
+  /// excluded from income/expense calculations as they represent internal account
+  /// fund movements rather than external cash flow events.
   static double calculateTotalIncome(List<TransactionEntity> transactions) {
     return transactions
         .where((t) => t.type == TransactionType.income)
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 
-  /// Calculate total expense from list of transactions
+  /// Calculate total expense from list of transactions.
+  ///
+  /// Note: Transfer transactions ([TransactionType.transfer]) are intentionally
+  /// excluded from expense totals as they do not constitute net expenditure.
   static double calculateTotalExpense(List<TransactionEntity> transactions) {
     return transactions
         .where((t) => t.type == TransactionType.expense)

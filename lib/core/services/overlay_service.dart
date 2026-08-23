@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 class OverlayService {
@@ -5,7 +6,8 @@ class OverlayService {
   static Future<bool> isPermissionGranted() async {
     try {
       return await FlutterOverlayWindow.isPermissionGranted();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[OverlayService] isPermissionGranted error: $e');
       return false;
     }
   }
@@ -14,7 +16,8 @@ class OverlayService {
   static Future<bool?> requestPermission() async {
     try {
       return await FlutterOverlayWindow.requestPermission();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[OverlayService] requestPermission error: $e');
       return false;
     }
   }
@@ -23,7 +26,8 @@ class OverlayService {
   static Future<bool> isActive() async {
     try {
       return await FlutterOverlayWindow.isActive();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[OverlayService] isActive error: $e');
       return false;
     }
   }
@@ -48,7 +52,9 @@ class OverlayService {
         height: 120,
         width: 120,
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[OverlayService] showFloatingBubble error: $e');
+    }
   }
 
   static OverlayPosition? _savedPosition;
@@ -73,7 +79,9 @@ class OverlayService {
         _expandedHeight,
         false,
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[OverlayService] expandOverlay error: $e');
+    }
   }
 
   /// Collapse the overlay back to small floating bubble and restore default touch flag
@@ -90,13 +98,17 @@ class OverlayService {
         _bubbleSize,
         true,
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[OverlayService] collapseOverlay error: $e');
+    }
   }
 
   /// Close the overlay completely
   static Future<void> closeOverlay() async {
     try {
       await FlutterOverlayWindow.closeOverlay();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[OverlayService] closeOverlay error: $e');
+    }
   }
 }

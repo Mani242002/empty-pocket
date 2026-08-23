@@ -44,18 +44,18 @@ dependencies:
   flutter_overlay_window: ^0.5.0
   local_auth: ^2.3.0
   flutter_markdown: ^0.7.6+1
+  flutter_secure_storage: 9.2.2
+  package_info_plus: ^8.1.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
+
+dependency_overrides:
+  path_provider_foundation: 2.4.0
 
 flutter_launcher_icons:
   android: "ic_launcher"

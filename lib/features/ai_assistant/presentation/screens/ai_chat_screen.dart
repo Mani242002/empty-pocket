@@ -86,7 +86,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     final config = ref.watch(aiProviderConfigProvider);
-    final chatMessages = ref.watch(aiChatProvider);
+    final chatState = ref.watch(aiChatProvider);
+    final chatMessages = chatState.messages;
+    final isGenerating = chatState.isGenerating;
 
     return Scaffold(
       appBar: AppBar(
@@ -137,25 +139,33 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   ActionChip(
                     avatar: const Icon(Icons.shopping_bag_outlined, size: 15),
                     label: const Text('Can I afford ₹15k trip?'),
-                    onPressed: () => _sendMessage('Based on my current cash balance, expenses, and safety runway, can I afford a ₹15,000 trip next month?'),
+                    onPressed: isGenerating
+                        ? null
+                        : () => _sendMessage('Based on my current cash balance, expenses, and safety runway, can I afford a ₹15,000 trip next month?'),
                   ),
                   const SizedBox(width: 8),
                   ActionChip(
                     avatar: const Icon(Icons.account_balance_outlined, size: 15),
                     label: const Text('Prepay loans vs SIPs?'),
-                    onPressed: () => _sendMessage('Should I prioritize prepaying my active loans or investing more in mutual funds/equity?'),
+                    onPressed: isGenerating
+                        ? null
+                        : () => _sendMessage('Should I prioritize prepaying my active loans or investing more in mutual funds/equity?'),
                   ),
                   const SizedBox(width: 8),
                   ActionChip(
                     avatar: const Icon(Icons.shield_outlined, size: 15),
                     label: const Text('Emergency buffer status?'),
-                    onPressed: () => _sendMessage('Analyze my emergency fund buffer and safety duration based on my monthly expenses.'),
+                    onPressed: isGenerating
+                        ? null
+                        : () => _sendMessage('Analyze my emergency fund buffer and safety duration based on my monthly expenses.'),
                   ),
                   const SizedBox(width: 8),
                   ActionChip(
                     avatar: const Icon(Icons.pie_chart_outline_rounded, size: 15),
                     label: const Text('Audit top spending category'),
-                    onPressed: () => _sendMessage('Audit my highest expense category this month and give me practical tips to reduce it.'),
+                    onPressed: isGenerating
+                        ? null
+                        : () => _sendMessage('Audit my highest expense category this month and give me practical tips to reduce it.'),
                   ),
                 ],
               ),
@@ -190,9 +200,12 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   child: TextFormField(
                     controller: _messageController,
                     textInputAction: TextInputAction.send,
+                    enabled: !isGenerating,
                     onFieldSubmitted: (val) => _sendMessage(),
                     decoration: InputDecoration(
-                      hintText: 'Ask PocketAI about your finances...',
+                      hintText: isGenerating
+                          ? 'PocketAI is analyzing...'
+                          : 'Ask PocketAI about your finances...',
                       prefixIcon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
@@ -202,8 +215,14 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 const SizedBox(width: 8),
                 IconButton.filled(
                   style: IconButton.styleFrom(backgroundColor: AppColors.primaryEmerald),
-                  icon: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                  onPressed: () => _sendMessage(),
+                  icon: isGenerating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                        )
+                      : const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                  onPressed: isGenerating ? null : () => _sendMessage(),
                 ),
               ],
             ),

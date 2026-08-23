@@ -126,4 +126,30 @@ class RecurringExpenseEntity {
     final due = DateTime(nextDueDate.year, nextDueDate.month, nextDueDate.day);
     return due.difference(today).inDays;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RecurringExpenseEntity &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          amount == other.amount &&
+          category == other.category &&
+          frequency == other.frequency &&
+          startDate == other.startDate &&
+          nextDueDate == other.nextDueDate &&
+          isActive == other.isActive;
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        title,
+        amount,
+        category,
+        frequency,
+        startDate,
+        nextDueDate,
+        isActive,
+      );
 }

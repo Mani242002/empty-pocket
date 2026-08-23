@@ -4,6 +4,10 @@ import '../domain/entities/transaction_entity.dart';
 
 abstract class TransactionRepository {
   Future<List<TransactionEntity>> getAllTransactions();
+  Future<List<TransactionEntity>> getTransactionsPaginated({
+    int limit = 50,
+    int offset = 0,
+  });
   Future<void> addTransaction(TransactionEntity transaction);
   Future<void> updateTransaction(TransactionEntity transaction);
   Future<void> deleteTransaction(String id);
@@ -18,6 +22,14 @@ class SqliteTransactionRepository implements TransactionRepository {
   @override
   Future<List<TransactionEntity>> getAllTransactions() {
     return _db.getAllTransactions();
+  }
+
+  @override
+  Future<List<TransactionEntity>> getTransactionsPaginated({
+    int limit = 50,
+    int offset = 0,
+  }) {
+    return _db.getTransactionsPaginated(limit: limit, offset: offset);
   }
 
   @override
@@ -57,6 +69,18 @@ class InMemoryTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<List<TransactionEntity>> getTransactionsPaginated({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final sorted = List<TransactionEntity>.from(_transactions)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    if (offset >= sorted.length) return [];
+    final end = (offset + limit < sorted.length) ? offset + limit : sorted.length;
+    return sorted.sublist(offset, end);
+  }
+
+  @override
   Future<void> addTransaction(TransactionEntity transaction) async {
     _transactions.removeWhere((t) => t.id == transaction.id);
     _transactions.add(transaction);
@@ -83,9 +107,9 @@ class InMemoryTransactionRepository implements TransactionRepository {
   }
 }
 
-/// App Database Provider
+/// App Database Provider - Always returns the shared singleton instance
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  return AppDatabase();
+  return AppDatabase.instance;
 });
 
 /// Transaction Repository Provider

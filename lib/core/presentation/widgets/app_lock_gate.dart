@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../features/settings/presentation/state/backup_provider.dart';
@@ -36,7 +37,7 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final isLockEnabled = ref.read(appLockProvider);
+    final isLockEnabled = ref.read(appLockProvider).valueOrNull ?? false;
     if (!isLockEnabled) return;
 
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
@@ -51,7 +52,7 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
   }
 
   Future<void> _checkLockStatus() async {
-    final isLockEnabled = ref.read(appLockProvider);
+    final isLockEnabled = ref.read(appLockProvider).valueOrNull ?? false;
     if (!isLockEnabled) {
       if (mounted) setState(() => _isUnlocked = true);
       return;
@@ -72,13 +73,21 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
         reason: 'Authenticate to access your EmptyPocket financial vault',
       );
 
+      if (success) {
+        await HapticFeedback.mediumImpact();
+      } else {
+        await HapticFeedback.heavyImpact();
+      }
+
       if (mounted) {
         setState(() {
           _isUnlocked = success;
           _isAuthenticating = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[AppLockGate] Authentication error: $e');
+      await HapticFeedback.heavyImpact();
       if (mounted) {
         setState(() => _isAuthenticating = false);
       }
@@ -87,14 +96,29 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
-    final isLockEnabled = ref.watch(appLockProvider);
+    final appLockAsync = ref.watch(appLockProvider);
 
-    // If lock is disabled or user is authenticated, show the app
-    if (!isLockEnabled || _isUnlocked) {
-      return widget.child;
-    }
+    return appLockAsync.when(
+      data: (isLockEnabled) {
+        if (!isLockEnabled || _isUnlocked) {
+          return widget.child;
+        }
+        return _buildLockScreen(context);
+      },
+      loading: () => Scaffold(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? AppColors.darkBackground
+            : AppColors.lightBackground,
+        body: const SizedBox.shrink(),
+      ),
+      error: (err, _) {
+        debugPrint('[AppLockGate] App lock state error: $err');
+        return widget.child;
+      },
+    );
+  }
 
-    // Otherwise show the secure Vault Lock Screen
+  Widget _buildLockScreen(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -127,6 +151,11 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
                   child: Image.asset(
                     'assets/icon/app_icon.png',
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.shield_rounded,
+                      size: 48,
+                      color: AppColors.primaryEmerald,
+                    ),
                   ),
                 ),
               ),

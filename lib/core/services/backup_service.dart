@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../database/app_database.dart';
 import '../domain/entities/backup_entity.dart';
@@ -28,7 +29,7 @@ class BackupService {
     required List<RecurringExpenseEntity> recurringExpenses,
   }) {
     final metadata = BackupMetadata(
-      schemaVersion: 5,
+      schemaVersion: 6,
       exportedAt: DateTime.now(),
       transactionsCount: transactions.length,
       budgetsCount: budgets.length,
@@ -94,7 +95,7 @@ class BackupService {
     return field.replaceAll('"', '""');
   }
 
-  /// Restore all data into SQLite repositories
+  /// Restore all data into repositories (with batch optimization for SQLite)
   Future<void> restoreAll({
     required FullDatabaseBackup backup,
     required TransactionRepository transactionRepo,
@@ -114,44 +115,136 @@ class BackupService {
       recurringRepo: recurringRepo,
     );
 
+    final isSqlite = transactionRepo is SqliteTransactionRepository;
+
     // 2. Restore transactions
-    for (final tx in backup.transactions) {
-      await transactionRepo.addTransaction(tx);
+    if (isSqlite && backup.transactions.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertTransactions(backup.transactions);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert transactions failed: $e, falling back to repository');
+        for (final tx in backup.transactions) {
+          await transactionRepo.addTransaction(tx);
+        }
+      }
+    } else {
+      for (final tx in backup.transactions) {
+        await transactionRepo.addTransaction(tx);
+      }
     }
 
     // 3. Restore budgets
-    for (final b in backup.budgets) {
-      await budgetRepo.saveBudget(b);
+    if (isSqlite && backup.budgets.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertBudgets(backup.budgets);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert budgets failed: $e, falling back to repository');
+        for (final b in backup.budgets) {
+          await budgetRepo.saveBudget(b);
+        }
+      }
+    } else {
+      for (final b in backup.budgets) {
+        await budgetRepo.saveBudget(b);
+      }
     }
 
     // 4. Restore savings goals & contributions
-    for (final g in backup.savingsGoals) {
-      await savingsRepo.saveGoal(g);
+    if (isSqlite && backup.savingsGoals.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertSavingsGoals(backup.savingsGoals);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert goals failed: $e, falling back to repository');
+        for (final g in backup.savingsGoals) {
+          await savingsRepo.saveGoal(g);
+        }
+      }
+    } else {
+      for (final g in backup.savingsGoals) {
+        await savingsRepo.saveGoal(g);
+      }
     }
-    for (final c in backup.savingsContributions) {
-      await savingsRepo.addContribution(c);
+
+    if (isSqlite && backup.savingsContributions.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertGoalContributions(backup.savingsContributions);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert contributions failed: $e, falling back to repository');
+        for (final c in backup.savingsContributions) {
+          await savingsRepo.addContribution(c);
+        }
+      }
+    } else {
+      for (final c in backup.savingsContributions) {
+        await savingsRepo.addContribution(c);
+      }
     }
 
     // 5. Restore debts & payments
-    for (final d in backup.debts) {
-      await debtRepo.saveDebt(d);
+    if (isSqlite && backup.debts.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertDebts(backup.debts);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert debts failed: $e, falling back to repository');
+        for (final d in backup.debts) {
+          await debtRepo.saveDebt(d);
+        }
+      }
+    } else {
+      for (final d in backup.debts) {
+        await debtRepo.saveDebt(d);
+      }
     }
-    for (final p in backup.debtPayments) {
-      await debtRepo.addPayment(p);
+
+    if (isSqlite && backup.debtPayments.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertDebtPayments(backup.debtPayments);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert payments failed: $e, falling back to repository');
+        for (final p in backup.debtPayments) {
+          await debtRepo.addPayment(p);
+        }
+      }
+    } else {
+      for (final p in backup.debtPayments) {
+        await debtRepo.addPayment(p);
+      }
     }
 
     // 6. Restore investments
-    for (final i in backup.investments) {
-      await investmentRepo.saveInvestment(i);
+    if (isSqlite && backup.investments.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertInvestments(backup.investments);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert investments failed: $e, falling back to repository');
+        for (final i in backup.investments) {
+          await investmentRepo.saveInvestment(i);
+        }
+      }
+    } else {
+      for (final i in backup.investments) {
+        await investmentRepo.saveInvestment(i);
+      }
     }
 
     // 7. Restore recurring expenses
-    for (final r in backup.recurringExpenses) {
-      await recurringRepo.saveRecurringExpense(r);
+    if (isSqlite && backup.recurringExpenses.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertRecurringExpenses(backup.recurringExpenses);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert recurring failed: $e, falling back to repository');
+        for (final r in backup.recurringExpenses) {
+          await recurringRepo.saveRecurringExpense(r);
+        }
+      }
+    } else {
+      for (final r in backup.recurringExpenses) {
+        await recurringRepo.saveRecurringExpense(r);
+      }
     }
   }
 
-  /// Complete privacy factory reset: wipes all local SQLite tables
+  /// Complete privacy factory reset: wipes all local records
   Future<void> wipeAllData({
     required TransactionRepository transactionRepo,
     required BudgetRepository budgetRepo,
@@ -160,13 +253,20 @@ class BackupService {
     required InvestmentRepository investmentRepo,
     required RecurringRepository recurringRepo,
   }) async {
-    try {
-      await AppDatabase.instance.clearAllData();
-    } catch (_) {}
+    if (transactionRepo is SqliteTransactionRepository) {
+      try {
+        await AppDatabase.instance.clearAllData();
+        return;
+      } catch (e) {
+        debugPrint('[BackupService] Atomic clearAllData failed: $e, falling back to individual repository deletes');
+      }
+    }
 
     try {
       await transactionRepo.clearAllTransactions();
-    } catch (_) {}
+    } catch (err) {
+      debugPrint('[BackupService] clearAllTransactions error: $err');
+    }
 
     final allBudgets = await budgetRepo.getAllBudgets();
     for (final b in allBudgets) {

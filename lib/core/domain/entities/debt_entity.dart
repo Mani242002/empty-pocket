@@ -199,12 +199,13 @@ class DebtEntity {
           status == other.status;
 
   @override
-  int get hashCode =>
-      id.hashCode ^
-      title.hashCode ^
-      principalAmount.hashCode ^
-      remainingAmount.hashCode ^
-      status.hashCode;
+  int get hashCode => Object.hash(
+        id,
+        title,
+        principalAmount,
+        remainingAmount,
+        status,
+      );
 }
 
 /// Domain entity representing a payment or prepayment logged against a debt

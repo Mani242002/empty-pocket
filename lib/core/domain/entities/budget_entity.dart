@@ -85,12 +85,13 @@ class BudgetEntity {
           month.month == other.month.month;
 
   @override
-  int get hashCode =>
-      id.hashCode ^
-      category.hashCode ^
-      limitAmount.hashCode ^
-      month.year.hashCode ^
-      month.month.hashCode;
+  int get hashCode => Object.hash(
+        id,
+        category,
+        limitAmount,
+        month.year,
+        month.month,
+      );
 }
 
 /// Calculated status for a category budget

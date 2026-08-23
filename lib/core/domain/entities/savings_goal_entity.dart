@@ -122,13 +122,14 @@ class SavingsGoalEntity {
           status == other.status;
 
   @override
-  int get hashCode =>
-      id.hashCode ^
-      title.hashCode ^
-      targetAmount.hashCode ^
-      currentAmount.hashCode ^
-      category.hashCode ^
-      status.hashCode;
+  int get hashCode => Object.hash(
+        id,
+        title,
+        targetAmount,
+        currentAmount,
+        category,
+        status,
+      );
 }
 
 /// Domain entity representing a contribution entry towards a goal

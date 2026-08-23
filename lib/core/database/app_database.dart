@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/debt_entity.dart';
 import '../domain/entities/investment_entity.dart';
@@ -10,7 +13,7 @@ import '../domain/entities/transaction_entity.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 5;
+  static const int _databaseVersion = 6;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
@@ -21,16 +24,39 @@ class AppDatabase {
   static const String tableDebtPayments = 'debt_payments';
   static const String tableInvestments = 'investments';
 
-  static final AppDatabase instance = AppDatabase();
+  static final AppDatabase instance = AppDatabase._internal();
 
   Database? db;
+  Completer<Database>? _dbCompleter;
 
-  AppDatabase({this.db});
+  AppDatabase._internal({this.db});
 
+  /// Factory constructor for injecting mock databases in unit/integration tests
+  @visibleForTesting
+  factory AppDatabase.forTesting(Database mockDb) {
+    return AppDatabase._internal(db: mockDb);
+  }
+
+  /// Thread-safe database getter with completer-based lock
   Future<Database> get database async {
     if (db != null) return db!;
-    db = await _initDatabase();
-    return db!;
+
+    if (_dbCompleter != null) {
+      return _dbCompleter!.future;
+    }
+
+    final completer = Completer<Database>();
+    _dbCompleter = completer;
+    try {
+      db = await _initDatabase();
+      completer.complete(db!);
+      return db!;
+    } catch (e) {
+      _dbCompleter = null;
+      completer.completeError(e);
+      completer.future.ignore();
+      rethrow;
+    }
   }
 
   Future<Database> _initDatabase() async {
@@ -40,6 +66,10 @@ class AppDatabase {
     return await openDatabase(
       path,
       version: _databaseVersion,
+      onConfigure: (db) async {
+        // Enforce SQLite Foreign Key constraints
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -99,6 +129,13 @@ class AppDatabase {
     if (oldVersion < 5) {
       await _createInvestmentsTable(db);
     }
+    if (oldVersion < 6) {
+      // Add unique index on budgets for month + category
+      await db.execute('''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_month_category
+        ON $tableBudgets(month, category);
+      ''');
+    }
   }
 
   Future<void> _createBudgetsTable(Database db) async {
@@ -116,6 +153,10 @@ class AppDatabase {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_budgets_month ON $tableBudgets(month)',
     );
+    await db.execute('''
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_month_category
+      ON $tableBudgets(month, category)
+    ''');
   }
 
   Future<void> _createRecurringTable(Database db) async {
@@ -163,7 +204,8 @@ class AppDatabase {
         amount REAL NOT NULL,
         date INTEGER NOT NULL,
         notes TEXT,
-        created_at INTEGER NOT NULL
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (goal_id) REFERENCES $tableSavingsGoals(id) ON DELETE CASCADE
       )
     ''');
 
@@ -201,7 +243,8 @@ class AppDatabase {
         interest_portion REAL NOT NULL,
         date INTEGER NOT NULL,
         notes TEXT,
-        created_at INTEGER NOT NULL
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (debt_id) REFERENCES $tableDebts(id) ON DELETE CASCADE
       )
     ''');
 
@@ -244,6 +287,21 @@ class AppDatabase {
     );
   }
 
+  Future<void> batchInsertTransactions(List<TransactionEntity> transactions) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final tx in transactions) {
+        batch.insert(
+          tableTransactions,
+          tx.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
   Future<int> updateTransaction(TransactionEntity transaction) async {
     final database = await this.database;
     return await database.update(
@@ -273,6 +331,21 @@ class AppDatabase {
     return maps.map((map) => TransactionEntity.fromMap(map)).toList();
   }
 
+  Future<List<TransactionEntity>> getTransactionsPaginated({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableTransactions,
+      orderBy: 'date DESC, created_at DESC',
+      limit: limit,
+      offset: offset,
+    );
+
+    return maps.map((map) => TransactionEntity.fromMap(map)).toList();
+  }
+
   Future<int> clearAllTransactions() async {
     final database = await this.database;
     return await database.delete(tableTransactions);
@@ -287,6 +360,21 @@ class AppDatabase {
       budget.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  Future<void> batchInsertBudgets(List<BudgetEntity> budgets) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final b in budgets) {
+        batch.insert(
+          tableBudgets,
+          b.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
   }
 
   Future<int> updateBudget(BudgetEntity budget) async {
@@ -310,7 +398,11 @@ class AppDatabase {
 
   Future<List<BudgetEntity>> getBudgetsForMonth(DateTime month) async {
     final database = await this.database;
-    final monthStart = DateTime(month.year, month.month, 1).millisecondsSinceEpoch;
+    final monthStart = DateTime(
+      month.year,
+      month.month,
+      1,
+    ).millisecondsSinceEpoch;
     final List<Map<String, dynamic>> maps = await database.query(
       tableBudgets,
       where: 'month = ?',
@@ -340,6 +432,21 @@ class AppDatabase {
       item.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  Future<void> batchInsertRecurringExpenses(List<RecurringExpenseEntity> items) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final item in items) {
+        batch.insert(
+          tableRecurring,
+          item.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
   }
 
   Future<int> updateRecurringExpense(RecurringExpenseEntity item) async {
@@ -382,6 +489,21 @@ class AppDatabase {
     );
   }
 
+  Future<void> batchInsertSavingsGoals(List<SavingsGoalEntity> goals) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final goal in goals) {
+        batch.insert(
+          tableSavingsGoals,
+          goal.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
   Future<int> updateSavingsGoal(SavingsGoalEntity goal) async {
     final database = await this.database;
     return await database.update(
@@ -392,18 +514,23 @@ class AppDatabase {
     );
   }
 
+  /// Atomic cascading delete for savings goal and its associated contributions
   Future<int> deleteSavingsGoal(String id) async {
     final database = await this.database;
-    await database.delete(
-      tableGoalContributions,
-      where: 'goal_id = ?',
-      whereArgs: [id],
-    );
-    return await database.delete(
-      tableSavingsGoals,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    int result = 0;
+    await database.transaction((txn) async {
+      await txn.delete(
+        tableGoalContributions,
+        where: 'goal_id = ?',
+        whereArgs: [id],
+      );
+      result = await txn.delete(
+        tableSavingsGoals,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
+    return result;
   }
 
   Future<List<SavingsGoalEntity>> getAllSavingsGoals() async {
@@ -418,7 +545,9 @@ class AppDatabase {
 
   // --- Goal Contributions ---
 
-  Future<int> insertGoalContribution(GoalContributionEntity contribution) async {
+  Future<int> insertGoalContribution(
+    GoalContributionEntity contribution,
+  ) async {
     final database = await this.database;
     return await database.insert(
       tableGoalContributions,
@@ -427,7 +556,24 @@ class AppDatabase {
     );
   }
 
-  Future<List<GoalContributionEntity>> getContributionsForGoal(String goalId) async {
+  Future<void> batchInsertGoalContributions(List<GoalContributionEntity> contributions) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final c in contributions) {
+        batch.insert(
+          tableGoalContributions,
+          c.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
+  Future<List<GoalContributionEntity>> getContributionsForGoal(
+    String goalId,
+  ) async {
     final database = await this.database;
     final List<Map<String, dynamic>> maps = await database.query(
       tableGoalContributions,
@@ -450,6 +596,21 @@ class AppDatabase {
     );
   }
 
+  Future<void> batchInsertDebts(List<DebtEntity> debts) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final d in debts) {
+        batch.insert(
+          tableDebts,
+          d.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
   Future<int> updateDebt(DebtEntity debt) async {
     final database = await this.database;
     return await database.update(
@@ -460,18 +621,23 @@ class AppDatabase {
     );
   }
 
+  /// Atomic cascading delete for debt and its payment history
   Future<int> deleteDebt(String id) async {
     final database = await this.database;
-    await database.delete(
-      tableDebtPayments,
-      where: 'debt_id = ?',
-      whereArgs: [id],
-    );
-    return await database.delete(
-      tableDebts,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    int result = 0;
+    await database.transaction((txn) async {
+      await txn.delete(
+        tableDebtPayments,
+        where: 'debt_id = ?',
+        whereArgs: [id],
+      );
+      result = await txn.delete(
+        tableDebts,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
+    return result;
   }
 
   Future<List<DebtEntity>> getAllDebts() async {
@@ -495,6 +661,21 @@ class AppDatabase {
     );
   }
 
+  Future<void> batchInsertDebtPayments(List<DebtPaymentEntity> payments) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final p in payments) {
+        batch.insert(
+          tableDebtPayments,
+          p.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
   Future<List<DebtPaymentEntity>> getPaymentsForDebt(String debtId) async {
     final database = await this.database;
     final List<Map<String, dynamic>> maps = await database.query(
@@ -516,6 +697,21 @@ class AppDatabase {
       investment.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  Future<void> batchInsertInvestments(List<InvestmentEntity> investments) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final inv in investments) {
+        batch.insert(
+          tableInvestments,
+          inv.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
   }
 
   Future<int> updateInvestment(InvestmentEntity investment) async {
@@ -567,6 +763,7 @@ class AppDatabase {
     if (currentDb != null && currentDb.isOpen) {
       await currentDb.close();
       db = null;
+      _dbCompleter = null;
     }
   }
 }

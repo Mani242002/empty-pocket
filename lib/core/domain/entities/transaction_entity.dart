@@ -124,13 +124,14 @@ class TransactionEntity {
           notes == other.notes;
 
   @override
-  int get hashCode =>
-      id.hashCode ^
-      title.hashCode ^
-      amount.hashCode ^
-      type.hashCode ^
-      category.hashCode ^
-      date.hashCode ^
-      paymentSource.hashCode ^
-      notes.hashCode;
+  int get hashCode => Object.hash(
+        id,
+        title,
+        amount,
+        type,
+        category,
+        date,
+        paymentSource,
+        notes,
+      );
 }

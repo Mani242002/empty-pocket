@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../app/theme/theme_provider.dart';
@@ -8,6 +9,15 @@ import '../../../ai_assistant/presentation/screens/ai_settings_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../../core/presentation/widgets/app_lock_gate.dart';
 import '../state/backup_provider.dart';
+
+final appVersionProvider = FutureProvider<String>((ref) async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    return 'v${info.version}+${info.buildNumber}';
+  } catch (_) {
+    return 'v1.0.0+1';
+  }
+});
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -328,7 +338,7 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final currentThemeMode = ref.watch(themeModeProvider);
-    final isAppLockEnabled = ref.watch(appLockProvider);
+    final isAppLockEnabled = ref.watch(appLockProvider).valueOrNull ?? false;
     final isBubbleEnabled = ref.watch(floatingBubbleProvider);
     final aiConfig = ref.watch(aiProviderConfigProvider);
 
@@ -620,6 +630,11 @@ class SettingsScreen extends ConsumerWidget {
                           child: Image.asset(
                             'assets/icon/app_icon.png',
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              size: 28,
+                              color: AppColors.primaryEmerald,
+                            ),
                           ),
                         ),
                       ),
@@ -653,7 +668,7 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.info_outline_rounded,
                   iconColor: AppColors.primaryEmerald,
                   title: 'Version',
-                  subtitle: 'v1.0.0-release',
+                  subtitle: ref.watch(appVersionProvider).valueOrNull ?? 'v1.0.0+1',
                 ),
                 const Divider(),
                 _buildListTile(

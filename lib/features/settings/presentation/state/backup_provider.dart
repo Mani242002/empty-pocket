@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/repositories/budget_repository.dart';
@@ -18,32 +19,38 @@ import '../../../transactions/presentation/state/transactions_provider.dart';
 
 final backupServiceProvider = Provider<BackupService>((ref) => BackupService());
 
-class AppLockNotifier extends StateNotifier<bool> {
+class AppLockNotifier extends AsyncNotifier<bool> {
   static const String _keyAppLock = 'app_lock_enabled';
 
-  AppLockNotifier() : super(false) {
-    _loadState();
-  }
-
-  Future<void> _loadState() async {
+  @override
+  Future<bool> build() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      state = prefs.getBool(_keyAppLock) ?? false;
-    } catch (_) {}
+      return prefs.getBool(_keyAppLock) ?? false;
+    } catch (e) {
+      debugPrint('[AppLockNotifier] build error: $e');
+      return false;
+    }
   }
 
   Future<void> toggleAppLock(bool enabled) async {
-    state = enabled;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_keyAppLock, enabled);
-    } catch (_) {}
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_keyAppLock, enabled);
+        return enabled;
+      } catch (e) {
+        debugPrint('[AppLockNotifier] toggleAppLock error: $e');
+        rethrow;
+      }
+    });
   }
 }
 
-final appLockProvider = StateNotifierProvider<AppLockNotifier, bool>((ref) {
-  return AppLockNotifier();
-});
+final appLockProvider = AsyncNotifierProvider<AppLockNotifier, bool>(
+  AppLockNotifier.new,
+);
 
 class FloatingBubbleNotifier extends StateNotifier<bool> {
   static const String _keyBubble = 'floating_bubble_enabled';
@@ -56,7 +63,9 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
     try {
       final prefs = await SharedPreferences.getInstance();
       state = prefs.getBool(_keyBubble) ?? false;
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FloatingBubbleNotifier] _loadState error: $e');
+    }
   }
 
   Future<bool> toggleBubble(bool enabled) async {
@@ -64,7 +73,9 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyBubble, enabled);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FloatingBubbleNotifier] toggleBubble error: $e');
+    }
 
     if (enabled) {
       final granted = await OverlayService.isPermissionGranted();
@@ -72,8 +83,12 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
         final res = await OverlayService.requestPermission();
         if (res != true) {
           state = false;
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool(_keyBubble, false);
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool(_keyBubble, false);
+          } catch (e) {
+            debugPrint('[FloatingBubbleNotifier] error resetting bubble pref: $e');
+          }
           return false;
         }
       }
@@ -81,7 +96,9 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
     } else {
       try {
         await OverlayService.closeOverlay();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[FloatingBubbleNotifier] closeOverlay error: $e');
+      }
     }
 
     return true;

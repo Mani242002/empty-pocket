@@ -105,7 +105,7 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         children: [
-          // Privacy Banner
+          // Privacy Banner & Data Disclosure
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -128,7 +128,7 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Your API keys are stored only inside your device\'s local storage. You can configure both Gemini and Groq independently.',
+                        'Your API keys are encrypted on-device. When generating AI reports or chatting with PocketAI, your aggregated financial metrics are sent directly to your chosen AI endpoint using your key. No third-party servers or telemetry are involved.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                           height: 1.35,
