@@ -105,6 +105,7 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
           ),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
@@ -139,12 +140,16 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            goal.title,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
+                          Expanded(
+                            child: Text(
+                              goal.title,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
@@ -166,18 +171,25 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Saved: ${CurrencyFormatter.format(goal.currentAmount)}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: financialColors.textMuted,
-                              fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Text(
+                              'Saved: ${CurrencyFormatter.format(goal.currentAmount)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: financialColors.textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Text(
-                            'Target: ${CurrencyFormatter.format(goal.targetAmount)}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: financialColors.textMuted,
-                              fontWeight: FontWeight.w600,
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Target: ${CurrencyFormatter.format(goal.targetAmount)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: financialColors.textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

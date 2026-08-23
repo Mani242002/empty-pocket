@@ -206,32 +206,39 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          CurrencyFormatter.format(overallSummary.totalRemaining),
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                            color: overallSummary.health == BudgetHealth.exceeded
-                                ? financialColors.expense
-                                : null,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              CurrencyFormatter.format(overallSummary.totalRemaining),
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                                color: overallSummary.health == BudgetHealth.exceeded
+                                    ? financialColors.expense
+                                    : null,
+                              ),
+                            ),
                           ),
-                        ),
-                        Text(
-                          overallSummary.totalOverspent > 0
-                              ? 'Overspent by ${CurrencyFormatter.format(overallSummary.totalOverspent)}'
-                              : 'Remaining to spend',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: overallSummary.totalOverspent > 0
-                                ? financialColors.expense
-                                : financialColors.textMuted,
-                            fontWeight: FontWeight.w600,
+                          Text(
+                            overallSummary.totalOverspent > 0
+                                ? 'Overspent by ${CurrencyFormatter.format(overallSummary.totalOverspent)}'
+                                : 'Remaining to spend',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: overallSummary.totalOverspent > 0
+                                  ? financialColors.expense
+                                  : financialColors.textMuted,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       '${overallSummary.overallPercentage.toStringAsFixed(0)}%',
                       style: theme.textTheme.titleLarge?.copyWith(
@@ -259,18 +266,25 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Spent: ${CurrencyFormatter.format(overallSummary.totalSpent)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: financialColors.textMuted,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        'Spent: ${CurrencyFormatter.format(overallSummary.totalSpent)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: financialColors.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Text(
-                      'Limit: ${CurrencyFormatter.format(overallSummary.totalLimit)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: financialColors.textMuted,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Limit: ${CurrencyFormatter.format(overallSummary.totalLimit)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: financialColors.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -472,13 +486,18 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          '${CurrencyFormatter.format(status.spentAmount)} / ${CurrencyFormatter.format(status.limitAmount)}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '${CurrencyFormatter.format(status.spentAmount)} / ${CurrencyFormatter.format(status.limitAmount)}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -583,11 +602,15 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    CurrencyFormatter.format(summary.totalSaved),
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      CurrencyFormatter.format(summary.totalSaved),
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -829,20 +852,29 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          CurrencyFormatter.format(goal.currentAmount),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: metric.isCompleted ? financialColors.income : null,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            CurrencyFormatter.format(goal.currentAmount),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: metric.isCompleted ? financialColors.income : null,
+                            ),
                           ),
                         ),
-                        Text(
-                          'of ${CurrencyFormatter.format(goal.targetAmount)}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: financialColors.textMuted,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'of ${CurrencyFormatter.format(goal.targetAmount)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: financialColors.textMuted,
+                            ),
                           ),
                         ),
                       ],
@@ -1214,13 +1246,18 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          CurrencyFormatter.format(item.amount),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            CurrencyFormatter.format(item.amount),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),

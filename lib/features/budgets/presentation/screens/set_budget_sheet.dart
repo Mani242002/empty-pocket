@@ -169,6 +169,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
           ),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,

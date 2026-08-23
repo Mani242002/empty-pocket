@@ -111,6 +111,7 @@ class _RecordDebtPaymentSheetState
           ),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
@@ -161,9 +162,11 @@ class _RecordDebtPaymentSheetState
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (debt.lenderName != null)
+                            if (debt.lenderName != null) ...[
+                              const SizedBox(width: 8),
                               Text(
                                 debt.lenderName!,
                                 style: theme.textTheme.bodySmall?.copyWith(
@@ -171,6 +174,7 @@ class _RecordDebtPaymentSheetState
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -184,11 +188,16 @@ class _RecordDebtPaymentSheetState
                                 ),
                               ),
                             ),
-                            Text(
-                              CurrencyFormatter.format(remaining),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: financialColors.expense,
+                            const SizedBox(width: 8),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                CurrencyFormatter.format(remaining),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: financialColors.expense,
+                                ),
                               ),
                             ),
                           ],
@@ -204,10 +213,15 @@ class _RecordDebtPaymentSheetState
                                 ),
                               ),
                             ),
-                            Text(
-                              CurrencyFormatter.format(debt.monthlyEmi),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
+                            const SizedBox(width: 8),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                CurrencyFormatter.format(debt.monthlyEmi),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ],

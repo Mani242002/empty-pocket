@@ -263,6 +263,7 @@ class _AddEditTransactionSheetState
           ),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
@@ -496,88 +497,93 @@ class _AddEditTransactionSheetState
                 const SizedBox(height: 20),
 
                 // Payment Source and Date Pickers Row
-                Row(
-                  children: [
-                    // Payment Source Dropdown
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'PAYMENT SOURCE',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
-                              color: financialColors.textMuted,
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Payment Source Dropdown
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'PAYMENT SOURCE',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                                color: financialColors.textMuted,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: _selectedPaymentSource,
-                            decoration: const InputDecoration(
-                              prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 18),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              initialValue: _selectedPaymentSource,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 18),
+                              ),
+                              items: CategoryConstants.paymentSources.map((source) {
+                                return DropdownMenuItem(
+                                  value: source,
+                                  child: Text(source, style: const TextStyle(fontSize: 13)),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() => _selectedPaymentSource = val);
+                                }
+                              },
                             ),
-                            items: CategoryConstants.paymentSources.map((source) {
-                              return DropdownMenuItem(
-                                value: source,
-                                child: Text(source, style: const TextStyle(fontSize: 13)),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() => _selectedPaymentSource = val);
-                              }
-                            },
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Date & Time Picker
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'DATE & TIME',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
-                              color: financialColors.textMuted,
+                      const SizedBox(width: 12),
+                      // Date & Time Picker
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'DATE & TIME',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                                color: financialColors.textMuted,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          InkWell(
-                            onTap: _pickDate,
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: InkWell(
+                                onTap: _pickDate,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: financialColors.cardBorder),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.calendar_today_rounded, size: 18),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      DateFormat('dd MMM, h:mm a').format(_selectedDate),
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: financialColors.cardBorder),
                                   ),
-                                ],
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today_rounded, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          DateFormat('dd MMM, h:mm a').format(_selectedDate),
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 20),
 

@@ -218,6 +218,7 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
           ),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
@@ -307,202 +308,211 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                   const SizedBox(height: 18),
 
                   // Principal & Remaining Amounts
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PRINCIPAL',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: financialColors.textMuted,
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'PRINCIPAL',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _principalController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                              ],
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: financialColors.expense,
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _principalController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                ],
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: financialColors.expense,
+                                ),
+                                decoration: const InputDecoration(
+                                  prefixText: '₹ ',
+                                  hintText: '5,00,000',
+                                ),
+                                onChanged: (_) => _calculateEmi(),
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty ? 'Enter principal' : null,
                               ),
-                              decoration: const InputDecoration(
-                                prefixText: '₹ ',
-                                hintText: '5,00,000',
-                              ),
-                              onChanged: (_) => _calculateEmi(),
-                              validator: (val) =>
-                                  val == null || val.trim().isEmpty ? 'Enter principal' : null,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'REMAINING',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: financialColors.textMuted,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'REMAINING',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _remainingController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                              ],
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _remainingController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                ],
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                decoration: const InputDecoration(
+                                  prefixText: '₹ ',
+                                  hintText: '5,00,000',
+                                ),
                               ),
-                              decoration: const InputDecoration(
-                                prefixText: '₹ ',
-                                hintText: '5,00,000',
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 18),
 
                   // Interest Rate & Tenure
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'INTEREST RATE',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: financialColors.textMuted,
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'INTEREST RATE',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _interestRateController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(
-                                suffixText: '%',
-                                hintText: '8.5',
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _interestRateController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  suffixText: '%',
+                                  hintText: '8.5',
+                                ),
+                                onChanged: (_) => _calculateEmi(),
                               ),
-                              onChanged: (_) => _calculateEmi(),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'TENURE (MO)',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: financialColors.textMuted,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'TENURE (MO)',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _tenureController,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                              decoration: const InputDecoration(
-                                suffixText: 'mo',
-                                hintText: '36',
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _tenureController,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                decoration: const InputDecoration(
+                                  suffixText: 'mo',
+                                  hintText: '36',
+                                ),
+                                onChanged: (_) => _calculateEmi(),
                               ),
-                              onChanged: (_) => _calculateEmi(),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 18),
 
                   // Monthly EMI & Due Day
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'MONTHLY EMI',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.1,
-                                color: financialColors.textMuted,
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'MONTHLY EMI',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.1,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _emiController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                              ],
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: financialColors.warning,
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _emiController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                ],
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: financialColors.warning,
+                                ),
+                                decoration: const InputDecoration(
+                                  prefixText: '₹ ',
+                                  hintText: '15,780',
+                                ),
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty ? 'Enter EMI' : null,
                               ),
-                              decoration: const InputDecoration(
-                                prefixText: '₹ ',
-                                hintText: '15,780',
-                              ),
-                              validator: (val) =>
-                                  val == null || val.trim().isEmpty ? 'Enter EMI' : null,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'DUE DAY',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: financialColors.textMuted,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'DUE DAY',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<int>(
-                              initialValue: _dueDateDay,
-                              items: List.generate(31, (i) => i + 1).map((day) {
-                                return DropdownMenuItem(
-                                  value: day,
-                                  child: Text('Day $day'),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) setState(() => _dueDateDay = val);
-                              },
-                            ),
-                          ],
+                              const SizedBox(height: 8),
+                              DropdownButtonFormField<int>(
+                                initialValue: _dueDateDay,
+                                items: List.generate(31, (i) => i + 1).map((day) {
+                                  return DropdownMenuItem(
+                                    value: day,
+                                    child: Text('Day $day'),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _dueDateDay = val);
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 18),
 

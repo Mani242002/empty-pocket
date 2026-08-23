@@ -214,6 +214,7 @@ class _AddEditSavingsGoalSheetState
           ),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
@@ -276,73 +277,76 @@ class _AddEditSavingsGoalSheetState
                 const SizedBox(height: 18),
 
                 // Target Amount & Initial Saved Amount Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'TARGET AMOUNT',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
-                              color: financialColors.textMuted,
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'TARGET AMOUNT',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                                color: financialColors.textMuted,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _targetAmountController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                            ],
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: financialColors.savings,
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _targetAmountController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                              ],
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: financialColors.savings,
+                              ),
+                              decoration: const InputDecoration(
+                                prefixText: '₹ ',
+                                hintText: '1,00,000',
+                              ),
+                              validator: (val) =>
+                                  val == null || val.trim().isEmpty ? 'Enter target' : null,
                             ),
-                            decoration: const InputDecoration(
-                              prefixText: '₹ ',
-                              hintText: '1,00,000',
-                            ),
-                            validator: (val) =>
-                                val == null || val.trim().isEmpty ? 'Enter target' : null,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ALREADY SAVED',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
-                              color: financialColors.textMuted,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'ALREADY SAVED',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                                color: financialColors.textMuted,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _currentAmountController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                            ],
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _currentAmountController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                              ],
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                              decoration: const InputDecoration(
+                                prefixText: '₹ ',
+                                hintText: '0',
+                              ),
                             ),
-                            decoration: const InputDecoration(
-                              prefixText: '₹ ',
-                              hintText: '0',
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 18),
 

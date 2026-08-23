@@ -144,12 +144,16 @@ class InvestmentsScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      CurrencyFormatter.format(summary.totalCurrentValue),
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: financialColors.income,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        CurrencyFormatter.format(summary.totalCurrentValue),
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: financialColors.income,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -437,14 +441,19 @@ class InvestmentsScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          CurrencyFormatter.format(inv.currentValue),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: isProfit ? financialColors.income : financialColors.expense,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            CurrencyFormatter.format(inv.currentValue),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: isProfit ? financialColors.income : financialColors.expense,
+                            ),
                           ),
                         ),
                         Container(

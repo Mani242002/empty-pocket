@@ -93,12 +93,16 @@ class DebtsScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      CurrencyFormatter.format(summary.totalOutstanding),
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: financialColors.expense,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        CurrencyFormatter.format(summary.totalOutstanding),
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          color: financialColors.expense,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -396,20 +400,29 @@ class DebtsScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          CurrencyFormatter.format(debt.remainingAmount),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: metric.isPaidOff ? financialColors.income : financialColors.expense,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            CurrencyFormatter.format(debt.remainingAmount),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: metric.isPaidOff ? financialColors.income : financialColors.expense,
+                            ),
                           ),
                         ),
-                        Text(
-                          'of ${CurrencyFormatter.format(debt.principalAmount)}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: financialColors.textMuted,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'of ${CurrencyFormatter.format(debt.principalAmount)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: financialColors.textMuted,
+                            ),
                           ),
                         ),
                       ],

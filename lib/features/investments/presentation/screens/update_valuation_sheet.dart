@@ -107,6 +107,7 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
           ),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
@@ -157,9 +158,11 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (inv.institution != null)
+                            if (inv.institution != null) ...[
+                              const SizedBox(width: 8),
                               Text(
                                 inv.institution!,
                                 style: theme.textTheme.bodySmall?.copyWith(
@@ -167,6 +170,7 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -180,10 +184,15 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                                 ),
                               ),
                             ),
-                            Text(
-                              CurrencyFormatter.format(inv.investedAmount),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
+                            const SizedBox(width: 8),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                CurrencyFormatter.format(inv.investedAmount),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ],

@@ -233,11 +233,17 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                                 child: Text(
                                   cat.category,
                                   style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Text(
-                                CurrencyFormatter.format(cat.amount),
-                                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                              const SizedBox(width: 8),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  CurrencyFormatter.format(cat.amount),
+                                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -292,9 +298,13 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: financialColors.textMuted),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          CurrencyFormatter.format(p.amount),
-                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            CurrencyFormatter.format(p.amount),
+                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                          ),
                         ),
                         Text(
                           '${p.percentage.toStringAsFixed(1)}% of spending',
@@ -347,28 +357,39 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                                 Text(
                                   monthName,
                                   style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
                                   'Fixed Outflows: ${CurrencyFormatter.format(f.projectedFixedExpenses)}',
                                   style: theme.textTheme.bodySmall?.copyWith(color: financialColors.textMuted),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                '${isPositive ? '+' : ''}${CurrencyFormatter.format(f.projectedNetCash)}/mo',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: isPositive ? financialColors.income : financialColors.expense,
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  '${isPositive ? '+' : ''}${CurrencyFormatter.format(f.projectedNetCash)}/mo',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: isPositive ? financialColors.income : financialColors.expense,
+                                  ),
                                 ),
                               ),
-                              Text(
-                                'Est. Balance: ${CurrencyFormatter.format(f.projectedCumulativeBalance)}',
-                                style: TextStyle(fontSize: 11, color: financialColors.textMuted, fontWeight: FontWeight.w600),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  'Est. Balance: ${CurrencyFormatter.format(f.projectedCumulativeBalance)}',
+                                  style: TextStyle(fontSize: 11, color: financialColors.textMuted, fontWeight: FontWeight.w600),
+                                ),
                               ),
                             ],
                           ),

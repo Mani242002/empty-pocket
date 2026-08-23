@@ -184,14 +184,18 @@ class TransactionListItem extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 // Amount
-                Text(
-                  '$amountPrefix${CurrencyFormatter.format(transaction.amount)}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: amountColor,
-                    letterSpacing: -0.3,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '$amountPrefix${CurrencyFormatter.format(transaction.amount)}',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: amountColor,
+                      letterSpacing: -0.3,
+                    ),
                   ),
                 ),
               ],

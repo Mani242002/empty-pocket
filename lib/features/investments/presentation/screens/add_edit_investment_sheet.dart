@@ -209,6 +209,7 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
           ),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
@@ -311,135 +312,141 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                   const SizedBox(height: 18),
 
                   // Invested Amount & Current Market Value
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'TOTAL INVESTED',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: financialColors.textMuted,
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'TOTAL INVESTED',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _investedController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                              ],
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _investedController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                ],
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                decoration: const InputDecoration(
+                                  prefixText: '₹ ',
+                                  hintText: '50,000',
+                                ),
+                                onChanged: (val) {
+                                  if (_currentValueController.text.trim().isEmpty) {
+                                    _currentValueController.text = val;
+                                  }
+                                },
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty ? 'Enter invested amount' : null,
                               ),
-                              decoration: const InputDecoration(
-                                prefixText: '₹ ',
-                                hintText: '50,000',
-                              ),
-                              onChanged: (val) {
-                                if (_currentValueController.text.trim().isEmpty) {
-                                  _currentValueController.text = val;
-                                }
-                              },
-                              validator: (val) =>
-                                  val == null || val.trim().isEmpty ? 'Enter invested amount' : null,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'CURRENT VALUE',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: financialColors.textMuted,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'CURRENT VALUE',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _currentValueController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                              ],
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: financialColors.income,
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _currentValueController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                ],
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: financialColors.income,
+                                ),
+                                decoration: const InputDecoration(
+                                  prefixText: '₹ ',
+                                  hintText: '62,500',
+                                ),
                               ),
-                              decoration: const InputDecoration(
-                                prefixText: '₹ ',
-                                hintText: '62,500',
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 18),
 
                   // Optional Units & Price per unit
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'UNITS / QTY (OPTIONAL)',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: financialColors.textMuted,
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'UNITS / QTY (OPTIONAL)',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _unitsController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(
-                                hintText: '100.5',
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _unitsController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  hintText: '100.5',
+                                ),
+                                onChanged: (_) => _onUnitsOrPriceChanged(),
                               ),
-                              onChanged: (_) => _onUnitsOrPriceChanged(),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PRICE / NAV (OPTIONAL)',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: financialColors.textMuted,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'PRICE / NAV (OPTIONAL)',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _priceController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(
-                                prefixText: '₹ ',
-                                hintText: '245.80',
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _priceController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  prefixText: '₹ ',
+                                  hintText: '245.80',
+                                ),
+                                onChanged: (_) => _onUnitsOrPriceChanged(),
                               ),
-                              onChanged: (_) => _onUnitsOrPriceChanged(),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 18),
 

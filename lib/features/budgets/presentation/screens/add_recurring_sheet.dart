@@ -187,6 +187,7 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
           ),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
@@ -373,84 +374,89 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
                 const SizedBox(height: 18),
 
                 // Next Due Date & Payment Source
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'NEXT DUE DATE',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
-                              color: financialColors.textMuted,
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'NEXT DUE DATE',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                                color: financialColors.textMuted,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          InkWell(
-                            onTap: _pickDueDate,
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: InkWell(
+                                onTap: _pickDueDate,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: financialColors.cardBorder),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.event_rounded, size: 18),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      DateFormat('dd MMM yyyy').format(_nextDueDate),
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: financialColors.cardBorder),
                                   ),
-                                ],
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.event_rounded, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          DateFormat('dd MMM yyyy').format(_nextDueDate),
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'PAYMENT SOURCE',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
-                              color: financialColors.textMuted,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'PAYMENT SOURCE',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.1,
+                                color: financialColors.textMuted,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: _selectedPaymentSource,
-                            decoration: const InputDecoration(
-                              prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 18),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              initialValue: _selectedPaymentSource,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 18),
+                              ),
+                              items: CategoryConstants.paymentSources.map((s) {
+                                return DropdownMenuItem(
+                                  value: s,
+                                  child: Text(s, style: const TextStyle(fontSize: 12)),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) setState(() => _selectedPaymentSource = val);
+                              },
                             ),
-                            items: CategoryConstants.paymentSources.map((s) {
-                              return DropdownMenuItem(
-                                value: s,
-                                child: Text(s, style: const TextStyle(fontSize: 12)),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) setState(() => _selectedPaymentSource = val);
-                            },
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 28),
 
