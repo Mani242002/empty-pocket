@@ -331,8 +331,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // --- STEP 8: TEST REPORTS, ANALYTICS & BYOK AI ASSISTANT ---
-    // Switch to Reports & AI tab
-    await tester.tap(find.text('Reports & AI'));
+    // Switch to Reports tab
+    await tester.tap(find.text('Reports'));
     await tester.pumpAndSettle();
 
     // In ReportsAnalyticsScreen, verify sections

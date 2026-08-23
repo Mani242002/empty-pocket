@@ -64,13 +64,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        // App Logo + Title
                         Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
                               width: 32,
@@ -96,93 +100,105 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               style: theme.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.5,
+                                height: 1.1,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          today,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: financialColors.textMuted,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        // Badges (PocketAI + Offline)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // PocketAI Chat Button
+                            InkWell(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const AiChatScreen()),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                height: 32,
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: AppColors.primaryEmerald.withAlpha(80),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.auto_awesome_rounded,
+                                      size: 14,
+                                      color: AppColors.primaryEmerald,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'PocketAI',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.primaryEmerald,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Privacy badge
+                            Container(
+                              height: 32,
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: financialColors.cardBorder,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.shield_outlined,
+                                    size: 14,
+                                    color: financialColors.income,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Offline',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    Row(
-                      children: [
-                        // PocketAI Chat Button
-                        InkWell(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const AiChatScreen()),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.primaryEmerald.withAlpha(80),
-                                width: 1,
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.auto_awesome_rounded,
-                                  size: 14,
-                                  color: AppColors.primaryEmerald,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'PocketAI',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.primaryEmerald,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Privacy badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: financialColors.cardBorder,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.shield_outlined,
-                                size: 14,
-                                color: financialColors.income,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Offline',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 4),
+                    Text(
+                      today,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: financialColors.textMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -260,39 +276,46 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        _isBalanceVisible ? CurrencyFormatter.format(summary.netBalance) : '••••••',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1,
-                          fontSize: 32,
-                          color: summary.netBalance < 0 ? financialColors.expense : null,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _isBalanceVisible ? CurrencyFormatter.format(summary.netBalance) : '••••••',
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1,
+                            fontSize: 32,
+                            color: summary.netBalance < 0 ? financialColors.expense : null,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
                       // Income & Expense split cards
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildFlowMetric(
-                              context,
-                              title: 'Income (${summary.incomeCount})',
-                              amount: _isBalanceVisible ? CurrencyFormatter.format(summary.totalIncome) : '••••',
-                              icon: Icons.arrow_downward_rounded,
-                              color: financialColors.income,
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: _buildFlowMetric(
+                                context,
+                                title: 'Income (${summary.incomeCount})',
+                                amount: _isBalanceVisible ? CurrencyFormatter.format(summary.totalIncome) : '••••',
+                                icon: Icons.arrow_downward_rounded,
+                                color: financialColors.income,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildFlowMetric(
-                              context,
-                              title: 'Expenses (${summary.expenseCount})',
-                              amount: _isBalanceVisible ? CurrencyFormatter.format(summary.totalExpense) : '••••',
-                              icon: Icons.arrow_upward_rounded,
-                              color: financialColors.expense,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildFlowMetric(
+                                context,
+                                title: 'Expenses (${summary.expenseCount})',
+                                amount: _isBalanceVisible ? CurrencyFormatter.format(summary.totalExpense) : '••••',
+                                icon: Icons.arrow_upward_rounded,
+                                color: financialColors.expense,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       // Net Worth & Health Score banner
@@ -366,44 +389,47 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildActionButton(
-                        context,
-                        label: 'Add Expense',
-                        icon: Icons.remove_circle_outline_rounded,
-                        color: financialColors.expense,
-                        onTap: () => AddEditTransactionSheet.show(
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _buildActionButton(
                           context,
-                          initialType: TransactionType.expense,
+                          label: 'Add Expense',
+                          icon: Icons.remove_circle_outline_rounded,
+                          color: financialColors.expense,
+                          onTap: () => AddEditTransactionSheet.show(
+                            context,
+                            initialType: TransactionType.expense,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildActionButton(
-                        context,
-                        label: 'Add Income',
-                        icon: Icons.add_circle_outline_rounded,
-                        color: financialColors.income,
-                        onTap: () => AddEditTransactionSheet.show(
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildActionButton(
                           context,
-                          initialType: TransactionType.income,
+                          label: 'Add Income',
+                          icon: Icons.add_circle_outline_rounded,
+                          color: financialColors.income,
+                          onTap: () => AddEditTransactionSheet.show(
+                            context,
+                            initialType: TransactionType.income,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildActionButton(
-                        context,
-                        label: 'Set Budget',
-                        icon: Icons.pie_chart_outline_rounded,
-                        color: financialColors.investment,
-                        onTap: () => SetBudgetSheet.show(context),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildActionButton(
+                          context,
+                          label: 'Set Budget',
+                          icon: Icons.pie_chart_outline_rounded,
+                          color: financialColors.investment,
+                          onTap: () => SetBudgetSheet.show(context),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -476,13 +502,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Spent: ${CurrencyFormatter.format(budgetSummary.totalSpent)} / ${CurrencyFormatter.format(budgetSummary.totalLimit)}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: financialColors.textMuted,
-                                  fontWeight: FontWeight.w600,
+                              Flexible(
+                                child: Text(
+                                  'Spent: ${CurrencyFormatter.format(budgetSummary.totalSpent)} / ${CurrencyFormatter.format(budgetSummary.totalLimit)}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               Text(
                                 budgetSummary.totalOverspent > 0
                                     ? 'Over by ${CurrencyFormatter.format(budgetSummary.totalOverspent)}'
@@ -1038,7 +1069,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
         borderRadius: BorderRadius.circular(16),
@@ -1048,6 +1079,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(6),
@@ -1057,25 +1089,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             child: Icon(icon, color: color, size: 16),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: context.financialColors.textMuted,
-                    fontWeight: FontWeight.w600,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    title,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: context.financialColors.textMuted,
+                      fontWeight: FontWeight.w600,
+                      height: 1.1,
+                    ),
+                    maxLines: 1,
+                    softWrap: false,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  amount,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    amount,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                    maxLines: 1,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -1108,7 +1154,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1121,14 +1167,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: Icon(icon, color: color, size: 20),
               ),
               const SizedBox(height: 8),
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

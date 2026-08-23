@@ -283,6 +283,7 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
         children: screens,
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'main_quick_add_fab',
         onPressed: _showQuickAddBottomSheet,
         tooltip: 'Quick Add',
         child: const Icon(Icons.add_rounded, size: 28),
@@ -309,7 +310,7 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
           NavigationDestination(
             icon: Icon(Icons.insights_outlined),
             selectedIcon: Icon(Icons.insights_rounded),
-            label: 'Reports & AI',
+            label: 'Reports',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

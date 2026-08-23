@@ -132,26 +132,24 @@ abstract class AppTheme {
         elevation: 0,
         indicatorColor: AppColors.primaryEmerald.withAlpha(38),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        height: 68,
+        height: 72,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primaryTeal,
-            );
-          }
-          return const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AppColors.lightTextSecondary,
+          final isSelected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? AppColors.primaryTeal : AppColors.lightTextSecondary,
+            letterSpacing: -0.3,
+            height: 1.2,
+            overflow: TextOverflow.ellipsis,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AppColors.primaryTeal, size: 24);
-          }
-          return const IconThemeData(color: AppColors.lightTextSecondary, size: 24);
+          final isSelected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: isSelected ? AppColors.primaryTeal : AppColors.lightTextSecondary,
+            size: 22,
+          );
         }),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
@@ -236,26 +234,24 @@ abstract class AppTheme {
         elevation: 0,
         indicatorColor: AppColors.primaryEmerald.withAlpha(51),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        height: 68,
+        height: 72,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primaryMint,
-            );
-          }
-          return const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AppColors.darkTextSecondary,
+          final isSelected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? AppColors.primaryMint : AppColors.darkTextSecondary,
+            letterSpacing: -0.3,
+            height: 1.2,
+            overflow: TextOverflow.ellipsis,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AppColors.primaryMint, size: 24);
-          }
-          return const IconThemeData(color: AppColors.darkTextSecondary, size: 24);
+          final isSelected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: isSelected ? AppColors.primaryMint : AppColors.darkTextSecondary,
+            size: 22,
+          );
         }),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
