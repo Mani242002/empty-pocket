@@ -132,23 +132,25 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF10B981), Color(0xFF047857)],
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.primaryEmerald.withAlpha(200),
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(90),
+                color: Colors.black.withAlpha(140),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(color: Colors.white.withAlpha(200), width: 2),
           ),
-          child: const Center(
-            child: Icon(Icons.add_rounded, color: Colors.white, size: 30),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12.5),
+            child: Image.asset(
+              'assets/icon/app_icon.png',
+              fit: BoxFit.cover,
+            ),
           ),
         ),
       ),
