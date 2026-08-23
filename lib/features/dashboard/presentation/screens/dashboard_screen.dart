@@ -72,38 +72,44 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // App Logo + Title
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: AppColors.primaryEmerald.withAlpha(80),
-                                  width: 1,
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: AppColors.primaryEmerald.withAlpha(80),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(7),
+                                  child: Image.asset(
+                                    'assets/icon/app_icon.png',
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(7),
-                                child: Image.asset(
-                                  'assets/icon/app_icon.png',
-                                  fit: BoxFit.cover,
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'EmptyPocket',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5,
+                                    height: 1.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'EmptyPocket',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
-                                height: 1.1,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         // Badges (PocketAI + Offline)
                         Row(
@@ -250,12 +256,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'THIS MONTH\'S BALANCE',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2,
-                              color: financialColors.textMuted,
+                          Flexible(
+                            child: Text(
+                              'THIS MONTH\'S BALANCE',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2,
+                                color: financialColors.textMuted,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           IconButton(
@@ -362,6 +371,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                         style: theme.textTheme.bodyMedium?.copyWith(
                                           fontWeight: FontWeight.w700,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
                                         'Health Score: ${healthSummary.overallScore}/100 • ${healthSummary.grade.displayName}',
@@ -369,6 +380,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                           color: healthSummary.grade.color,
                                           fontWeight: FontWeight.w600,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                   ),
@@ -514,15 +527,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                budgetSummary.totalOverspent > 0
-                                    ? 'Over by ${CurrencyFormatter.format(budgetSummary.totalOverspent)}'
-                                    : '${CurrencyFormatter.format(budgetSummary.totalRemaining)} left',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: budgetSummary.totalOverspent > 0
-                                      ? financialColors.expense
-                                      : financialColors.textMuted,
-                                  fontWeight: FontWeight.w600,
+                              Flexible(
+                                child: Text(
+                                  budgetSummary.totalOverspent > 0
+                                      ? 'Over by ${CurrencyFormatter.format(budgetSummary.totalOverspent)}'
+                                      : '${CurrencyFormatter.format(budgetSummary.totalRemaining)} left',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: budgetSummary.totalOverspent > 0
+                                        ? financialColors.expense
+                                        : financialColors.textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
                                 ),
                               ),
                             ],
@@ -543,16 +561,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Total Spent: ${CurrencyFormatter.format(summary.totalExpense)}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: financialColors.textMuted,
+                              Flexible(
+                                child: Text(
+                                  'Total Spent: ${CurrencyFormatter.format(summary.totalExpense)}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Text(
-                                'No category limits configured',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: financialColors.textMuted,
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'No category limits configured',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
                                 ),
                               ),
                             ],
@@ -634,18 +662,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Saved: ${CurrencyFormatter.format(savingsSummary.totalSaved)} / ${CurrencyFormatter.format(savingsSummary.totalTarget)}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: financialColors.textMuted,
-                                  fontWeight: FontWeight.w600,
+                              Flexible(
+                                child: Text(
+                                  'Saved: ${CurrencyFormatter.format(savingsSummary.totalSaved)} / ${CurrencyFormatter.format(savingsSummary.totalTarget)}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Text(
-                                '${savingsSummary.activeGoalsCount} active • ${savingsSummary.completedGoalsCount} reached',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: financialColors.textMuted,
-                                  fontWeight: FontWeight.w600,
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  '${savingsSummary.activeGoalsCount} active • ${savingsSummary.completedGoalsCount} reached',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
                                 ),
                               ),
                             ],
@@ -666,16 +704,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'No savings goals set',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: financialColors.textMuted,
+                              Flexible(
+                                child: Text(
+                                  'No savings goals set',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Text(
-                                'Emergency fund, travel, etc.',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: financialColors.textMuted,
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'Emergency fund, travel, etc.',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
                                 ),
                               ),
                             ],
@@ -743,26 +791,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                CurrencyFormatter.format(portfolioSummary.totalCurrentValue),
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: financialColors.income,
+                              Flexible(
+                                child: Text(
+                                  CurrencyFormatter.format(portfolioSummary.totalCurrentValue),
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: financialColors.income,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: (portfolioSummary.isProfit ? financialColors.income : financialColors.expense)
-                                      .withAlpha(isDark ? 35 : 20),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '${portfolioSummary.isProfit ? '+' : ''}${CurrencyFormatter.format(portfolioSummary.totalProfitLoss)} (${portfolioSummary.overallReturnPercentage.toStringAsFixed(1)}%)',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: portfolioSummary.isProfit ? financialColors.income : financialColors.expense,
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: (portfolioSummary.isProfit ? financialColors.income : financialColors.expense)
+                                        .withAlpha(isDark ? 35 : 20),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${portfolioSummary.isProfit ? '+' : ''}${CurrencyFormatter.format(portfolioSummary.totalProfitLoss)} (${portfolioSummary.overallReturnPercentage.toStringAsFixed(1)}%)',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: portfolioSummary.isProfit ? financialColors.income : financialColors.expense,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ),
@@ -923,17 +980,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                '🎉 Zero Debt',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: financialColors.income,
-                                  fontWeight: FontWeight.w700,
+                              Flexible(
+                                child: Text(
+                                  '🎉 Zero Debt',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.income,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Text(
-                                'No active liabilities',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: financialColors.textMuted,
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'No active liabilities',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
                                 ),
                               ),
                             ],

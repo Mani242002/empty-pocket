@@ -288,10 +288,14 @@ class _AddEditTransactionSheetState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      _isEditMode ? 'Edit Transaction' : 'New Transaction',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
+                    Flexible(
+                      child: Text(
+                        _isEditMode ? 'Edit Transaction' : 'New Transaction',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (_isEditMode)
@@ -439,7 +443,7 @@ class _AddEditTransactionSheetState
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
-                  height: 90,
+                  height: 94,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: categories.length,
@@ -458,7 +462,7 @@ class _AddEditTransactionSheetState
                         },
                         child: Container(
                           width: 80,
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? item.color.withAlpha(isDark ? 60 : 35)
@@ -471,6 +475,7 @@ class _AddEditTransactionSheetState
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(item.icon, color: isSelected ? item.color : financialColors.textMuted, size: 24),
                               const SizedBox(height: 6),
@@ -571,6 +576,7 @@ class _AddEditTransactionSheetState
                                           style: theme.textTheme.bodySmall?.copyWith(
                                             fontWeight: FontWeight.w600,
                                           ),
+                                          maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),

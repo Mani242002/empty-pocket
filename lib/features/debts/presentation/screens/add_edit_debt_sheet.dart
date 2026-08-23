@@ -243,10 +243,14 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        _isEditMode ? 'Edit Loan / Liability' : 'Add Loan / Debt',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
+                      Flexible(
+                        child: Text(
+                          _isEditMode ? 'Edit Loan / Liability' : 'Add Loan / Debt',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (_isEditMode)

@@ -239,10 +239,14 @@ class _AddEditSavingsGoalSheetState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      _isEditMode ? 'Edit Savings Goal' : 'New Savings Goal',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
+                    Flexible(
+                      child: Text(
+                        _isEditMode ? 'Edit Savings Goal' : 'New Savings Goal',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (_isEditMode)
@@ -405,13 +409,17 @@ class _AddEditSavingsGoalSheetState
                       children: [
                         const Icon(Icons.calendar_today_rounded, size: 20),
                         const SizedBox(width: 12),
-                        Text(
-                          DateFormat('dd MMMM yyyy').format(_targetDate),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: Text(
+                            DateFormat('dd MMMM yyyy').format(_targetDate),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         Text(
                           '(${((_targetDate.difference(DateTime.now()).inDays) / 30).ceil()} months)',
                           style: theme.textTheme.bodySmall?.copyWith(

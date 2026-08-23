@@ -194,24 +194,30 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _isEditMode ? 'Edit Category Budget' : 'Set Category Budget',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isEditMode ? 'Edit Category Budget' : 'Set Category Budget',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'For $monthLabel',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: financialColors.textMuted,
-                            fontWeight: FontWeight.w600,
+                          const SizedBox(height: 2),
+                          Text(
+                            'For $monthLabel',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: financialColors.textMuted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     if (_isEditMode)
                       IconButton(
@@ -305,7 +311,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
-                  height: 90,
+                  height: 94,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: categories.length,
@@ -321,7 +327,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
                         },
                         child: Container(
                           width: 80,
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? item.color.withAlpha(isDark ? 60 : 35)
@@ -334,6 +340,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(item.icon, color: isSelected ? item.color : financialColors.textMuted, size: 24),
                               const SizedBox(height: 6),

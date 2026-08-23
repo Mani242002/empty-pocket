@@ -423,6 +423,8 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
             child: Text(
               monthName,
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
@@ -432,13 +434,23 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '+${CurrencyFormatter.format(trend.totalIncome)}',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: financialColors.income),
+                    Flexible(
+                      child: Text(
+                        '+${CurrencyFormatter.format(trend.totalIncome)}',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: financialColors.income),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    Text(
-                      '-${CurrencyFormatter.format(trend.totalExpense)}',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: financialColors.expense),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        '-${CurrencyFormatter.format(trend.totalExpense)}',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: financialColors.expense),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                      ),
                     ),
                   ],
                 ),
@@ -462,16 +474,20 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           SizedBox(
-            width: 65,
-            child: Text(
-              '${trend.savingsRate.toStringAsFixed(0)}% saved',
-              textAlign: TextAlign.end,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: trend.isPositive ? financialColors.income : financialColors.expense,
+            width: 70,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                '${trend.savingsRate.toStringAsFixed(0)}% saved',
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: trend.isPositive ? financialColors.income : financialColors.expense,
+                ),
               ),
             ),
           ),

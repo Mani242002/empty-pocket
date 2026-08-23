@@ -67,26 +67,35 @@ class DebtsScreen extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'TOTAL OUTSTANDING DEBT',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.1,
-                            color: financialColors.textMuted,
+                        Flexible(
+                          child: Text(
+                            'TOTAL OUTSTANDING DEBT',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.1,
+                              color: financialColors.textMuted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: financialColors.expense.withAlpha(isDark ? 40 : 25),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${summary.activeDebtsCount} Active Loans',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: financialColors.expense,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: financialColors.expense.withAlpha(isDark ? 40 : 25),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${summary.activeDebtsCount} Active Loans',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: financialColors.expense,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
@@ -401,31 +410,33 @@ class DebtsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            CurrencyFormatter.format(debt.remainingAmount),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: metric.isPaidOff ? financialColors.income : financialColors.expense,
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              CurrencyFormatter.format(debt.remainingAmount),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: metric.isPaidOff ? financialColors.income : financialColors.expense,
+                              ),
                             ),
                           ),
-                        ),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            'of ${CurrencyFormatter.format(debt.principalAmount)}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: financialColors.textMuted,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              'of ${CurrencyFormatter.format(debt.principalAmount)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: financialColors.textMuted,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -451,28 +462,35 @@ class DebtsScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'EMI: ${CurrencyFormatter.format(debt.monthlyEmi)}/mo',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: financialColors.warning,
-                          ),
-                        ),
-                        if (debt.interestRate > 0)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            '${debt.interestRate}% interest p.a.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: financialColors.textMuted,
-                              fontSize: 11,
+                            'EMI: ${CurrencyFormatter.format(debt.monthlyEmi)}/mo',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: financialColors.warning,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                      ],
+                          if (debt.interestRate > 0)
+                            Text(
+                              '${debt.interestRate}% interest p.a.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: financialColors.textMuted,
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
                     ),
-                    if (!metric.isPaidOff)
+                    if (!metric.isPaidOff) ...[
+                      const SizedBox(width: 8),
                       FilledButton.tonalIcon(
                         style: FilledButton.styleFrom(
                           visualDensity: VisualDensity.compact,
@@ -482,6 +500,7 @@ class DebtsScreen extends ConsumerWidget {
                         label: const Text('Pay EMI'),
                         onPressed: () => RecordDebtPaymentSheet.show(context, debt),
                       ),
+                    ],
                   ],
                 ),
               ],

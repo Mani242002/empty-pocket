@@ -293,11 +293,18 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                             ),
                           ),
                         ),
-                        Text(
-                          '${isProfit ? '+' : ''}${CurrencyFormatter.format(pnl)} (${returnPct.toStringAsFixed(1)}%)',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: isProfit ? financialColors.income : financialColors.expense,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              '${isProfit ? '+' : ''}${CurrencyFormatter.format(pnl)} (${returnPct.toStringAsFixed(1)}%)',
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: isProfit ? financialColors.income : financialColors.expense,
+                              ),
+                            ),
                           ),
                         ),
                       ],

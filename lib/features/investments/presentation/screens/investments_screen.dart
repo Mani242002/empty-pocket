@@ -117,27 +117,36 @@ class InvestmentsScreen extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'TOTAL PORTFOLIO VALUE',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.1,
-                            color: financialColors.textMuted,
+                        Flexible(
+                          child: Text(
+                            'TOTAL PORTFOLIO VALUE',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.1,
+                              color: financialColors.textMuted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: (summary.isProfit ? financialColors.income : financialColors.expense)
-                                .withAlpha(isDark ? 40 : 25),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${summary.isProfit ? '+' : ''}${CurrencyFormatter.format(summary.totalProfitLoss)} (${summary.overallReturnPercentage.toStringAsFixed(1)}%)',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: summary.isProfit ? financialColors.income : financialColors.expense,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: (summary.isProfit ? financialColors.income : financialColors.expense)
+                                  .withAlpha(isDark ? 40 : 25),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${summary.isProfit ? '+' : ''}${CurrencyFormatter.format(summary.totalProfitLoss)} (${summary.overallReturnPercentage.toStringAsFixed(1)}%)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: summary.isProfit ? financialColors.income : financialColors.expense,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
@@ -442,37 +451,39 @@ class InvestmentsScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            CurrencyFormatter.format(inv.currentValue),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: isProfit ? financialColors.income : financialColors.expense,
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              CurrencyFormatter.format(inv.currentValue),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: isProfit ? financialColors.income : financialColors.expense,
+                              ),
                             ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: (isProfit ? financialColors.income : financialColors.expense)
-                                .withAlpha(isDark ? 35 : 20),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '${isProfit ? '+' : ''}${returnPct.toStringAsFixed(1)}%',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: isProfit ? financialColors.income : financialColors.expense,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (isProfit ? financialColors.income : financialColors.expense)
+                                  .withAlpha(isDark ? 35 : 20),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${isProfit ? '+' : ''}${returnPct.toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: isProfit ? financialColors.income : financialColors.expense,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),

@@ -212,10 +212,14 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      _isEditMode ? 'Edit Recurring Expense' : 'New Recurring Expense',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
+                    Flexible(
+                      child: Text(
+                        _isEditMode ? 'Edit Recurring Expense' : 'New Recurring Expense',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (_isEditMode)
@@ -323,7 +327,7 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
-                  height: 84,
+                  height: 94,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: categories.length,
@@ -348,6 +352,7 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(item.icon, color: isSelected ? item.color : financialColors.textMuted, size: 22),
                               const SizedBox(height: 4),
@@ -412,6 +417,7 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
                                           style: theme.textTheme.bodySmall?.copyWith(
                                             fontWeight: FontWeight.w600,
                                           ),
+                                          maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),

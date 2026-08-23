@@ -55,37 +55,48 @@ class FinancialHealthScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'FINANCIAL HEALTH SCORE',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                        color: financialColors.textMuted,
+                    Flexible(
+                      child: Text(
+                        'FINANCIAL HEALTH SCORE',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                          color: financialColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: healthSummary.grade.color.withAlpha(isDark ? 40 : 25),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: healthSummary.grade.color.withAlpha(isDark ? 90 : 50),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(healthSummary.grade.icon, color: healthSummary.grade.color, size: 14),
-                          const SizedBox(width: 4),
-                          Text(
-                            healthSummary.grade.displayName,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: healthSummary.grade.color,
-                            ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: healthSummary.grade.color.withAlpha(isDark ? 40 : 25),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: healthSummary.grade.color.withAlpha(isDark ? 90 : 50),
                           ),
-                        ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(healthSummary.grade.icon, color: healthSummary.grade.color, size: 14),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                healthSummary.grade.displayName,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: healthSummary.grade.color,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

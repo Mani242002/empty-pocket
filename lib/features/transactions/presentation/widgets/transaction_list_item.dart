@@ -152,22 +152,26 @@ class TransactionListItem extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppColors.darkSurfaceVariant
-                                  : AppColors.lightSurfaceVariant,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              transaction.paymentSource,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
                                 color: isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.lightTextSecondary,
+                                    ? AppColors.darkSurfaceVariant
+                                    : AppColors.lightSurfaceVariant,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                transaction.paymentSource,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ),
@@ -178,6 +182,7 @@ class TransactionListItem extends StatelessWidget {
                               fontSize: 11,
                               color: financialColors.textMuted,
                             ),
+                            maxLines: 1,
                           ),
                         ],
                       ),
@@ -186,15 +191,17 @@ class TransactionListItem extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 // Amount
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    '$amountPrefix${CurrencyFormatter.format(transaction.amount)}',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: amountColor,
-                      letterSpacing: -0.3,
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '$amountPrefix${CurrencyFormatter.format(transaction.amount)}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: amountColor,
+                        letterSpacing: -0.3,
+                      ),
                     ),
                   ),
                 ),
