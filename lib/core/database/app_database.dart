@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
+import '../domain/entities/ai_assistant_entity.dart';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/debt_entity.dart';
 import '../domain/entities/investment_entity.dart';
@@ -13,7 +14,7 @@ import '../domain/entities/transaction_entity.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 6;
+  static const int _databaseVersion = 7;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
@@ -23,6 +24,8 @@ class AppDatabase {
   static const String tableDebts = 'debts';
   static const String tableDebtPayments = 'debt_payments';
   static const String tableInvestments = 'investments';
+  static const String tableChatSessions = 'ai_chat_sessions';
+  static const String tableChatMessages = 'ai_chat_messages';
 
   static final AppDatabase instance = AppDatabase._internal();
 
@@ -113,6 +116,9 @@ class AppDatabase {
 
     // Investments Table
     await _createInvestmentsTable(db);
+
+    // AI Chat Sessions & Messages Tables
+    await _createChatTables(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -136,6 +142,41 @@ class AppDatabase {
         ON $tableBudgets(month, category);
       ''');
     }
+    if (oldVersion < 7) {
+      await _createChatTables(db);
+    }
+  }
+
+  Future<void> _createChatTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableChatSessions (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model_used TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated ON $tableChatSessions(updated_at DESC)',
+    );
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableChatMessages (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        text TEXT NOT NULL,
+        is_user INTEGER NOT NULL,
+        timestamp INTEGER NOT NULL,
+        FOREIGN KEY (session_id) REFERENCES $tableChatSessions(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON $tableChatMessages(session_id, timestamp ASC)',
+    );
   }
 
   Future<void> _createBudgetsTable(Database db) async {
@@ -743,6 +784,137 @@ class AppDatabase {
     return maps.map((map) => InvestmentEntity.fromMap(map)).toList();
   }
 
+  // --- AI Chat Sessions & Messages ---
+
+  Future<int> insertChatSession(AiChatSession session) async {
+    final database = await this.database;
+    return await database.insert(
+      tableChatSessions,
+      session.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> batchInsertChatSessions(List<AiChatSession> sessions) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final s in sessions) {
+        batch.insert(
+          tableChatSessions,
+          s.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
+  Future<int> updateChatSession(AiChatSession session) async {
+    final database = await this.database;
+    return await database.update(
+      tableChatSessions,
+      session.toMap(),
+      where: 'id = ?',
+      whereArgs: [session.id],
+    );
+  }
+
+  Future<int> deleteChatSession(String id) async {
+    final database = await this.database;
+    return await database.delete(
+      tableChatSessions,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<AiChatSession>> getAllChatSessions() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableChatSessions,
+      orderBy: 'updated_at DESC',
+    );
+
+    return maps.map((map) => AiChatSession.fromMap(map)).toList();
+  }
+
+  Future<AiChatSession?> getChatSessionById(String id) async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableChatSessions,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (maps.isEmpty) return null;
+    return AiChatSession.fromMap(maps.first);
+  }
+
+  Future<int> insertChatMessage(AiChatMessage message) async {
+    final database = await this.database;
+    return await database.insert(
+      tableChatMessages,
+      message.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> batchInsertChatMessages(List<AiChatMessage> messages) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final m in messages) {
+        batch.insert(
+          tableChatMessages,
+          m.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
+  Future<List<AiChatMessage>> getMessagesForSession(String sessionId) async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableChatMessages,
+      where: 'session_id = ?',
+      whereArgs: [sessionId],
+      orderBy: 'timestamp ASC',
+    );
+
+    return maps.map((map) => AiChatMessage.fromMap(map)).toList();
+  }
+
+  Future<List<AiChatMessage>> getAllChatMessages() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableChatMessages,
+      orderBy: 'timestamp ASC',
+    );
+
+    return maps.map((map) => AiChatMessage.fromMap(map)).toList();
+  }
+
+  Future<int> deleteChatMessage(String id) async {
+    final database = await this.database;
+    return await database.delete(
+      tableChatMessages,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> clearAllChatHistory() async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      await txn.delete(tableChatMessages);
+      await txn.delete(tableChatSessions);
+    });
+  }
+
   /// Clear all tables in a single atomic transaction
   Future<void> clearAllData() async {
     final client = await database;
@@ -755,6 +927,8 @@ class AppDatabase {
       await txn.delete(tableDebts);
       await txn.delete(tableDebtPayments);
       await txn.delete(tableInvestments);
+      await txn.delete(tableChatMessages);
+      await txn.delete(tableChatSessions);
     });
   }
 

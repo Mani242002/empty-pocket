@@ -212,7 +212,33 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
               child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryEmerald, size: 18),
             ),
             const SizedBox(width: 8),
-            const Text('PocketAI Financial Advisor'),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'PocketAI',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Financial Advisor',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 11,
+                      color: financialColors.textMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [

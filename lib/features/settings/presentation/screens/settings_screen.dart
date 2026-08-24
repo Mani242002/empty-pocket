@@ -517,9 +517,9 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     child: const Icon(Icons.bubble_chart_rounded, color: AppColors.primaryEmerald, size: 20),
                   ),
-                  title: const Text('24/7 Floating Quick-Add Bubble', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  title: const Text('Floating Quick Add', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                   subtitle: Text(
-                    isBubbleEnabled ? 'Active (Overlay on top of any app)' : 'Disabled (Tap to enable chat head)',
+                    isBubbleEnabled ? 'Active on top of other apps' : 'Tap to enable quick add bubble',
                     style: TextStyle(color: financialColors.textMuted, fontSize: 12),
                   ),
                   value: isBubbleEnabled,

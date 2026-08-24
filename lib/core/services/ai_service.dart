@@ -189,6 +189,62 @@ Guidelines:
     );
   }
 
+  /// Cleans raw model output by stripping internal reasoning/thinking blocks
+  /// (e.g. `<think>...</think>`, `<thought>...</thought>`, `<reasoning>...</reasoning>`, `[THINK]...[/THINK]`, etc.).
+  static String stripThinkingTags(String text) {
+    if (text.isEmpty) return text;
+
+    String cleaned = text;
+
+    // 1. Remove standard matched XML-style tags: <think>...</think>, <thought>...</thought>, etc.
+    cleaned = cleaned.replaceAll(
+      RegExp(r'<(think|thought|reasoning|thinking|reflection)>[\s\S]*?<\/\1>', caseSensitive: false),
+      '',
+    );
+
+    // 2. Remove bracketed thinking tags: [THINK]...[/THINK], [REASONING]...[/REASONING], etc.
+    cleaned = cleaned.replaceAll(
+      RegExp(r'\[(think|thought|reasoning|thinking)\][\s\S]*?\[\/\1\]', caseSensitive: false),
+      '',
+    );
+
+    // 3. Remove fenced code-block thoughts: ```thought ... ``` or ```thinking ... ```
+    cleaned = cleaned.replaceAll(
+      RegExp(r'```(?:thought|thinking|reasoning)[\s\S]*?```', caseSensitive: false),
+      '',
+    );
+
+    // 4. Remove leading thinking text if the opening tag was omitted by the tokenizer
+    // e.g. "Some thinking process...\n</think>\nActual response"
+    cleaned = cleaned.replaceAll(
+      RegExp(r'^[\s\S]*?<\/(think|thought|reasoning|thinking|reflection)>\s*', caseSensitive: false),
+      '',
+    );
+    cleaned = cleaned.replaceAll(
+      RegExp(r'^[\s\S]*?\[\/(think|thought|reasoning|thinking)\]\s*', caseSensitive: false),
+      '',
+    );
+
+    // 5. Remove trailing thinking text if truncated mid-thought
+    cleaned = cleaned.replaceAll(
+      RegExp(r'<(think|thought|reasoning|thinking|reflection)>[\s\S]*$', caseSensitive: false),
+      '',
+    );
+
+    // 6. Remove any stray opening or closing tags
+    cleaned = cleaned.replaceAll(
+      RegExp(r'<\/?(think|thought|reasoning|thinking|reflection)>', caseSensitive: false),
+      '',
+    );
+    cleaned = cleaned.replaceAll(
+      RegExp(r'\[\/?(think|thought|reasoning|thinking)\]', caseSensitive: false),
+      '',
+    );
+
+    final trimmed = cleaned.trim();
+    return trimmed.isNotEmpty ? trimmed : (text.trim().isNotEmpty ? text.trim() : '');
+  }
+
   /// Generic LLM dispatch router for Gemini & Groq
   Future<String> _generateRawText({
     required AiProviderConfig config,
@@ -196,12 +252,16 @@ Guidelines:
     required String userPrompt,
     List<AiChatMessage>? history,
   }) async {
+    String rawText;
     switch (config.providerType) {
       case AiProviderType.gemini:
-        return await _callGemini(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        rawText = await _callGemini(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        break;
       case AiProviderType.groq:
-        return await _callGroq(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        rawText = await _callGroq(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        break;
     }
+    return stripThinkingTags(rawText);
   }
 
   /// Google Gemini REST API Implementation

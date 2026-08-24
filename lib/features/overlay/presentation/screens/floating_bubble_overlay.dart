@@ -128,28 +128,31 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
     return Center(
       child: GestureDetector(
         onTap: _expand,
-        child: Container(
+        child: SizedBox(
           width: 56,
           height: 56,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: AppColors.primaryEmerald.withAlpha(200),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(140),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.primaryEmerald.withAlpha(220),
+                width: 1.5,
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12.5),
-            child: Image.asset(
-              'assets/icon/app_icon.png',
-              fit: BoxFit.cover,
+              color: const Color(0xFF131B26),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(140),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14.5),
+              child: Image.asset(
+                'assets/icon/app_icon.png',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
         ),

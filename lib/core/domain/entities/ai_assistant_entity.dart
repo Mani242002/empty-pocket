@@ -166,18 +166,93 @@ class AiProviderConfig {
   }
 }
 
+class AiChatSession {
+  final String id;
+  final String title;
+  final String provider;
+  final String modelUsed;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const AiChatSession({
+    required this.id,
+    required this.title,
+    required this.provider,
+    required this.modelUsed,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'provider': provider,
+        'model_used': modelUsed,
+        'created_at': createdAt.millisecondsSinceEpoch,
+        'updated_at': updatedAt.millisecondsSinceEpoch,
+      };
+
+  factory AiChatSession.fromMap(Map<String, dynamic> map) => AiChatSession(
+        id: map['id'] as String,
+        title: (map['title'] as String?) ?? 'Conversation',
+        provider: (map['provider'] as String?) ?? 'gemini',
+        modelUsed: (map['model_used'] as String?) ?? '',
+        createdAt: DateTime.fromMillisecondsSinceEpoch(
+          (map['created_at'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+        ),
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(
+          (map['updated_at'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+
+  AiChatSession copyWith({
+    String? title,
+    String? provider,
+    String? modelUsed,
+    DateTime? updatedAt,
+  }) =>
+      AiChatSession(
+        id: id,
+        title: title ?? this.title,
+        provider: provider ?? this.provider,
+        modelUsed: modelUsed ?? this.modelUsed,
+        createdAt: createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+}
+
 class AiChatMessage {
   final String id;
+  final String sessionId;
   final String text;
   final bool isUser;
   final DateTime timestamp;
 
   const AiChatMessage({
     required this.id,
+    this.sessionId = '',
     required this.text,
     required this.isUser,
     required this.timestamp,
   });
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'session_id': sessionId,
+        'text': text,
+        'is_user': isUser ? 1 : 0,
+        'timestamp': timestamp.millisecondsSinceEpoch,
+      };
+
+  factory AiChatMessage.fromMap(Map<String, dynamic> map) => AiChatMessage(
+        id: map['id'] as String,
+        sessionId: (map['session_id'] as String?) ?? '',
+        text: (map['text'] as String?) ?? '',
+        isUser: map['is_user'] == 1 || map['is_user'] == true,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(
+          (map['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
 }
 
 enum AiReportType {

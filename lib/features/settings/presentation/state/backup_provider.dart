@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/database/app_database.dart';
+import '../../../../core/domain/entities/ai_assistant_entity.dart';
 import '../../../../core/repositories/budget_repository.dart';
 import '../../../../core/repositories/debt_repository.dart';
 import '../../../../core/repositories/investment_repository.dart';
@@ -10,6 +12,7 @@ import '../../../../core/repositories/savings_goal_repository.dart';
 import '../../../../core/repositories/transaction_repository.dart';
 import '../../../../core/services/backup_service.dart';
 import '../../../../core/services/overlay_service.dart';
+import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../budgets/presentation/state/budgets_provider.dart';
 import '../../../budgets/presentation/state/recurring_provider.dart';
 import '../../../debts/presentation/state/debts_provider.dart';
@@ -62,7 +65,17 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
   Future<void> _loadState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      state = prefs.getBool(_keyBubble) ?? false;
+      final enabled = prefs.getBool(_keyBubble) ?? false;
+      state = enabled;
+      if (enabled) {
+        final isGranted = await OverlayService.isPermissionGranted();
+        if (isGranted) {
+          final isActive = await OverlayService.isActive();
+          if (!isActive) {
+            await OverlayService.showFloatingBubble();
+          }
+        }
+      }
     } catch (e) {
       debugPrint('[FloatingBubbleNotifier] _loadState error: $e');
     }
@@ -141,6 +154,14 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       }
       final investments = await investRepo.getAllInvestments();
       final recurring = await recurRepo.getAllRecurringExpenses();
+      List<AiChatSession> chatSessions = [];
+      List<AiChatMessage> chatMessages = [];
+      try {
+        chatSessions = await AppDatabase.instance.getAllChatSessions();
+        chatMessages = await AppDatabase.instance.getAllChatMessages();
+      } catch (e) {
+        debugPrint('[BackupOperationsNotifier] Chat database query error: $e');
+      }
 
       final backupService = ref.read(backupServiceProvider);
       final jsonStr = backupService.exportFullDatabaseJson(
@@ -152,6 +173,8 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         debtPayments: payments.cast(),
         investments: investments,
         recurringExpenses: recurring,
+        chatSessions: chatSessions,
+        chatMessages: chatMessages,
       );
 
       state = const AsyncValue.data('Backup exported successfully');
@@ -204,7 +227,7 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
 
       _refreshAllProviders();
       state = AsyncValue.data(
-        'Successfully restored ${backup.metadata.transactionsCount} transactions, ${backup.metadata.savingsGoalsCount} goals, ${backup.metadata.debtsCount} debts, and ${backup.metadata.investmentsCount} investments.',
+        'Successfully restored ${backup.metadata.transactionsCount} transactions, ${backup.metadata.savingsGoalsCount} goals, ${backup.metadata.debtsCount} debts, ${backup.metadata.investmentsCount} investments, and ${backup.metadata.chatSessionsCount} chat conversations.',
       );
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -247,6 +270,7 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
     ref.invalidate(debtListNotifierProvider);
     ref.invalidate(investmentListNotifierProvider);
     ref.invalidate(recurringListNotifierProvider);
+    ref.read(aiChatProvider.notifier).loadChatData();
   }
 }
 

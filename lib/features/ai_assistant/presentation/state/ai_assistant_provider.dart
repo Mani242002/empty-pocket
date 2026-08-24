@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/calculation/financial_calculator.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
 import '../../../../core/services/ai_service.dart';
 import '../../../debts/presentation/state/debts_provider.dart';
@@ -337,64 +338,267 @@ final aiAuditProvider =
   return AiAuditNotifier(ref);
 });
 
-/// Combined state containing chat messages and generation state for reactive UI updates
+/// Combined state containing persistent chat sessions, active messages, and generation state
 class AiChatState {
+  final AiChatSession? currentSession;
+  final List<AiChatSession> sessions;
   final List<AiChatMessage> messages;
   final bool isGenerating;
+  final bool isLoadingHistory;
 
   const AiChatState({
-    required this.messages,
+    this.currentSession,
+    this.sessions = const [],
+    this.messages = const [],
     this.isGenerating = false,
+    this.isLoadingHistory = false,
   });
 
   AiChatState copyWith({
+    AiChatSession? currentSession,
+    bool clearCurrentSession = false,
+    List<AiChatSession>? sessions,
     List<AiChatMessage>? messages,
     bool? isGenerating,
+    bool? isLoadingHistory,
   }) {
     return AiChatState(
+      currentSession: clearCurrentSession ? null : (currentSession ?? this.currentSession),
+      sessions: sessions ?? this.sessions,
       messages: messages ?? this.messages,
       isGenerating: isGenerating ?? this.isGenerating,
+      isLoadingHistory: isLoadingHistory ?? this.isLoadingHistory,
     );
   }
 }
 
 class AiChatNotifier extends StateNotifier<AiChatState> {
   final Ref ref;
+  final AppDatabase _db = AppDatabase.instance;
 
-  AiChatNotifier(this.ref)
-      : super(AiChatState(
-          messages: [
-            AiChatMessage(
-              id: 'welcome',
-              text:
-                  'Hello! I am PocketAI, your private financial advisor. I can analyze your income, expenses, budgets, savings goals, loans, and investment portfolio to answer any financial planning questions.\n\nHow can I assist you today?',
-              isUser: false,
-              timestamp: DateTime.now(),
-            ),
-          ],
-        ));
+  static const String _defaultWelcomeText =
+      'Hello! I am PocketAI, your private financial advisor. I can analyze your income, expenses, budgets, savings goals, loans, and investment portfolio to answer any financial planning questions.\n\nHow can I assist you today?';
 
-  Future<void> sendMessage(String userText) async {
-    if (userText.trim().isEmpty || state.isGenerating) return;
+  AiChatNotifier(this.ref) : super(const AiChatState()) {
+    loadChatData();
+  }
 
-    final config = ref.read(aiProviderConfigProvider);
-    final userMsg = AiChatMessage(
-      id: const Uuid().v4(),
-      text: userText.trim(),
-      isUser: true,
+  AiChatMessage _createWelcomeMessage([String sessionId = '']) {
+    return AiChatMessage(
+      id: 'welcome',
+      sessionId: sessionId,
+      text: _defaultWelcomeText,
+      isUser: false,
       timestamp: DateTime.now(),
     );
+  }
 
-    final updatedMessages = [...state.messages, userMsg];
+  Future<void> loadChatData() async {
+    state = state.copyWith(isLoadingHistory: true);
+    try {
+      final sessions = await _db.getAllChatSessions();
+      // If user has already initiated an in-flight prompt, avoid clobbering state
+      if (state.messages.any((m) => m.isUser)) {
+        state = state.copyWith(
+          sessions: sessions,
+          isLoadingHistory: false,
+        );
+        return;
+      }
+
+      if (sessions.isNotEmpty) {
+        final activeSession = sessions.first;
+        final messages = await _db.getMessagesForSession(activeSession.id);
+        state = state.copyWith(
+          sessions: sessions,
+          currentSession: activeSession,
+          messages: messages.isNotEmpty ? messages : [_createWelcomeMessage(activeSession.id)],
+          isLoadingHistory: false,
+        );
+      } else {
+        // No past sessions in database: initialize clean state with welcome message
+        state = state.copyWith(
+          sessions: [],
+          clearCurrentSession: true,
+          messages: [_createWelcomeMessage()],
+          isLoadingHistory: false,
+        );
+      }
+    } catch (e) {
+      debugPrint('[AiChatNotifier] loadChatData error: $e');
+      state = state.copyWith(
+        sessions: [],
+        clearCurrentSession: true,
+        messages: [_createWelcomeMessage()],
+        isLoadingHistory: false,
+      );
+    }
+  }
+
+  Future<void> startNewChat() async {
+    if (state.isGenerating) return;
+
+    state = state.copyWith(
+      clearCurrentSession: true,
+      messages: [_createWelcomeMessage()],
+    );
+  }
+
+  Future<void> selectSession(String sessionId) async {
+    if (state.isGenerating) return;
+    if (state.currentSession?.id == sessionId) return;
+
+    try {
+      final session = await _db.getChatSessionById(sessionId);
+      if (session == null) return;
+
+      final messages = await _db.getMessagesForSession(sessionId);
+      state = state.copyWith(
+        currentSession: session,
+        messages: messages.isNotEmpty ? messages : [_createWelcomeMessage(sessionId)],
+      );
+    } catch (e) {
+      debugPrint('[AiChatNotifier] selectSession error: $e');
+    }
+  }
+
+  Future<void> renameSession(String sessionId, String newTitle) async {
+    final trimmed = newTitle.trim();
+    if (trimmed.isEmpty) return;
+
+    try {
+      final session = await _db.getChatSessionById(sessionId);
+      if (session == null) return;
+
+      final updated = session.copyWith(title: trimmed, updatedAt: DateTime.now());
+      await _db.updateChatSession(updated);
+
+      final updatedSessions = state.sessions.map((s) => s.id == sessionId ? updated : s).toList();
+      state = state.copyWith(
+        sessions: updatedSessions,
+        currentSession: state.currentSession?.id == sessionId ? updated : state.currentSession,
+      );
+    } catch (e) {
+      debugPrint('[AiChatNotifier] renameSession error: $e');
+    }
+  }
+
+  Future<void> deleteSession(String sessionId) async {
+    try {
+      await _db.deleteChatSession(sessionId);
+      final updatedSessions = state.sessions.where((s) => s.id != sessionId).toList();
+
+      if (state.currentSession?.id == sessionId) {
+        if (updatedSessions.isNotEmpty) {
+          final nextSession = updatedSessions.first;
+          final messages = await _db.getMessagesForSession(nextSession.id);
+          state = state.copyWith(
+            sessions: updatedSessions,
+            currentSession: nextSession,
+            messages: messages.isNotEmpty ? messages : [_createWelcomeMessage(nextSession.id)],
+          );
+        } else {
+          state = state.copyWith(
+            sessions: [],
+            clearCurrentSession: true,
+            messages: [_createWelcomeMessage()],
+          );
+        }
+      } else {
+        state = state.copyWith(sessions: updatedSessions);
+      }
+    } catch (e) {
+      debugPrint('[AiChatNotifier] deleteSession error: $e');
+    }
+  }
+
+  Future<void> clearAllChats() async {
+    try {
+      await _db.clearAllChatHistory();
+      state = state.copyWith(
+        sessions: [],
+        clearCurrentSession: true,
+        messages: [_createWelcomeMessage()],
+      );
+    } catch (e) {
+      debugPrint('[AiChatNotifier] clearAllChats error: $e');
+    }
+  }
+
+  /// Legacy clearChat compatibility
+  void clearChat() {
+    startNewChat();
+  }
+
+  Future<void> sendMessage(String userText) async {
+    final trimmedText = userText.trim();
+    if (trimmedText.isEmpty || state.isGenerating) return;
+
+    final config = ref.read(aiProviderConfigProvider);
+
+    // 1. Ensure active session exists in DB
+    AiChatSession activeSession;
+    final now = DateTime.now();
+
+    if (state.currentSession == null) {
+      // Auto-generate title from first prompt
+      String title = trimmedText;
+      if (title.length > 35) {
+        title = '${title.substring(0, 35)}...';
+      }
+      activeSession = AiChatSession(
+        id: const Uuid().v4(),
+        title: title,
+        provider: config.providerType.name,
+        modelUsed: config.activeModelDisplayName,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await _db.insertChatSession(activeSession);
+      state = state.copyWith(
+        currentSession: activeSession,
+        sessions: [activeSession, ...state.sessions],
+      );
+    } else {
+      activeSession = state.currentSession!;
+      final updated = activeSession.copyWith(updatedAt: now);
+      await _db.updateChatSession(updated);
+      activeSession = updated;
+      final updatedSessions = [
+        activeSession,
+        ...state.sessions.where((s) => s.id != activeSession.id),
+      ];
+      state = state.copyWith(
+        currentSession: activeSession,
+        sessions: updatedSessions,
+      );
+    }
+
+    final userMsg = AiChatMessage(
+      id: const Uuid().v4(),
+      sessionId: activeSession.id,
+      text: trimmedText,
+      isUser: true,
+      timestamp: now,
+    );
+
+    // Save user message to SQLite
+    await _db.insertChatMessage(userMsg);
+
+    // Filter out welcome placeholder from UI list if present
+    final currentMsgs = state.messages.where((m) => m.id != 'welcome').toList();
+    final updatedMessages = [...currentMsgs, userMsg];
 
     if (!config.isConfigured) {
       final errorMsg = AiChatMessage(
         id: const Uuid().v4(),
+        sessionId: activeSession.id,
         text:
             '⚠️ **API Key Missing**: Please configure your ${config.providerType.displayName} API Key in AI Settings above to chat with PocketAI.',
         isUser: false,
         timestamp: DateTime.now(),
       );
+      await _db.insertChatMessage(errorMsg);
       state = state.copyWith(messages: [...updatedMessages, errorMsg]);
       return;
     }
@@ -402,6 +606,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     final loadingMsgId = const Uuid().v4();
     final placeholderMsg = AiChatMessage(
       id: loadingMsgId,
+      sessionId: activeSession.id,
       text: '⏳ *Analyzing your private financial metrics...*',
       isUser: false,
       timestamp: DateTime.now(),
@@ -417,33 +622,44 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       final aiService = ref.read(aiServiceProvider);
       final responseText = await aiService.sendChatMessage(
         config: config,
-        history: state.messages.where((m) => m.id != loadingMsgId).toList(),
-        userMessage: userText.trim(),
+        history: state.messages.where((m) => m.id != loadingMsgId && m.id != 'welcome').toList(),
+        userMessage: trimmedText,
         financialContext: contextText,
       );
 
+      final assistantMsg = AiChatMessage(
+        id: const Uuid().v4(),
+        sessionId: activeSession.id,
+        text: responseText,
+        isUser: false,
+        timestamp: DateTime.now(),
+      );
+
+      // Save assistant message to SQLite
+      await _db.insertChatMessage(assistantMsg);
+
       final nextMessages = state.messages.map((m) {
         if (m.id == loadingMsgId) {
-          return AiChatMessage(
-            id: loadingMsgId,
-            text: responseText,
-            isUser: false,
-            timestamp: DateTime.now(),
-          );
+          return assistantMsg;
         }
         return m;
       }).toList();
 
       state = state.copyWith(messages: nextMessages, isGenerating: false);
     } catch (e) {
+      final errorMsg = AiChatMessage(
+        id: const Uuid().v4(),
+        sessionId: activeSession.id,
+        text: '❌ **Error connecting to ${config.providerType.displayName}**:\n$e',
+        isUser: false,
+        timestamp: DateTime.now(),
+      );
+
+      await _db.insertChatMessage(errorMsg);
+
       final nextMessages = state.messages.map((m) {
         if (m.id == loadingMsgId) {
-          return AiChatMessage(
-            id: loadingMsgId,
-            text: '❌ **Error connecting to ${config.providerType.displayName}**:\n$e',
-            isUser: false,
-            timestamp: DateTime.now(),
-          );
+          return errorMsg;
         }
         return m;
       }).toList();
@@ -452,23 +668,14 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     }
   }
 
-  void deleteMessage(String id) {
-    final filtered = state.messages.where((m) => m.id != id).toList();
-    state = state.copyWith(messages: filtered);
-  }
-
-  void clearChat() {
-    state = state.copyWith(
-      messages: [
-        AiChatMessage(
-          id: const Uuid().v4(),
-          text: 'Chat history cleared. How can I assist your financial planning?',
-          isUser: false,
-          timestamp: DateTime.now(),
-        ),
-      ],
-      isGenerating: false,
-    );
+  Future<void> deleteMessage(String id) async {
+    try {
+      await _db.deleteChatMessage(id);
+      final filtered = state.messages.where((m) => m.id != id).toList();
+      state = state.copyWith(messages: filtered);
+    } catch (e) {
+      debugPrint('[AiChatNotifier] deleteMessage error: $e');
+    }
   }
 }
 

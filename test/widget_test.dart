@@ -348,7 +348,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // In AiReportsScreen, verify reports & options
-    expect(find.text('AI Financial Reports'), findsWidgets);
+    expect(find.text('AI Reports'), findsWidgets);
     expect(find.text('Full Health Audit'), findsOneWidget);
     expect(find.text('+ New Report'), findsOneWidget);
 

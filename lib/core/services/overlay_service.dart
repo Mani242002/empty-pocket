@@ -32,6 +32,11 @@ class OverlayService {
     }
   }
 
+  static OverlayPosition? _savedPosition;
+  static const int _bubbleSize = 58;
+  static const int _expandedWidth = 350;
+  static const int _expandedHeight = 500;
+
   /// Show the floating bubble on top of other apps centered on screen.
   static Future<void> showFloatingBubble() async {
     final granted = await isPermissionGranted();
@@ -49,18 +54,13 @@ class OverlayService {
         visibility: NotificationVisibility.visibilityPrivate,
         alignment: OverlayAlignment.center,
         positionGravity: PositionGravity.none,
-        height: 120,
-        width: 120,
+        height: _bubbleSize,
+        width: _bubbleSize,
       );
     } catch (e) {
       debugPrint('[OverlayService] showFloatingBubble error: $e');
     }
   }
-
-  static OverlayPosition? _savedPosition;
-  static const int _bubbleSize = 120;
-  static const int _expandedWidth = 350;
-  static const int _expandedHeight = 500;
 
   /// Expand the overlay to full quick-entry modal size and enable keyboard focus.
   /// Always moves to (0, 0) so the modal opens in the EXACT CENTER of the screen

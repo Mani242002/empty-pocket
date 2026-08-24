@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../database/app_database.dart';
+import '../domain/entities/ai_assistant_entity.dart';
 import '../domain/entities/backup_entity.dart';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/debt_entity.dart';
@@ -27,9 +28,11 @@ class BackupService {
     required List<DebtPaymentEntity> debtPayments,
     required List<InvestmentEntity> investments,
     required List<RecurringExpenseEntity> recurringExpenses,
+    List<AiChatSession> chatSessions = const [],
+    List<AiChatMessage> chatMessages = const [],
   }) {
     final metadata = BackupMetadata(
-      schemaVersion: 6,
+      schemaVersion: 7,
       exportedAt: DateTime.now(),
       transactionsCount: transactions.length,
       budgetsCount: budgets.length,
@@ -39,6 +42,8 @@ class BackupService {
       debtPaymentsCount: debtPayments.length,
       investmentsCount: investments.length,
       recurringExpensesCount: recurringExpenses.length,
+      chatSessionsCount: chatSessions.length,
+      chatMessagesCount: chatMessages.length,
     );
 
     final backup = FullDatabaseBackup(
@@ -51,6 +56,8 @@ class BackupService {
       debtPayments: debtPayments,
       investments: investments,
       recurringExpenses: recurringExpenses,
+      chatSessions: chatSessions,
+      chatMessages: chatMessages,
     );
 
     const encoder = JsonEncoder.withIndent('  ');
@@ -240,6 +247,24 @@ class BackupService {
     } else {
       for (final r in backup.recurringExpenses) {
         await recurringRepo.saveRecurringExpense(r);
+      }
+    }
+
+    // 8. Restore AI chat history
+    if (isSqlite) {
+      if (backup.chatSessions.isNotEmpty) {
+        try {
+          await AppDatabase.instance.batchInsertChatSessions(backup.chatSessions);
+        } catch (e) {
+          debugPrint('[BackupService] Batch insert chat sessions failed: $e');
+        }
+      }
+      if (backup.chatMessages.isNotEmpty) {
+        try {
+          await AppDatabase.instance.batchInsertChatMessages(backup.chatMessages);
+        } catch (e) {
+          debugPrint('[BackupService] Batch insert chat messages failed: $e');
+        }
       }
     }
   }

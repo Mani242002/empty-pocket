@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/presentation/widgets/app_lock_gate.dart';
+import '../features/settings/presentation/state/backup_provider.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
 import 'presentation/screens/main_navigation_scaffold.dart';
@@ -12,6 +13,8 @@ class EmptyPocketApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    // Eagerly initialize floating bubble state on app startup
+    ref.watch(floatingBubbleProvider);
 
     return MaterialApp(
       title: 'EmptyPocket',

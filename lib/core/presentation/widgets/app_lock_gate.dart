@@ -16,49 +16,26 @@ class AppLockGate extends ConsumerStatefulWidget {
   ConsumerState<AppLockGate> createState() => _AppLockGateState();
 }
 
-class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingObserver {
-  bool _isUnlocked = false;
+class _AppLockGateState extends ConsumerState<AppLockGate> {
+  static bool isSessionUnlocked = false;
   bool _isAuthenticating = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkLockStatus();
     });
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final isLockEnabled = ref.read(appLockProvider).valueOrNull ?? false;
-    if (!isLockEnabled) return;
-
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      if (mounted) {
-        setState(() {
-          _isUnlocked = false;
-        });
-      }
-    } else if (state == AppLifecycleState.resumed) {
-      _checkLockStatus();
-    }
-  }
-
   Future<void> _checkLockStatus() async {
     final isLockEnabled = ref.read(appLockProvider).valueOrNull ?? false;
-    if (!isLockEnabled) {
-      if (mounted) setState(() => _isUnlocked = true);
+    if (!isLockEnabled || isSessionUnlocked) {
+      if (mounted) setState(() {});
       return;
     }
 
-    if (!_isUnlocked && !_isAuthenticating) {
+    if (!isSessionUnlocked && !_isAuthenticating) {
       await _authenticate();
     }
   }
@@ -74,6 +51,7 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
       );
 
       if (success) {
+        isSessionUnlocked = true;
         await HapticFeedback.mediumImpact();
       } else {
         await HapticFeedback.heavyImpact();
@@ -81,7 +59,6 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
 
       if (mounted) {
         setState(() {
-          _isUnlocked = success;
           _isAuthenticating = false;
         });
       }
@@ -100,7 +77,7 @@ class _AppLockGateState extends ConsumerState<AppLockGate> with WidgetsBindingOb
 
     return appLockAsync.when(
       data: (isLockEnabled) {
-        if (!isLockEnabled || _isUnlocked) {
+        if (!isLockEnabled || isSessionUnlocked) {
           return widget.child;
         }
         return _buildLockScreen(context);
