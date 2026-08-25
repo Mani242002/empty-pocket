@@ -610,11 +610,17 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
           // Key link & test button
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'Get key: $keyUrl',
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.primaryEmerald, fontSize: 10),
+              Expanded(
+                child: Text(
+                  'Get key: $keyUrl',
+                  style: theme.textTheme.bodySmall?.copyWith(color: AppColors.primaryEmerald, fontSize: 10),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               FilledButton.tonalIcon(
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
