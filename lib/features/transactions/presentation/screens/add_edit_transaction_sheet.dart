@@ -68,17 +68,17 @@ class _AddEditTransactionSheetState
     final tx = widget.initialTransaction;
 
     _selectedType = tx?.type ?? widget.initialType;
-    _titleController = TextEditingController(text: tx?.title ?? '');
-    _amountController = TextEditingController(
-      text: tx != null ? (tx.amount == tx.amount.roundToDouble() ? tx.amount.toInt().toString() : tx.amount.toString()) : '',
-    );
-    _notesController = TextEditingController(text: tx?.notes ?? '');
 
     final categories = _selectedType == TransactionType.income
         ? CategoryConstants.incomeCategories
         : CategoryConstants.expenseCategories;
 
     _selectedCategory = tx?.category ?? categories.first.name;
+    _titleController = TextEditingController(text: tx?.title ?? _selectedCategory);
+    _amountController = TextEditingController(
+      text: tx != null ? (tx.amount == tx.amount.roundToDouble() ? tx.amount.toInt().toString() : tx.amount.toString()) : '',
+    );
+    _notesController = TextEditingController(text: tx?.notes ?? '');
     _selectedPaymentSource = tx?.paymentSource ?? 'Bank Account';
     _selectedAccountId = tx?.accountId;
     _selectedCreditCardId = tx?.creditCardId;
@@ -109,11 +109,24 @@ class _AddEditTransactionSheetState
   void _onTypeChanged(TransactionType newType) {
     if (_selectedType == newType) return;
     setState(() {
-      _selectedType = newType;
-      final categories = newType == TransactionType.income
+      final oldCategories = _selectedType == TransactionType.income
           ? CategoryConstants.incomeCategories
           : CategoryConstants.expenseCategories;
-      _selectedCategory = categories.first.name;
+      final newCategories = newType == TransactionType.income
+          ? CategoryConstants.incomeCategories
+          : CategoryConstants.expenseCategories;
+
+      _selectedType = newType;
+      _selectedCategory = newCategories.first.name;
+
+      final currentTitle = _titleController.text.trim();
+      final oldCategoryNames = oldCategories.map((c) => c.name.toLowerCase()).toSet();
+
+      // If title is empty, or equals any of the previous type's category names,
+      // update to the new category name so old category titles are never carried over across tabs.
+      if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase())) {
+        _titleController.text = _selectedCategory;
+      }
     });
   }
 
@@ -641,8 +654,18 @@ class _AddEditTransactionSheetState
                       return GestureDetector(
                         onTap: () {
                           setState(() {
+                            final oldCategory = _selectedCategory;
                             _selectedCategory = item.name;
-                            if (_titleController.text.trim().isEmpty) {
+
+                            final currentTitle = _titleController.text.trim();
+                            final allCategoryNames = {
+                              ...CategoryConstants.expenseCategories.map((c) => c.name.toLowerCase()),
+                              ...CategoryConstants.incomeCategories.map((c) => c.name.toLowerCase()),
+                            };
+
+                            if (currentTitle.isEmpty ||
+                                currentTitle.toLowerCase() == oldCategory.toLowerCase() ||
+                                allCategoryNames.contains(currentTitle.toLowerCase())) {
                               _titleController.text = item.name;
                             }
                           });

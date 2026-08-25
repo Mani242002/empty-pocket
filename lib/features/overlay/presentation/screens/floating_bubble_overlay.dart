@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
+import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/services/overlay_service.dart';
@@ -55,6 +56,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
   @override
   void initState() {
     super.initState();
+    _titleController.text = _selectedCategory;
     _loadAccountsAndCards();
   }
 
@@ -88,6 +90,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         _isExpanded = true;
         _justSaved = false;
         _validationError = null;
+        if (_titleController.text.trim().isEmpty) {
+          _titleController.text = _selectedCategory;
+        }
       });
     }
   }
@@ -100,6 +105,29 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         _validationError = null;
       });
     }
+  }
+
+  void _onTypeChanged(TransactionType newType) {
+    if (_type == newType) return;
+    setState(() {
+      final oldCategories = _type == TransactionType.income
+          ? CategoryConstants.incomeCategories
+          : CategoryConstants.expenseCategories;
+      final newCategories = newType == TransactionType.income
+          ? CategoryConstants.incomeCategories
+          : CategoryConstants.expenseCategories;
+
+      _type = newType;
+      _selectedCategory = newCategories.first.name;
+      _validationError = null;
+
+      final currentTitle = _titleController.text.trim();
+      final oldCategoryNames = oldCategories.map((c) => c.name.toLowerCase()).toSet();
+
+      if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase())) {
+        _titleController.text = _selectedCategory;
+      }
+    });
   }
 
   void _autoSelectLinkedSource(PaymentMode mode) {
@@ -407,11 +435,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() {
-                          _type = TransactionType.expense;
-                          _selectedCategory = 'Food & Dining';
-                          _validationError = null;
-                        }),
+                        onTap: () => _onTypeChanged(TransactionType.expense),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
@@ -429,11 +453,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                     const SizedBox(width: 8),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() {
-                          _type = TransactionType.income;
-                          _selectedCategory = 'Salary';
-                          _validationError = null;
-                        }),
+                        onTap: () => _onTypeChanged(TransactionType.income),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
@@ -501,17 +521,28 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: (_type == TransactionType.expense
-                            ? ['Food & Dining', 'Groceries', 'Shopping', 'Transportation', 'Bills & Utilities', 'Entertainment']
-                            : ['Salary', 'Freelance', 'Investments / Dividend', 'Gifts & Rewards'])
+                            ? CategoryConstants.expenseCategories
+                            : CategoryConstants.incomeCategories)
                         .map((cat) {
-                      final isSelected = _selectedCategory == cat;
+                      final isSelected = _selectedCategory == cat.name;
                       return Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: GestureDetector(
                           onTap: () => setState(() {
-                            _selectedCategory = cat;
-                            if (_titleController.text.trim().isEmpty) {
-                              _titleController.text = cat;
+                            final oldCategory = _selectedCategory;
+                            _selectedCategory = cat.name;
+                            if (_validationError != null) _validationError = null;
+
+                            final currentTitle = _titleController.text.trim();
+                            final allCategoryNames = {
+                              ...CategoryConstants.expenseCategories.map((c) => c.name.toLowerCase()),
+                              ...CategoryConstants.incomeCategories.map((c) => c.name.toLowerCase()),
+                            };
+
+                            if (currentTitle.isEmpty ||
+                                currentTitle.toLowerCase() == oldCategory.toLowerCase() ||
+                                allCategoryNames.contains(currentTitle.toLowerCase())) {
+                              _titleController.text = cat.name;
                             }
                           }),
                           child: Container(
@@ -525,7 +556,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              cat,
+                              cat.name,
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
