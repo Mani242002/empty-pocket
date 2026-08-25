@@ -322,7 +322,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
     BuildContext context,
     AiProviderConfig config,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -393,7 +393,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
     BuildContext context,
     AiProviderConfig config,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     final theme = Theme.of(context);
 
@@ -525,7 +525,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
     required String? testStatus,
     required VoidCallback onTestKey,
     required bool isDark,
-    required dynamic financialColors,
+    required AppFinancialColors financialColors,
   }) {
     final theme = Theme.of(context);
 
@@ -649,7 +649,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
     BuildContext context,
     AsyncValue<List<AiReportItem>> reportsState,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     return Column(
       children: [
@@ -790,7 +790,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
     BuildContext context,
     AiReportItem report,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     final theme = Theme.of(context);
 
@@ -957,7 +957,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
     List<AiChatMessage> chatMessages,
     bool isGenerating,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     return Column(
       children: [
@@ -1060,7 +1060,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
     BuildContext context,
     AiChatMessage message,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     final isUser = message.isUser;
     final theme = Theme.of(context);

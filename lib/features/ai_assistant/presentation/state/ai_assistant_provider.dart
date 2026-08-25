@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/calculation/financial_calculator.dart';
-import '../../../../core/database/app_database.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
+import '../../../../core/repositories/ai_chat_repository.dart';
 import '../../../../core/services/ai_service.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
+import '../../../budgets/presentation/state/recurring_provider.dart';
 import '../../../debts/presentation/state/debts_provider.dart';
 import '../../../investments/presentation/state/investments_provider.dart';
 import '../../../net_worth/presentation/state/net_worth_provider.dart';
@@ -182,6 +184,10 @@ final aiFinancialContextProvider = Provider<String>((ref) {
   final portfolioSummary = ref.watch(overallPortfolioSummaryProvider);
   final liabilitiesSummary = ref.watch(overallLiabilitiesSummaryProvider);
   final healthSummary = ref.watch(financialHealthSummaryProvider);
+  final topCategories = ref.watch(monthlyCategoryBreakdownProvider);
+  final accounts = ref.watch(activeBankAccountsProvider);
+  final cards = ref.watch(activeCreditCardsProvider);
+  final recurring = ref.watch(recurringListNotifierProvider).valueOrNull?.where((r) => r.isActive).toList() ?? [];
 
   return FinancialCalculator.generateFinancialContextSummary(
     monthlyIncome: financialSummary.totalIncome,
@@ -192,6 +198,10 @@ final aiFinancialContextProvider = Provider<String>((ref) {
     portfolioSummary: portfolioSummary,
     liabilitiesSummary: liabilitiesSummary,
     healthSummary: healthSummary,
+    topExpenseCategories: topCategories,
+    bankAccounts: accounts,
+    creditCards: cards,
+    recurringExpenses: recurring,
   );
 });
 
@@ -374,7 +384,6 @@ class AiChatState {
 
 class AiChatNotifier extends StateNotifier<AiChatState> {
   final Ref ref;
-  final AppDatabase _db = AppDatabase.instance;
 
   static const String _defaultWelcomeText =
       'Hello! I am PocketAI, your private financial advisor. I can analyze your income, expenses, budgets, savings goals, loans, and investment portfolio to answer any financial planning questions.\n\nHow can I assist you today?';
@@ -382,6 +391,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   AiChatNotifier(this.ref) : super(const AiChatState()) {
     loadChatData();
   }
+
+  AiChatRepository get _chatRepo => ref.read(aiChatRepositoryProvider);
 
   AiChatMessage _createWelcomeMessage([String sessionId = '']) {
     return AiChatMessage(
@@ -396,7 +407,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   Future<void> loadChatData() async {
     state = state.copyWith(isLoadingHistory: true);
     try {
-      final sessions = await _db.getAllChatSessions();
+      final sessions = await _chatRepo.getAllSessions();
       // If user has already initiated an in-flight prompt, avoid clobbering state
       if (state.messages.any((m) => m.isUser)) {
         state = state.copyWith(
@@ -408,7 +419,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
 
       if (sessions.isNotEmpty) {
         final activeSession = sessions.first;
-        final messages = await _db.getMessagesForSession(activeSession.id);
+        final messages = await _chatRepo.getMessagesForSession(activeSession.id);
         state = state.copyWith(
           sessions: sessions,
           currentSession: activeSession,
@@ -449,10 +460,10 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     if (state.currentSession?.id == sessionId) return;
 
     try {
-      final session = await _db.getChatSessionById(sessionId);
+      final session = await _chatRepo.getSessionById(sessionId);
       if (session == null) return;
 
-      final messages = await _db.getMessagesForSession(sessionId);
+      final messages = await _chatRepo.getMessagesForSession(sessionId);
       state = state.copyWith(
         currentSession: session,
         messages: messages.isNotEmpty ? messages : [_createWelcomeMessage(sessionId)],
@@ -467,11 +478,11 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     if (trimmed.isEmpty) return;
 
     try {
-      final session = await _db.getChatSessionById(sessionId);
+      final session = await _chatRepo.getSessionById(sessionId);
       if (session == null) return;
 
       final updated = session.copyWith(title: trimmed, updatedAt: DateTime.now());
-      await _db.updateChatSession(updated);
+      await _chatRepo.saveSession(updated);
 
       final updatedSessions = state.sessions.map((s) => s.id == sessionId ? updated : s).toList();
       state = state.copyWith(
@@ -485,13 +496,13 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
 
   Future<void> deleteSession(String sessionId) async {
     try {
-      await _db.deleteChatSession(sessionId);
+      await _chatRepo.deleteSession(sessionId);
       final updatedSessions = state.sessions.where((s) => s.id != sessionId).toList();
 
       if (state.currentSession?.id == sessionId) {
         if (updatedSessions.isNotEmpty) {
           final nextSession = updatedSessions.first;
-          final messages = await _db.getMessagesForSession(nextSession.id);
+          final messages = await _chatRepo.getMessagesForSession(nextSession.id);
           state = state.copyWith(
             sessions: updatedSessions,
             currentSession: nextSession,
@@ -514,7 +525,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
 
   Future<void> clearAllChats() async {
     try {
-      await _db.clearAllChatHistory();
+      await _chatRepo.clearAllChatHistory();
       state = state.copyWith(
         sessions: [],
         clearCurrentSession: true,
@@ -554,7 +565,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         createdAt: now,
         updatedAt: now,
       );
-      await _db.insertChatSession(activeSession);
+      await _chatRepo.saveSession(activeSession);
       state = state.copyWith(
         currentSession: activeSession,
         sessions: [activeSession, ...state.sessions],
@@ -562,7 +573,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     } else {
       activeSession = state.currentSession!;
       final updated = activeSession.copyWith(updatedAt: now);
-      await _db.updateChatSession(updated);
+      await _chatRepo.saveSession(updated);
       activeSession = updated;
       final updatedSessions = [
         activeSession,
@@ -582,8 +593,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       timestamp: now,
     );
 
-    // Save user message to SQLite
-    await _db.insertChatMessage(userMsg);
+    // Save user message to repository
+    await _chatRepo.saveMessage(userMsg);
 
     // Filter out welcome placeholder from UI list if present
     final currentMsgs = state.messages.where((m) => m.id != 'welcome').toList();
@@ -598,7 +609,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         isUser: false,
         timestamp: DateTime.now(),
       );
-      await _db.insertChatMessage(errorMsg);
+      await _chatRepo.saveMessage(errorMsg);
       state = state.copyWith(messages: [...updatedMessages, errorMsg]);
       return;
     }
@@ -635,8 +646,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         timestamp: DateTime.now(),
       );
 
-      // Save assistant message to SQLite
-      await _db.insertChatMessage(assistantMsg);
+      // Save assistant message to repository
+      await _chatRepo.saveMessage(assistantMsg);
 
       final nextMessages = state.messages.map((m) {
         if (m.id == loadingMsgId) {
@@ -655,7 +666,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         timestamp: DateTime.now(),
       );
 
-      await _db.insertChatMessage(errorMsg);
+      await _chatRepo.saveMessage(errorMsg);
 
       final nextMessages = state.messages.map((m) {
         if (m.id == loadingMsgId) {
@@ -670,7 +681,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
 
   Future<void> deleteMessage(String id) async {
     try {
-      await _db.deleteChatMessage(id);
+      await _chatRepo.deleteMessage(id);
       final filtered = state.messages.where((m) => m.id != id).toList();
       state = state.copyWith(messages: filtered);
     } catch (e) {

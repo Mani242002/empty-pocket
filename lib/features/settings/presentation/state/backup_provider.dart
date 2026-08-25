@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../../core/database/app_database.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
+import '../../../../core/repositories/ai_chat_repository.dart';
 import '../../../../core/repositories/bank_account_repository.dart';
 import '../../../../core/repositories/budget_repository.dart';
 import '../../../../core/repositories/credit_card_repository.dart';
@@ -142,6 +142,7 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       final recurRepo = ref.read(recurringRepositoryProvider);
       final bankRepo = ref.read(bankAccountRepositoryProvider);
       final cardRepo = ref.read(creditCardRepositoryProvider);
+      final chatRepo = ref.read(aiChatRepositoryProvider);
 
       final txs = await txRepo.getAllTransactions();
       final budgets = await budgetRepo.getAllBudgets();
@@ -165,10 +166,10 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       List<AiChatSession> chatSessions = [];
       List<AiChatMessage> chatMessages = [];
       try {
-        chatSessions = await AppDatabase.instance.getAllChatSessions();
-        chatMessages = await AppDatabase.instance.getAllChatMessages();
+        chatSessions = await chatRepo.getAllSessions();
+        chatMessages = await chatRepo.getAllMessages();
       } catch (e) {
-        debugPrint('[BackupOperationsNotifier] Chat database query error: $e');
+        debugPrint('[BackupOperationsNotifier] Chat repository query error: $e');
       }
 
       final backupService = ref.read(backupServiceProvider);
@@ -226,6 +227,7 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       final recurRepo = ref.read(recurringRepositoryProvider);
       final bankRepo = ref.read(bankAccountRepositoryProvider);
       final cardRepo = ref.read(creditCardRepositoryProvider);
+      final chatRepo = ref.read(aiChatRepositoryProvider);
 
       await backupService.restoreAll(
         backup: backup,
@@ -237,6 +239,7 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         recurringRepo: recurRepo,
         bankAccountRepo: bankRepo,
         creditCardRepo: cardRepo,
+        aiChatRepo: chatRepo,
       );
 
       _refreshAllProviders();
@@ -261,6 +264,7 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       final recurRepo = ref.read(recurringRepositoryProvider);
       final bankRepo = ref.read(bankAccountRepositoryProvider);
       final cardRepo = ref.read(creditCardRepositoryProvider);
+      final chatRepo = ref.read(aiChatRepositoryProvider);
 
       await backupService.wipeAllData(
         transactionRepo: txRepo,
@@ -271,6 +275,7 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         recurringRepo: recurRepo,
         bankAccountRepo: bankRepo,
         creditCardRepo: cardRepo,
+        aiChatRepo: chatRepo,
       );
 
       _refreshAllProviders();

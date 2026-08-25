@@ -28,5 +28,16 @@ void main() {
       final formatted = CurrencyFormatter.formatCompact(15000000);
       expect(formatted, '₹1.50 Cr');
     });
+
+    test('formats negative amount correctly', () {
+      final formatted = CurrencyFormatter.format(-1250.50);
+      expect(formatted, contains('-₹1,250.50'));
+    });
+
+    test('formats negative compact numbers correctly', () {
+      expect(CurrencyFormatter.formatCompact(-45000), '-₹45.0 k');
+      expect(CurrencyFormatter.formatCompact(-250000), '-₹2.50 L');
+      expect(CurrencyFormatter.formatCompact(-15000000), '-₹1.50 Cr');
+    });
   });
 }

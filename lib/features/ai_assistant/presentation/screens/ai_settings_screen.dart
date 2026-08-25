@@ -240,7 +240,7 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     required String? testStatus,
     required VoidCallback onTestKey,
     required bool isDark,
-    required dynamic financialColors,
+    required AppFinancialColors financialColors,
   }) {
     final theme = Theme.of(context);
 

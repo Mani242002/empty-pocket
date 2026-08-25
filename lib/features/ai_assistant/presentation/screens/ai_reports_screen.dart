@@ -297,7 +297,7 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
     BuildContext context,
     AiProviderConfig config,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     final configured = config.configuredProviders;
 
@@ -405,7 +405,7 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
     BuildContext context,
     AiReportItem report,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     final theme = Theme.of(context);
 

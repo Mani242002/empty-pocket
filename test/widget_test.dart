@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:empty_pocket/app/app.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
+import 'package:empty_pocket/core/repositories/ai_chat_repository.dart';
 import 'package:empty_pocket/core/repositories/bank_account_repository.dart';
 import 'package:empty_pocket/core/repositories/budget_repository.dart';
 import 'package:empty_pocket/core/repositories/credit_card_repository.dart';
@@ -60,6 +61,7 @@ void main() {
     final inMemoryInvestmentRepo = InMemoryInvestmentRepository();
     final inMemoryBankAccountRepo = InMemoryBankAccountRepository();
     final inMemoryCreditCardRepo = InMemoryCreditCardRepository();
+    final inMemoryAiChatRepo = InMemoryAiChatRepository();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -72,6 +74,7 @@ void main() {
           investmentRepositoryProvider.overrideWithValue(inMemoryInvestmentRepo),
           bankAccountRepositoryProvider.overrideWithValue(inMemoryBankAccountRepo),
           creditCardRepositoryProvider.overrideWithValue(inMemoryCreditCardRepo),
+          aiChatRepositoryProvider.overrideWithValue(inMemoryAiChatRepo),
         ],
         child: const EmptyPocketApp(),
       ),

@@ -12,6 +12,7 @@ import '../domain/entities/investment_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
+import '../repositories/ai_chat_repository.dart';
 import '../repositories/bank_account_repository.dart';
 import '../repositories/budget_repository.dart';
 import '../repositories/credit_card_repository.dart';
@@ -123,6 +124,7 @@ class BackupService {
     required RecurringRepository recurringRepo,
     BankAccountRepository? bankAccountRepo,
     CreditCardRepository? creditCardRepo,
+    AiChatRepository? aiChatRepo,
   }) async {
     // 1. Wipe existing records to prevent conflicts
     await wipeAllData(
@@ -134,6 +136,7 @@ class BackupService {
       recurringRepo: recurringRepo,
       bankAccountRepo: bankAccountRepo,
       creditCardRepo: creditCardRepo,
+      aiChatRepo: aiChatRepo,
     );
 
     final isSqlite = transactionRepo is SqliteTransactionRepository;
@@ -301,7 +304,14 @@ class BackupService {
     }
 
     // 10. Restore AI chat history
-    if (isSqlite) {
+    if (aiChatRepo != null) {
+      if (backup.chatSessions.isNotEmpty) {
+        await aiChatRepo.batchSaveSessions(backup.chatSessions);
+      }
+      if (backup.chatMessages.isNotEmpty) {
+        await aiChatRepo.batchSaveMessages(backup.chatMessages);
+      }
+    } else if (isSqlite) {
       if (backup.chatSessions.isNotEmpty) {
         try {
           await AppDatabase.instance.batchInsertChatSessions(backup.chatSessions);
@@ -329,6 +339,7 @@ class BackupService {
     required RecurringRepository recurringRepo,
     BankAccountRepository? bankAccountRepo,
     CreditCardRepository? creditCardRepo,
+    AiChatRepository? aiChatRepo,
   }) async {
     if (transactionRepo is SqliteTransactionRepository) {
       try {
@@ -381,6 +392,14 @@ class BackupService {
       final allCards = await creditCardRepo.getAllCards();
       for (final c in allCards) {
         await creditCardRepo.deleteCard(c.id);
+      }
+    }
+
+    if (aiChatRepo != null) {
+      try {
+        await aiChatRepo.clearAllChatHistory();
+      } catch (err) {
+        debugPrint('[BackupService] clearAllChatHistory error: $err');
       }
     }
   }

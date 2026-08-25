@@ -670,7 +670,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     BuildContext context,
     AiProviderConfig config,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     final configured = config.configuredProviders;
 
@@ -791,7 +791,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     BuildContext context,
     AiChatMessage message,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     final isUser = message.isUser;
     final theme = Theme.of(context);

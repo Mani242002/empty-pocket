@@ -410,7 +410,7 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
     BuildContext context,
     MonthlyTrendData trend,
     bool isDark,
-    dynamic financialColors,
+    AppFinancialColors financialColors,
   ) {
     final monthName = DateFormat('MMM yyyy').format(trend.month);
 
