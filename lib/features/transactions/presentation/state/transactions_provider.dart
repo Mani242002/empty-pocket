@@ -96,10 +96,16 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       if (target.isNotEmpty) {
         final prevTx = target.first;
         // 1. Revert balance impact for linked accounts and credit cards
-        if (prevTx.type == TransactionType.income && prevTx.accountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(prevTx.accountId!, -prevTx.amount);
+        if (prevTx.type == TransactionType.income) {
+          if (prevTx.accountId != null) {
+            await ref
+                .read(bankAccountListProvider.notifier)
+                .adjustAccountBalance(prevTx.accountId!, -prevTx.amount);
+          } else if (prevTx.creditCardId != null) {
+            await ref
+                .read(creditCardListProvider.notifier)
+                .adjustUsedAmount(prevTx.creditCardId!, prevTx.amount);
+          }
         } else if (prevTx.type == TransactionType.expense) {
           if (prevTx.creditCardId != null) {
             await ref

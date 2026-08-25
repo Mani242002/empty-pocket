@@ -50,6 +50,30 @@ enum AccountType {
   }
 }
 
+/// Standardized two-tier Payment Method Categories
+enum PaymentMode {
+  bankAccount('Bank Account', Icons.account_balance_rounded),
+  upiWallet('UPI / Wallet', Icons.qr_code_scanner_rounded),
+  cash('Cash', Icons.payments_rounded),
+  creditCard('Credit Card', Icons.credit_card_rounded);
+
+  final String displayName;
+  final IconData icon;
+  const PaymentMode(this.displayName, this.icon);
+
+  static PaymentMode fromString(String value) {
+    final lower = value.toLowerCase();
+    if (lower.contains('upi') || lower.contains('wallet')) {
+      return PaymentMode.upiWallet;
+    } else if (lower.contains('credit')) {
+      return PaymentMode.creditCard;
+    } else if (lower.contains('cash')) {
+      return PaymentMode.cash;
+    }
+    return PaymentMode.bankAccount;
+  }
+}
+
 /// Predefined recommended tags for what the user uses this account for
 abstract class AccountPurposeTags {
   static const String dailySpending = 'Daily Spending';

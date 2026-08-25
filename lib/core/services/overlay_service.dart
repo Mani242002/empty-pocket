@@ -34,8 +34,8 @@ class OverlayService {
 
   static OverlayPosition? _savedPosition;
   static const int _bubbleSize = 58;
-  static const int _expandedWidth = 350;
-  static const int _expandedHeight = 500;
+  static const int _expandedWidth = 360;
+  static const int _expandedHeight = 620;
 
   /// Show the floating bubble on top of other apps centered on screen.
   static Future<void> showFloatingBubble() async {

@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
+import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/category_constants.dart';
+import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
@@ -50,9 +52,10 @@ class _AddEditTransactionSheetState
   late TextEditingController _notesController;
 
   late String _selectedCategory;
-  late String _selectedPaymentSource;
+  late PaymentMode _selectedPaymentMode;
   String? _selectedAccountId;
   String? _selectedCreditCardId;
+  late String _selectedPaymentSource;
   late DateTime _selectedDate;
 
   final _formKey = GlobalKey<FormState>();
@@ -76,10 +79,23 @@ class _AddEditTransactionSheetState
         : CategoryConstants.expenseCategories;
 
     _selectedCategory = tx?.category ?? categories.first.name;
-    _selectedPaymentSource = tx?.paymentSource ?? CategoryConstants.paymentSources.first;
+    _selectedPaymentSource = tx?.paymentSource ?? 'Bank Account';
     _selectedAccountId = tx?.accountId;
     _selectedCreditCardId = tx?.creditCardId;
     _selectedDate = tx?.date ?? DateTime.now();
+
+    if (tx != null) {
+      _selectedPaymentMode = PaymentMode.fromString(tx.paymentSource);
+      if (tx.creditCardId != null && _selectedPaymentMode != PaymentMode.upiWallet) {
+        _selectedPaymentMode = PaymentMode.creditCard;
+      } else if (tx.accountId != null &&
+          _selectedPaymentMode != PaymentMode.upiWallet &&
+          _selectedPaymentMode != PaymentMode.cash) {
+        _selectedPaymentMode = PaymentMode.bankAccount;
+      }
+    } else {
+      _selectedPaymentMode = PaymentMode.bankAccount;
+    }
   }
 
   @override
@@ -98,17 +114,73 @@ class _AddEditTransactionSheetState
           ? CategoryConstants.incomeCategories
           : CategoryConstants.expenseCategories;
       _selectedCategory = categories.first.name;
-
-      // If switching to income, clear credit card selection
-      if (newType == TransactionType.income && _selectedCreditCardId != null) {
-        _selectedCreditCardId = null;
-        final defaultAcc = ref.read(defaultBankAccountProvider);
-        if (defaultAcc != null) {
-          _selectedAccountId = defaultAcc.id;
-          _selectedPaymentSource = defaultAcc.accountName;
-        }
-      }
     });
+  }
+
+  void _autoSelectLinkedSource(
+    PaymentMode mode,
+    List<BankAccountEntity> bankAccounts,
+    List<CreditCardEntity> creditCards,
+  ) {
+    switch (mode) {
+      case PaymentMode.bankAccount:
+        if (bankAccounts.isNotEmpty) {
+          final def = bankAccounts.where((a) => a.isDefault);
+          final acc = def.isNotEmpty ? def.first : bankAccounts.first;
+          _selectedAccountId = acc.id;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = acc.accountName;
+        } else {
+          _selectedAccountId = null;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = 'Bank Account';
+        }
+        break;
+      case PaymentMode.creditCard:
+        if (creditCards.isNotEmpty) {
+          final card = creditCards.first;
+          _selectedCreditCardId = card.id;
+          _selectedAccountId = null;
+          _selectedPaymentSource = card.cardName;
+        } else {
+          _selectedAccountId = null;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = 'Credit Card';
+        }
+        break;
+      case PaymentMode.upiWallet:
+        if (bankAccounts.isNotEmpty) {
+          final def = bankAccounts.where((a) => a.isDefault);
+          final acc = def.isNotEmpty ? def.first : bankAccounts.first;
+          _selectedAccountId = acc.id;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = 'UPI (${acc.accountName})';
+        } else {
+          final rupayCards = creditCards.where((c) => c.cardNetwork == CardNetwork.rupay).toList();
+          if (rupayCards.isNotEmpty) {
+            _selectedCreditCardId = rupayCards.first.id;
+            _selectedAccountId = null;
+            _selectedPaymentSource = 'UPI (${rupayCards.first.cardName})';
+          } else {
+            _selectedAccountId = null;
+            _selectedCreditCardId = null;
+            _selectedPaymentSource = 'UPI / Wallet';
+          }
+        }
+        break;
+      case PaymentMode.cash:
+        final cashAccounts = bankAccounts.where((a) => a.accountType == AccountType.cash).toList();
+        if (cashAccounts.isNotEmpty) {
+          _selectedAccountId = cashAccounts.first.id;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = cashAccounts.first.accountName;
+        } else {
+          _selectedAccountId = null;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = 'Cash';
+        }
+        break;
+    }
   }
 
   Future<void> _pickDate() async {
@@ -151,9 +223,16 @@ class _AddEditTransactionSheetState
       return;
     }
 
-    final title = _titleController.text.trim().isEmpty
-        ? _selectedCategory
-        : _titleController.text.trim();
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter title or reason.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     final now = DateTime.now();
 
@@ -161,10 +240,16 @@ class _AddEditTransactionSheetState
       final prevTx = widget.initialTransaction!;
 
       // 1. Revert previous transaction impact
-      if (prevTx.type == TransactionType.income && prevTx.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(prevTx.accountId!, -prevTx.amount);
+      if (prevTx.type == TransactionType.income) {
+        if (prevTx.accountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(prevTx.accountId!, -prevTx.amount);
+        } else if (prevTx.creditCardId != null) {
+          await ref
+              .read(creditCardListProvider.notifier)
+              .adjustUsedAmount(prevTx.creditCardId!, prevTx.amount);
+        }
       } else if (prevTx.type == TransactionType.expense) {
         if (prevTx.creditCardId != null) {
           await ref
@@ -178,10 +263,16 @@ class _AddEditTransactionSheetState
       }
 
       // 2. Apply new transaction impact
-      if (_selectedType == TransactionType.income && _selectedAccountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(_selectedAccountId!, amount);
+      if (_selectedType == TransactionType.income) {
+        if (_selectedAccountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(_selectedAccountId!, amount);
+        } else if (_selectedCreditCardId != null) {
+          await ref
+              .read(creditCardListProvider.notifier)
+              .adjustUsedAmount(_selectedCreditCardId!, -amount);
+        }
       } else if (_selectedType == TransactionType.expense) {
         if (_selectedCreditCardId != null) {
           await ref
@@ -224,10 +315,16 @@ class _AddEditTransactionSheetState
       }
     } else {
       // Apply new transaction balance impact
-      if (_selectedType == TransactionType.income && _selectedAccountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(_selectedAccountId!, amount);
+      if (_selectedType == TransactionType.income) {
+        if (_selectedAccountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(_selectedAccountId!, amount);
+        } else if (_selectedCreditCardId != null) {
+          await ref
+              .read(creditCardListProvider.notifier)
+              .adjustUsedAmount(_selectedCreditCardId!, -amount);
+        }
       } else if (_selectedType == TransactionType.expense) {
         if (_selectedCreditCardId != null) {
           await ref
@@ -497,7 +594,7 @@ class _AddEditTransactionSheetState
                 ),
                 const SizedBox(height: 20),
 
-                // Description / Title Field
+                // Description / Title Field (Mandatory)
                 Text(
                   'TITLE / REASON',
                   style: theme.textTheme.labelMedium?.copyWith(
@@ -513,6 +610,12 @@ class _AddEditTransactionSheetState
                     hintText: 'e.g. Lunch at Cafe, Grocery Mart, Salary',
                     prefixIcon: Icon(Icons.edit_note_rounded),
                   ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter title or reason';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -585,149 +688,90 @@ class _AddEditTransactionSheetState
                 ),
                 const SizedBox(height: 20),
 
-                // Payment Source and Date Pickers Row
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Payment Source Dropdown
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isIncome ? 'DEPOSIT TO (ACCOUNT)' : 'PAY FROM (ACCOUNT / CARD)',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.1,
-                                color: financialColors.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              initialValue: _selectedCreditCardId != null
-                                  ? 'card_$_selectedCreditCardId'
-                                  : (_selectedAccountId != null
-                                      ? 'acc_$_selectedAccountId'
-                                      : _selectedPaymentSource),
-                              isExpanded: true,
-                              decoration: InputDecoration(
-                                prefixIcon: Icon(
-                                  _selectedCreditCardId != null
-                                      ? Icons.credit_card_rounded
-                                      : Icons.account_balance_wallet_rounded,
-                                  size: 18,
-                                ),
-                              ),
-                              items: [
-                                // Bank Accounts
-                                ...bankAccounts.map((acc) {
-                                  return DropdownMenuItem(
-                                    value: 'acc_${acc.id}',
-                                    child: Text(
-                                      '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  );
-                                }),
-                                // Credit Cards (Expense only)
-                                if (!isIncome)
-                                  ...creditCards.map((card) {
-                                    return DropdownMenuItem(
-                                      value: 'card_${card.id}',
-                                      child: Text(
-                                        '💳 ${card.cardName} (${card.bankName}) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }),
-                                // Predefined Fallback Sources
-                                ...CategoryConstants.paymentSources
-                                    .where((s) => !bankAccounts.any((a) => a.accountName == s))
-                                    .map((source) {
-                                  return DropdownMenuItem(
-                                    value: source,
-                                    child: Text(source, style: const TextStyle(fontSize: 12)),
-                                  );
-                                }),
-                              ],
-                              onChanged: (val) {
-                                if (val == null) return;
-                                setState(() {
-                                  if (val.startsWith('acc_')) {
-                                    final accId = val.substring(4);
-                                    _selectedAccountId = accId;
-                                    _selectedCreditCardId = null;
-                                    final acc = bankAccounts.firstWhere((a) => a.id == accId);
-                                    _selectedPaymentSource = acc.accountName;
-                                  } else if (val.startsWith('card_')) {
-                                    final cardId = val.substring(5);
-                                    _selectedCreditCardId = cardId;
-                                    _selectedAccountId = null;
-                                    final card = creditCards.firstWhere((c) => c.id == cardId);
-                                    _selectedPaymentSource = card.cardName;
-                                  } else {
-                                    _selectedAccountId = null;
-                                    _selectedCreditCardId = null;
-                                    _selectedPaymentSource = val;
-                                  }
-                                });
-                              },
-                            ),
-                          ],
-                        ),
+                // TWO-TIER PAYMENT SELECTION
+                // Tier 1: Method (PAY FROM / DEPOSIT TO)
+                Text(
+                  isIncome ? 'DEPOSIT TO (METHOD)' : 'PAY FROM (METHOD)',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: financialColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<PaymentMode>(
+                  initialValue: _selectedPaymentMode,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(_selectedPaymentMode.icon, size: 20),
+                  ),
+                  items: PaymentMode.values.map((mode) {
+                    return DropdownMenuItem<PaymentMode>(
+                      value: mode,
+                      child: Text(
+                        mode.displayName,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                       ),
-                      const SizedBox(width: 12),
-                      // Date & Time Picker
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'DATE & TIME',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.1,
-                                color: financialColors.textMuted,
-                              ),
+                    );
+                  }).toList(),
+                  onChanged: (mode) {
+                    if (mode == null) return;
+                    setState(() {
+                      _selectedPaymentMode = mode;
+                      _autoSelectLinkedSource(mode, bankAccounts, creditCards);
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Tier 2: Specific Linked Source (Bank Account / Card / Stash)
+                Text(
+                  _getLinkedSourceLabel(_selectedPaymentMode),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: financialColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildLinkedSourceDropdown(context, bankAccounts, creditCards, isDark, financialColors),
+                const SizedBox(height: 20),
+
+                // Date & Time Picker
+                Text(
+                  'DATE & TIME',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: financialColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: _pickDate,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: financialColors.cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_rounded, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            DateFormat('dd MMM yyyy, h:mm a').format(_selectedDate),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: InkWell(
-                                onTap: _pickDate,
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: financialColors.cardBorder),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.calendar_today_rounded, size: 18),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          DateFormat('dd MMM, h:mm a').format(_selectedDate),
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const Icon(Icons.access_time_rounded, size: 18),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -774,6 +818,274 @@ class _AddEditTransactionSheetState
     ),
   );
 }
+
+  String _getLinkedSourceLabel(PaymentMode mode) {
+    switch (mode) {
+      case PaymentMode.bankAccount:
+        return 'SELECT BANK ACCOUNT';
+      case PaymentMode.creditCard:
+        return 'SELECT CREDIT CARD';
+      case PaymentMode.upiWallet:
+        return 'LINKED UPI ACCOUNT / RUPAY CARD';
+      case PaymentMode.cash:
+        return 'SELECT CASH WALLET / STASH';
+    }
+  }
+
+  Widget _buildLinkedSourceDropdown(
+    BuildContext context,
+    List<BankAccountEntity> bankAccounts,
+    List<CreditCardEntity> creditCards,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    switch (_selectedPaymentMode) {
+      case PaymentMode.bankAccount:
+        if (bankAccounts.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: financialColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No bank accounts configured. Will record as general Bank Account.',
+                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final currentValid = bankAccounts.any((a) => a.id == _selectedAccountId);
+        final initialVal = currentValid ? _selectedAccountId : bankAccounts.first.id;
+
+        return DropdownButtonFormField<String>(
+          initialValue: initialVal,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.account_balance_rounded, size: 18),
+          ),
+          items: bankAccounts.map((acc) {
+            return DropdownMenuItem<String>(
+              value: acc.id,
+              child: Text(
+                '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (accId) {
+            if (accId == null) return;
+            setState(() {
+              _selectedAccountId = accId;
+              _selectedCreditCardId = null;
+              final acc = bankAccounts.firstWhere((a) => a.id == accId);
+              _selectedPaymentSource = acc.accountName;
+            });
+          },
+        );
+
+      case PaymentMode.creditCard:
+        if (creditCards.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: financialColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.credit_card_off_rounded, size: 18, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No credit cards added. Will record as general Credit Card.',
+                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final currentValid = creditCards.any((c) => c.id == _selectedCreditCardId);
+        final initialVal = currentValid ? _selectedCreditCardId : creditCards.first.id;
+
+        return DropdownButtonFormField<String>(
+          initialValue: initialVal,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.credit_card_rounded, size: 18),
+          ),
+          items: creditCards.map((card) {
+            return DropdownMenuItem<String>(
+              value: card.id,
+              child: Text(
+                '💳 ${card.cardName} (${card.bankName}) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (cardId) {
+            if (cardId == null) return;
+            setState(() {
+              _selectedCreditCardId = cardId;
+              _selectedAccountId = null;
+              final card = creditCards.firstWhere((c) => c.id == cardId);
+              _selectedPaymentSource = card.cardName;
+            });
+          },
+        );
+
+      case PaymentMode.upiWallet:
+        final rupayCards = creditCards.where((c) => c.cardNetwork == CardNetwork.rupay).toList();
+        if (bankAccounts.isEmpty && rupayCards.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: financialColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No bank accounts or RuPay cards added. Will record as UPI / Wallet.',
+                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final upiKey = _selectedCreditCardId != null
+            ? 'card_$_selectedCreditCardId'
+            : (_selectedAccountId != null ? 'acc_$_selectedAccountId' : null);
+
+        final items = <DropdownMenuItem<String>>[
+          ...bankAccounts.map((acc) => DropdownMenuItem<String>(
+                value: 'acc_${acc.id}',
+                child: Text(
+                  '🏦 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              )),
+          ...rupayCards.map((card) => DropdownMenuItem<String>(
+                value: 'card_${card.id}',
+                child: Text(
+                  '💳 ${card.cardName} (RuPay UPI) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              )),
+        ];
+
+        final isKeyValid = items.any((i) => i.value == upiKey);
+        final initialUpiVal = isKeyValid ? upiKey : items.first.value;
+
+        return DropdownButtonFormField<String>(
+          initialValue: initialUpiVal,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.qr_code_scanner_rounded, size: 18),
+          ),
+          items: items,
+          onChanged: (val) {
+            if (val == null) return;
+            setState(() {
+              if (val.startsWith('acc_')) {
+                final accId = val.substring(4);
+                _selectedAccountId = accId;
+                _selectedCreditCardId = null;
+                final acc = bankAccounts.firstWhere((a) => a.id == accId);
+                _selectedPaymentSource = 'UPI (${acc.accountName})';
+              } else if (val.startsWith('card_')) {
+                final cardId = val.substring(5);
+                _selectedCreditCardId = cardId;
+                _selectedAccountId = null;
+                final card = creditCards.firstWhere((c) => c.id == cardId);
+                _selectedPaymentSource = 'UPI (${card.cardName})';
+              }
+            });
+          },
+        );
+
+      case PaymentMode.cash:
+        final cashAccounts = bankAccounts.where((a) => a.accountType == AccountType.cash).toList();
+        if (cashAccounts.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: financialColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.payments_rounded, size: 18, color: AppColors.income),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Physical Cash / Cash in Hand',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final currentValid = cashAccounts.any((a) => a.id == _selectedAccountId);
+        final initialVal = currentValid ? _selectedAccountId : cashAccounts.first.id;
+
+        return DropdownButtonFormField<String>(
+          initialValue: initialVal,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.payments_rounded, size: 18),
+          ),
+          items: cashAccounts.map((acc) {
+            return DropdownMenuItem<String>(
+              value: acc.id,
+              child: Text(
+                '💵 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (accId) {
+            if (accId == null) return;
+            setState(() {
+              _selectedAccountId = accId;
+              _selectedCreditCardId = null;
+              final acc = cashAccounts.firstWhere((a) => a.id == accId);
+              _selectedPaymentSource = acc.accountName;
+            });
+          },
+        );
+    }
+  }
 
   Widget _buildTypeSegment({
     required String title,
