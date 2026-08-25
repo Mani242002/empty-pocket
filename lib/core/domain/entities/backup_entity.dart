@@ -1,5 +1,7 @@
 import 'ai_assistant_entity.dart';
+import 'bank_account_entity.dart';
 import 'budget_entity.dart';
+import 'credit_card_entity.dart';
 import 'debt_entity.dart';
 import 'investment_entity.dart';
 import 'recurring_expense_entity.dart';
@@ -19,6 +21,8 @@ class BackupMetadata {
   final int recurringExpensesCount;
   final int chatSessionsCount;
   final int chatMessagesCount;
+  final int bankAccountsCount;
+  final int creditCardsCount;
 
   const BackupMetadata({
     required this.schemaVersion,
@@ -33,6 +37,8 @@ class BackupMetadata {
     required this.recurringExpensesCount,
     this.chatSessionsCount = 0,
     this.chatMessagesCount = 0,
+    this.bankAccountsCount = 0,
+    this.creditCardsCount = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -48,6 +54,8 @@ class BackupMetadata {
         'recurringExpensesCount': recurringExpensesCount,
         'chatSessionsCount': chatSessionsCount,
         'chatMessagesCount': chatMessagesCount,
+        'bankAccountsCount': bankAccountsCount,
+        'creditCardsCount': creditCardsCount,
       };
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) => BackupMetadata(
@@ -63,6 +71,8 @@ class BackupMetadata {
         recurringExpensesCount: json['recurringExpensesCount'] as int? ?? 0,
         chatSessionsCount: json['chatSessionsCount'] as int? ?? 0,
         chatMessagesCount: json['chatMessagesCount'] as int? ?? 0,
+        bankAccountsCount: json['bankAccountsCount'] as int? ?? 0,
+        creditCardsCount: json['creditCardsCount'] as int? ?? 0,
       );
 }
 
@@ -78,6 +88,8 @@ class FullDatabaseBackup {
   final List<RecurringExpenseEntity> recurringExpenses;
   final List<AiChatSession> chatSessions;
   final List<AiChatMessage> chatMessages;
+  final List<BankAccountEntity> bankAccounts;
+  final List<CreditCardEntity> creditCards;
 
   const FullDatabaseBackup({
     required this.metadata,
@@ -91,6 +103,8 @@ class FullDatabaseBackup {
     required this.recurringExpenses,
     this.chatSessions = const [],
     this.chatMessages = const [],
+    this.bankAccounts = const [],
+    this.creditCards = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -105,6 +119,8 @@ class FullDatabaseBackup {
         'recurringExpenses': recurringExpenses.map((r) => r.toMap()).toList(),
         'chatSessions': chatSessions.map((s) => s.toMap()).toList(),
         'chatMessages': chatMessages.map((m) => m.toMap()).toList(),
+        'bankAccounts': bankAccounts.map((a) => a.toMap()).toList(),
+        'creditCards': creditCards.map((c) => c.toMap()).toList(),
       };
 
   factory FullDatabaseBackup.fromJson(Map<String, dynamic> json) {
@@ -139,6 +155,12 @@ class FullDatabaseBackup {
     final messagesList = (json['chatMessages'] as List<dynamic>? ?? [])
         .map((m) => AiChatMessage.fromMap(m as Map<String, dynamic>))
         .toList();
+    final accountsList = (json['bankAccounts'] as List<dynamic>? ?? [])
+        .map((m) => BankAccountEntity.fromMap(m as Map<String, dynamic>))
+        .toList();
+    final cardsList = (json['creditCards'] as List<dynamic>? ?? [])
+        .map((m) => CreditCardEntity.fromMap(m as Map<String, dynamic>))
+        .toList();
 
     return FullDatabaseBackup(
       metadata: BackupMetadata.fromJson(metaJson),
@@ -152,6 +174,8 @@ class FullDatabaseBackup {
       recurringExpenses: recurringList,
       chatSessions: sessionsList,
       chatMessages: messagesList,
+      bankAccounts: accountsList,
+      creditCards: cardsList,
     );
   }
 }

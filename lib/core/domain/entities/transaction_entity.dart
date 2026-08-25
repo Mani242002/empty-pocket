@@ -36,6 +36,9 @@ class TransactionEntity {
   final String category;
   final DateTime date;
   final String paymentSource;
+  final String? accountId; // Linked Bank Account ID
+  final String? toAccountId; // Destination Bank Account ID (for transfers)
+  final String? creditCardId; // Linked Credit Card ID
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -48,6 +51,9 @@ class TransactionEntity {
     required this.category,
     required this.date,
     required this.paymentSource,
+    this.accountId,
+    this.toAccountId,
+    this.creditCardId,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -61,6 +67,9 @@ class TransactionEntity {
     String? category,
     DateTime? date,
     String? paymentSource,
+    String? accountId,
+    String? toAccountId,
+    String? creditCardId,
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -73,6 +82,9 @@ class TransactionEntity {
       category: category ?? this.category,
       date: date ?? this.date,
       paymentSource: paymentSource ?? this.paymentSource,
+      accountId: accountId ?? this.accountId,
+      toAccountId: toAccountId ?? this.toAccountId,
+      creditCardId: creditCardId ?? this.creditCardId,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -88,6 +100,9 @@ class TransactionEntity {
       'category': category,
       'date': date.millisecondsSinceEpoch,
       'payment_source': paymentSource,
+      'account_id': accountId,
+      'to_account_id': toAccountId,
+      'credit_card_id': creditCardId,
       'notes': notes,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
@@ -103,6 +118,9 @@ class TransactionEntity {
       category: map['category'] as String,
       date: DateTime.fromMillisecondsSinceEpoch(map['date'] as int),
       paymentSource: map['payment_source'] as String? ?? 'Cash',
+      accountId: map['account_id'] as String?,
+      toAccountId: map['to_account_id'] as String?,
+      creditCardId: map['credit_card_id'] as String?,
       notes: map['notes'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
@@ -121,6 +139,9 @@ class TransactionEntity {
           category == other.category &&
           date == other.date &&
           paymentSource == other.paymentSource &&
+          accountId == other.accountId &&
+          toAccountId == other.toAccountId &&
+          creditCardId == other.creditCardId &&
           notes == other.notes;
 
   @override
@@ -132,6 +153,9 @@ class TransactionEntity {
         category,
         date,
         paymentSource,
+        accountId,
+        toAccountId,
+        creditCardId,
         notes,
       );
 }

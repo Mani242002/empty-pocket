@@ -24,14 +24,36 @@ class TransactionListItem extends StatelessWidget {
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
 
-    final categoryItem = CategoryConstants.getCategoryByName(
-      transaction.category,
-      transaction.type,
-    );
-
+    final isTransfer = transaction.type == TransactionType.transfer;
     final isIncome = transaction.type == TransactionType.income;
-    final amountColor = isIncome ? financialColors.income : financialColors.expense;
-    final amountPrefix = isIncome ? '+' : '-';
+
+    final categoryItem = isTransfer
+        ? const CategoryItem(
+            id: 'transfer',
+            name: 'Transfer',
+            type: TransactionType.transfer,
+            icon: Icons.swap_horiz_rounded,
+            color: Color(0xFF6366F1),
+          )
+        : CategoryConstants.getCategoryByName(
+            transaction.category,
+            transaction.type,
+          );
+
+    final Color amountColor;
+    final String amountPrefix;
+
+    if (isTransfer) {
+      amountColor = const Color(0xFF6366F1);
+      amountPrefix = '⇄ ';
+    } else if (isIncome) {
+      amountColor = financialColors.income;
+      amountPrefix = '+';
+    } else {
+      amountColor = financialColors.expense;
+      amountPrefix = '-';
+    }
+
     final timeStr = DateFormat('h:mm a').format(transaction.date);
 
     return Dismissible(

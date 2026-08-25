@@ -8,6 +8,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/transactions_provider.dart';
 
 class AddEditTransactionSheet extends ConsumerStatefulWidget {
@@ -50,6 +51,8 @@ class _AddEditTransactionSheetState
 
   late String _selectedCategory;
   late String _selectedPaymentSource;
+  String? _selectedAccountId;
+  String? _selectedCreditCardId;
   late DateTime _selectedDate;
 
   final _formKey = GlobalKey<FormState>();
@@ -74,6 +77,8 @@ class _AddEditTransactionSheetState
 
     _selectedCategory = tx?.category ?? categories.first.name;
     _selectedPaymentSource = tx?.paymentSource ?? CategoryConstants.paymentSources.first;
+    _selectedAccountId = tx?.accountId;
+    _selectedCreditCardId = tx?.creditCardId;
     _selectedDate = tx?.date ?? DateTime.now();
   }
 
@@ -93,6 +98,16 @@ class _AddEditTransactionSheetState
           ? CategoryConstants.incomeCategories
           : CategoryConstants.expenseCategories;
       _selectedCategory = categories.first.name;
+
+      // If switching to income, clear credit card selection
+      if (newType == TransactionType.income && _selectedCreditCardId != null) {
+        _selectedCreditCardId = null;
+        final defaultAcc = ref.read(defaultBankAccountProvider);
+        if (defaultAcc != null) {
+          _selectedAccountId = defaultAcc.id;
+          _selectedPaymentSource = defaultAcc.accountName;
+        }
+      }
     });
   }
 
@@ -143,13 +158,51 @@ class _AddEditTransactionSheetState
     final now = DateTime.now();
 
     if (_isEditMode) {
-      final updated = widget.initialTransaction!.copyWith(
+      final prevTx = widget.initialTransaction!;
+
+      // 1. Revert previous transaction impact
+      if (prevTx.type == TransactionType.income && prevTx.accountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(prevTx.accountId!, -prevTx.amount);
+      } else if (prevTx.type == TransactionType.expense) {
+        if (prevTx.creditCardId != null) {
+          await ref
+              .read(creditCardListProvider.notifier)
+              .adjustUsedAmount(prevTx.creditCardId!, -prevTx.amount);
+        } else if (prevTx.accountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(prevTx.accountId!, prevTx.amount);
+        }
+      }
+
+      // 2. Apply new transaction impact
+      if (_selectedType == TransactionType.income && _selectedAccountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(_selectedAccountId!, amount);
+      } else if (_selectedType == TransactionType.expense) {
+        if (_selectedCreditCardId != null) {
+          await ref
+              .read(creditCardListProvider.notifier)
+              .adjustUsedAmount(_selectedCreditCardId!, amount);
+        } else if (_selectedAccountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(_selectedAccountId!, -amount);
+        }
+      }
+
+      final updated = prevTx.copyWith(
         title: title,
         amount: amount,
         type: _selectedType,
         category: _selectedCategory,
         date: _selectedDate,
         paymentSource: _selectedPaymentSource,
+        accountId: _selectedAccountId,
+        creditCardId: _selectedCreditCardId,
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
@@ -170,6 +223,23 @@ class _AddEditTransactionSheetState
         );
       }
     } else {
+      // Apply new transaction balance impact
+      if (_selectedType == TransactionType.income && _selectedAccountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(_selectedAccountId!, amount);
+      } else if (_selectedType == TransactionType.expense) {
+        if (_selectedCreditCardId != null) {
+          await ref
+              .read(creditCardListProvider.notifier)
+              .adjustUsedAmount(_selectedCreditCardId!, amount);
+        } else if (_selectedAccountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(_selectedAccountId!, -amount);
+        }
+      }
+
       final newTx = TransactionEntity(
         id: const Uuid().v4(),
         title: title,
@@ -178,6 +248,8 @@ class _AddEditTransactionSheetState
         category: _selectedCategory,
         date: _selectedDate,
         paymentSource: _selectedPaymentSource,
+        accountId: _selectedAccountId,
+        creditCardId: _selectedCreditCardId,
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
@@ -245,6 +317,18 @@ class _AddEditTransactionSheetState
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final bankAccounts = ref.watch(activeBankAccountsProvider);
+    final creditCards = ref.watch(activeCreditCardsProvider);
+    final defaultAcc = ref.watch(defaultBankAccountProvider);
+
+    if (_selectedAccountId == null && _selectedCreditCardId == null) {
+      if (bankAccounts.isNotEmpty) {
+        final def = defaultAcc ?? bankAccounts.first;
+        _selectedAccountId = def.id;
+        _selectedPaymentSource = def.accountName;
+      }
+    }
 
     final isIncome = _selectedType == TransactionType.income;
     final activeAccentColor = isIncome ? financialColors.income : financialColors.expense;
@@ -425,9 +509,9 @@ class _AddEditTransactionSheetState
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _titleController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: 'e.g. Lunch at Cafe, Grocery Mart, Salary',
-                    prefixIcon: const Icon(Icons.edit_note_rounded),
+                    prefixIcon: Icon(Icons.edit_note_rounded),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -512,7 +596,7 @@ class _AddEditTransactionSheetState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'PAYMENT SOURCE',
+                              isIncome ? 'DEPOSIT TO (ACCOUNT)' : 'PAY FROM (ACCOUNT / CARD)',
                               style: theme.textTheme.labelMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 1.1,
@@ -521,20 +605,75 @@ class _AddEditTransactionSheetState
                             ),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedPaymentSource,
-                              decoration: const InputDecoration(
-                                prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 18),
+                              initialValue: _selectedCreditCardId != null
+                                  ? 'card_$_selectedCreditCardId'
+                                  : (_selectedAccountId != null
+                                      ? 'acc_$_selectedAccountId'
+                                      : _selectedPaymentSource),
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                prefixIcon: Icon(
+                                  _selectedCreditCardId != null
+                                      ? Icons.credit_card_rounded
+                                      : Icons.account_balance_wallet_rounded,
+                                  size: 18,
+                                ),
                               ),
-                              items: CategoryConstants.paymentSources.map((source) {
-                                return DropdownMenuItem(
-                                  value: source,
-                                  child: Text(source, style: const TextStyle(fontSize: 13)),
-                                );
-                              }).toList(),
+                              items: [
+                                // Bank Accounts
+                                ...bankAccounts.map((acc) {
+                                  return DropdownMenuItem(
+                                    value: 'acc_${acc.id}',
+                                    child: Text(
+                                      '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }),
+                                // Credit Cards (Expense only)
+                                if (!isIncome)
+                                  ...creditCards.map((card) {
+                                    return DropdownMenuItem(
+                                      value: 'card_${card.id}',
+                                      child: Text(
+                                        '💳 ${card.cardName} (${card.bankName}) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }),
+                                // Predefined Fallback Sources
+                                ...CategoryConstants.paymentSources
+                                    .where((s) => !bankAccounts.any((a) => a.accountName == s))
+                                    .map((source) {
+                                  return DropdownMenuItem(
+                                    value: source,
+                                    child: Text(source, style: const TextStyle(fontSize: 12)),
+                                  );
+                                }),
+                              ],
                               onChanged: (val) {
-                                if (val != null) {
-                                  setState(() => _selectedPaymentSource = val);
-                                }
+                                if (val == null) return;
+                                setState(() {
+                                  if (val.startsWith('acc_')) {
+                                    final accId = val.substring(4);
+                                    _selectedAccountId = accId;
+                                    _selectedCreditCardId = null;
+                                    final acc = bankAccounts.firstWhere((a) => a.id == accId);
+                                    _selectedPaymentSource = acc.accountName;
+                                  } else if (val.startsWith('card_')) {
+                                    final cardId = val.substring(5);
+                                    _selectedCreditCardId = cardId;
+                                    _selectedAccountId = null;
+                                    final card = creditCards.firstWhere((c) => c.id == cardId);
+                                    _selectedPaymentSource = card.cardName;
+                                  } else {
+                                    _selectedAccountId = null;
+                                    _selectedCreditCardId = null;
+                                    _selectedPaymentSource = val;
+                                  }
+                                });
                               },
                             ),
                           ],

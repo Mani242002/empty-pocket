@@ -4,13 +4,17 @@ import 'package:intl/intl.dart';
 import '../database/app_database.dart';
 import '../domain/entities/ai_assistant_entity.dart';
 import '../domain/entities/backup_entity.dart';
+import '../domain/entities/bank_account_entity.dart';
 import '../domain/entities/budget_entity.dart';
+import '../domain/entities/credit_card_entity.dart';
 import '../domain/entities/debt_entity.dart';
 import '../domain/entities/investment_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
+import '../repositories/bank_account_repository.dart';
 import '../repositories/budget_repository.dart';
+import '../repositories/credit_card_repository.dart';
 import '../repositories/debt_repository.dart';
 import '../repositories/investment_repository.dart';
 import '../repositories/recurring_repository.dart';
@@ -30,9 +34,11 @@ class BackupService {
     required List<RecurringExpenseEntity> recurringExpenses,
     List<AiChatSession> chatSessions = const [],
     List<AiChatMessage> chatMessages = const [],
+    List<BankAccountEntity> bankAccounts = const [],
+    List<CreditCardEntity> creditCards = const [],
   }) {
     final metadata = BackupMetadata(
-      schemaVersion: 7,
+      schemaVersion: 8,
       exportedAt: DateTime.now(),
       transactionsCount: transactions.length,
       budgetsCount: budgets.length,
@@ -44,6 +50,8 @@ class BackupService {
       recurringExpensesCount: recurringExpenses.length,
       chatSessionsCount: chatSessions.length,
       chatMessagesCount: chatMessages.length,
+      bankAccountsCount: bankAccounts.length,
+      creditCardsCount: creditCards.length,
     );
 
     final backup = FullDatabaseBackup(
@@ -58,6 +66,8 @@ class BackupService {
       recurringExpenses: recurringExpenses,
       chatSessions: chatSessions,
       chatMessages: chatMessages,
+      bankAccounts: bankAccounts,
+      creditCards: creditCards,
     );
 
     const encoder = JsonEncoder.withIndent('  ');
@@ -111,6 +121,8 @@ class BackupService {
     required DebtRepository debtRepo,
     required InvestmentRepository investmentRepo,
     required RecurringRepository recurringRepo,
+    BankAccountRepository? bankAccountRepo,
+    CreditCardRepository? creditCardRepo,
   }) async {
     // 1. Wipe existing records to prevent conflicts
     await wipeAllData(
@@ -120,11 +132,49 @@ class BackupService {
       debtRepo: debtRepo,
       investmentRepo: investmentRepo,
       recurringRepo: recurringRepo,
+      bankAccountRepo: bankAccountRepo,
+      creditCardRepo: creditCardRepo,
     );
 
     final isSqlite = transactionRepo is SqliteTransactionRepository;
 
-    // 2. Restore transactions
+    // 2. Restore Bank Accounts
+    if (isSqlite && backup.bankAccounts.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertBankAccounts(backup.bankAccounts);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert bank accounts failed: $e, falling back to repository');
+        if (bankAccountRepo != null) {
+          for (final a in backup.bankAccounts) {
+            await bankAccountRepo.saveAccount(a);
+          }
+        }
+      }
+    } else if (bankAccountRepo != null) {
+      for (final a in backup.bankAccounts) {
+        await bankAccountRepo.saveAccount(a);
+      }
+    }
+
+    // 3. Restore Credit Cards
+    if (isSqlite && backup.creditCards.isNotEmpty) {
+      try {
+        await AppDatabase.instance.batchInsertCreditCards(backup.creditCards);
+      } catch (e) {
+        debugPrint('[BackupService] Batch insert credit cards failed: $e, falling back to repository');
+        if (creditCardRepo != null) {
+          for (final c in backup.creditCards) {
+            await creditCardRepo.saveCard(c);
+          }
+        }
+      }
+    } else if (creditCardRepo != null) {
+      for (final c in backup.creditCards) {
+        await creditCardRepo.saveCard(c);
+      }
+    }
+
+    // 4. Restore transactions
     if (isSqlite && backup.transactions.isNotEmpty) {
       try {
         await AppDatabase.instance.batchInsertTransactions(backup.transactions);
@@ -140,7 +190,7 @@ class BackupService {
       }
     }
 
-    // 3. Restore budgets
+    // 5. Restore budgets
     if (isSqlite && backup.budgets.isNotEmpty) {
       try {
         await AppDatabase.instance.batchInsertBudgets(backup.budgets);
@@ -156,7 +206,7 @@ class BackupService {
       }
     }
 
-    // 4. Restore savings goals & contributions
+    // 6. Restore savings goals & contributions
     if (isSqlite && backup.savingsGoals.isNotEmpty) {
       try {
         await AppDatabase.instance.batchInsertSavingsGoals(backup.savingsGoals);
@@ -187,7 +237,7 @@ class BackupService {
       }
     }
 
-    // 5. Restore debts & payments
+    // 7. Restore debts & payments
     if (isSqlite && backup.debts.isNotEmpty) {
       try {
         await AppDatabase.instance.batchInsertDebts(backup.debts);
@@ -218,7 +268,7 @@ class BackupService {
       }
     }
 
-    // 6. Restore investments
+    // 8. Restore investments
     if (isSqlite && backup.investments.isNotEmpty) {
       try {
         await AppDatabase.instance.batchInsertInvestments(backup.investments);
@@ -234,7 +284,7 @@ class BackupService {
       }
     }
 
-    // 7. Restore recurring expenses
+    // 9. Restore recurring expenses
     if (isSqlite && backup.recurringExpenses.isNotEmpty) {
       try {
         await AppDatabase.instance.batchInsertRecurringExpenses(backup.recurringExpenses);
@@ -250,7 +300,7 @@ class BackupService {
       }
     }
 
-    // 8. Restore AI chat history
+    // 10. Restore AI chat history
     if (isSqlite) {
       if (backup.chatSessions.isNotEmpty) {
         try {
@@ -277,6 +327,8 @@ class BackupService {
     required DebtRepository debtRepo,
     required InvestmentRepository investmentRepo,
     required RecurringRepository recurringRepo,
+    BankAccountRepository? bankAccountRepo,
+    CreditCardRepository? creditCardRepo,
   }) async {
     if (transactionRepo is SqliteTransactionRepository) {
       try {
@@ -316,6 +368,20 @@ class BackupService {
     final allRecurring = await recurringRepo.getAllRecurringExpenses();
     for (final r in allRecurring) {
       await recurringRepo.deleteRecurringExpense(r.id);
+    }
+
+    if (bankAccountRepo != null) {
+      final allAccounts = await bankAccountRepo.getAllAccounts();
+      for (final a in allAccounts) {
+        await bankAccountRepo.deleteAccount(a.id);
+      }
+    }
+
+    if (creditCardRepo != null) {
+      final allCards = await creditCardRepo.getAllCards();
+      for (final c in allCards) {
+        await creditCardRepo.deleteCard(c.id);
+      }
     }
   }
 }

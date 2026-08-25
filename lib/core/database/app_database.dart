@@ -4,7 +4,9 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 import '../domain/entities/ai_assistant_entity.dart';
+import '../domain/entities/bank_account_entity.dart';
 import '../domain/entities/budget_entity.dart';
+import '../domain/entities/credit_card_entity.dart';
 import '../domain/entities/debt_entity.dart';
 import '../domain/entities/investment_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
@@ -14,7 +16,7 @@ import '../domain/entities/transaction_entity.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 7;
+  static const int _databaseVersion = 8;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
@@ -26,6 +28,8 @@ class AppDatabase {
   static const String tableInvestments = 'investments';
   static const String tableChatSessions = 'ai_chat_sessions';
   static const String tableChatMessages = 'ai_chat_messages';
+  static const String tableBankAccounts = 'bank_accounts';
+  static const String tableCreditCards = 'credit_cards';
 
   static final AppDatabase instance = AppDatabase._internal();
 
@@ -89,6 +93,9 @@ class AppDatabase {
         category TEXT NOT NULL,
         date INTEGER NOT NULL,
         payment_source TEXT NOT NULL,
+        account_id TEXT,
+        to_account_id TEXT,
+        credit_card_id TEXT,
         notes TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
@@ -100,6 +107,12 @@ class AppDatabase {
     );
     await db.execute(
       'CREATE INDEX idx_transactions_type ON $tableTransactions(type)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_transactions_account ON $tableTransactions(account_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_transactions_card ON $tableTransactions(credit_card_id)',
     );
 
     // Budgets Table
@@ -119,6 +132,10 @@ class AppDatabase {
 
     // AI Chat Sessions & Messages Tables
     await _createChatTables(db);
+
+    // Bank Accounts & Credit Cards Tables
+    await _createBankAccountsTable(db);
+    await _createCreditCardsTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -145,6 +162,65 @@ class AppDatabase {
     if (oldVersion < 7) {
       await _createChatTables(db);
     }
+    if (oldVersion < 8) {
+      await _createBankAccountsTable(db);
+      await _createCreditCardsTable(db);
+      try {
+        await db.execute('ALTER TABLE $tableTransactions ADD COLUMN account_id TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE $tableTransactions ADD COLUMN to_account_id TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE $tableTransactions ADD COLUMN credit_card_id TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_account ON $tableTransactions(account_id)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_card ON $tableTransactions(credit_card_id)');
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _createBankAccountsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableBankAccounts (
+        id TEXT PRIMARY KEY,
+        account_name TEXT NOT NULL,
+        bank_name TEXT NOT NULL,
+        account_type TEXT NOT NULL,
+        used_for TEXT NOT NULL,
+        initial_balance REAL NOT NULL,
+        current_balance REAL NOT NULL,
+        color_hex TEXT,
+        is_default INTEGER NOT NULL,
+        is_archived INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_bank_accounts_type ON $tableBankAccounts(account_type)',
+    );
+  }
+
+  Future<void> _createCreditCardsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableCreditCards (
+        id TEXT PRIMARY KEY,
+        card_name TEXT NOT NULL,
+        bank_name TEXT NOT NULL,
+        card_network TEXT NOT NULL,
+        credit_limit REAL NOT NULL,
+        used_amount REAL NOT NULL,
+        statement_date_day INTEGER NOT NULL,
+        grace_period_days INTEGER NOT NULL,
+        card_theme TEXT NOT NULL,
+        is_archived INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<void> _createChatTables(Database db) async {
@@ -915,6 +991,142 @@ class AppDatabase {
     });
   }
 
+  // --- Bank Accounts ---
+
+  Future<int> insertBankAccount(BankAccountEntity account) async {
+    final database = await this.database;
+    return await database.insert(
+      tableBankAccounts,
+      account.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> batchInsertBankAccounts(List<BankAccountEntity> accounts) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final a in accounts) {
+        batch.insert(
+          tableBankAccounts,
+          a.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
+  Future<int> updateBankAccount(BankAccountEntity account) async {
+    final database = await this.database;
+    return await database.update(
+      tableBankAccounts,
+      account.toMap(),
+      where: 'id = ?',
+      whereArgs: [account.id],
+    );
+  }
+
+  Future<int> deleteBankAccount(String id) async {
+    final database = await this.database;
+    return await database.delete(
+      tableBankAccounts,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<BankAccountEntity>> getAllBankAccounts() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableBankAccounts,
+      orderBy: 'is_default DESC, current_balance DESC',
+    );
+
+    return maps.map((map) => BankAccountEntity.fromMap(map)).toList();
+  }
+
+  Future<BankAccountEntity?> getBankAccountById(String id) async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableBankAccounts,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (maps.isEmpty) return null;
+    return BankAccountEntity.fromMap(maps.first);
+  }
+
+  // --- Credit Cards ---
+
+  Future<int> insertCreditCard(CreditCardEntity card) async {
+    final database = await this.database;
+    return await database.insert(
+      tableCreditCards,
+      card.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> batchInsertCreditCards(List<CreditCardEntity> cards) async {
+    final database = await this.database;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final c in cards) {
+        batch.insert(
+          tableCreditCards,
+          c.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
+  Future<int> updateCreditCard(CreditCardEntity card) async {
+    final database = await this.database;
+    return await database.update(
+      tableCreditCards,
+      card.toMap(),
+      where: 'id = ?',
+      whereArgs: [card.id],
+    );
+  }
+
+  Future<int> deleteCreditCard(String id) async {
+    final database = await this.database;
+    return await database.delete(
+      tableCreditCards,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<CreditCardEntity>> getAllCreditCards() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableCreditCards,
+      orderBy: 'credit_limit DESC',
+    );
+
+    return maps.map((map) => CreditCardEntity.fromMap(map)).toList();
+  }
+
+  Future<CreditCardEntity?> getCreditCardById(String id) async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableCreditCards,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (maps.isEmpty) return null;
+    return CreditCardEntity.fromMap(maps.first);
+  }
+
   /// Clear all tables in a single atomic transaction
   Future<void> clearAllData() async {
     final client = await database;
@@ -929,6 +1141,8 @@ class AppDatabase {
       await txn.delete(tableInvestments);
       await txn.delete(tableChatMessages);
       await txn.delete(tableChatSessions);
+      await txn.delete(tableBankAccounts);
+      await txn.delete(tableCreditCards);
     });
   }
 

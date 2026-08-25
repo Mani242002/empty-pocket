@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
+import '../../../../core/repositories/bank_account_repository.dart';
 import '../../../../core/repositories/budget_repository.dart';
+import '../../../../core/repositories/credit_card_repository.dart';
 import '../../../../core/repositories/debt_repository.dart';
 import '../../../../core/repositories/investment_repository.dart';
 import '../../../../core/repositories/recurring_repository.dart';
@@ -12,6 +14,7 @@ import '../../../../core/repositories/savings_goal_repository.dart';
 import '../../../../core/repositories/transaction_repository.dart';
 import '../../../../core/services/backup_service.dart';
 import '../../../../core/services/overlay_service.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../budgets/presentation/state/budgets_provider.dart';
 import '../../../budgets/presentation/state/recurring_provider.dart';
@@ -137,6 +140,8 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       final debtRepo = ref.read(debtRepositoryProvider);
       final investRepo = ref.read(investmentRepositoryProvider);
       final recurRepo = ref.read(recurringRepositoryProvider);
+      final bankRepo = ref.read(bankAccountRepositoryProvider);
+      final cardRepo = ref.read(creditCardRepositoryProvider);
 
       final txs = await txRepo.getAllTransactions();
       final budgets = await budgetRepo.getAllBudgets();
@@ -154,6 +159,9 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       }
       final investments = await investRepo.getAllInvestments();
       final recurring = await recurRepo.getAllRecurringExpenses();
+      final bankAccounts = await bankRepo.getAllAccounts();
+      final creditCards = await cardRepo.getAllCards();
+
       List<AiChatSession> chatSessions = [];
       List<AiChatMessage> chatMessages = [];
       try {
@@ -175,6 +183,8 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         recurringExpenses: recurring,
         chatSessions: chatSessions,
         chatMessages: chatMessages,
+        bankAccounts: bankAccounts,
+        creditCards: creditCards,
       );
 
       state = const AsyncValue.data('Backup exported successfully');
@@ -214,6 +224,8 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       final debtRepo = ref.read(debtRepositoryProvider);
       final investRepo = ref.read(investmentRepositoryProvider);
       final recurRepo = ref.read(recurringRepositoryProvider);
+      final bankRepo = ref.read(bankAccountRepositoryProvider);
+      final cardRepo = ref.read(creditCardRepositoryProvider);
 
       await backupService.restoreAll(
         backup: backup,
@@ -223,11 +235,13 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         debtRepo: debtRepo,
         investmentRepo: investRepo,
         recurringRepo: recurRepo,
+        bankAccountRepo: bankRepo,
+        creditCardRepo: cardRepo,
       );
 
       _refreshAllProviders();
       state = AsyncValue.data(
-        'Successfully restored ${backup.metadata.transactionsCount} transactions, ${backup.metadata.savingsGoalsCount} goals, ${backup.metadata.debtsCount} debts, ${backup.metadata.investmentsCount} investments, and ${backup.metadata.chatSessionsCount} chat conversations.',
+        'Successfully restored ${backup.metadata.transactionsCount} transactions, ${backup.metadata.bankAccountsCount} accounts, ${backup.metadata.creditCardsCount} cards, ${backup.metadata.savingsGoalsCount} goals, ${backup.metadata.debtsCount} debts, ${backup.metadata.investmentsCount} investments.',
       );
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -245,6 +259,8 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       final debtRepo = ref.read(debtRepositoryProvider);
       final investRepo = ref.read(investmentRepositoryProvider);
       final recurRepo = ref.read(recurringRepositoryProvider);
+      final bankRepo = ref.read(bankAccountRepositoryProvider);
+      final cardRepo = ref.read(creditCardRepositoryProvider);
 
       await backupService.wipeAllData(
         transactionRepo: txRepo,
@@ -253,6 +269,8 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         debtRepo: debtRepo,
         investmentRepo: investRepo,
         recurringRepo: recurRepo,
+        bankAccountRepo: bankRepo,
+        creditCardRepo: cardRepo,
       );
 
       _refreshAllProviders();
@@ -270,6 +288,8 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
     ref.invalidate(debtListNotifierProvider);
     ref.invalidate(investmentListNotifierProvider);
     ref.invalidate(recurringListNotifierProvider);
+    ref.invalidate(bankAccountListProvider);
+    ref.invalidate(creditCardListProvider);
     ref.read(aiChatProvider.notifier).loadChatData();
   }
 }

@@ -82,6 +82,24 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           ? (_type == TransactionType.expense ? 'Quick Expense' : 'Quick Income')
           : _titleController.text.trim();
 
+      final db = AppDatabase.instance;
+      final allAccounts = await db.getAllBankAccounts();
+      final matching = allAccounts.where(
+        (a) => a.accountName.toLowerCase() == _selectedPaymentSource.toLowerCase(),
+      );
+      String? matchedAccountId;
+      if (matching.isNotEmpty) {
+        final acc = matching.first;
+        matchedAccountId = acc.id;
+        final delta = _type == TransactionType.income ? amount : -amount;
+        await db.updateBankAccount(
+          acc.copyWith(
+            currentBalance: acc.currentBalance + delta,
+            updatedAt: now,
+          ),
+        );
+      }
+
       final tx = TransactionEntity(
         id: const Uuid().v4(),
         title: title,
@@ -91,11 +109,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         date: now,
         notes: 'Logged from Quick Floating Bubble',
         paymentSource: _selectedPaymentSource,
+        accountId: matchedAccountId,
         createdAt: now,
         updatedAt: now,
       );
 
-      final db = AppDatabase.instance;
       await db.insertTransaction(tx);
 
       if (mounted) {

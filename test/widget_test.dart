@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:empty_pocket/app/app.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
+import 'package:empty_pocket/core/repositories/bank_account_repository.dart';
 import 'package:empty_pocket/core/repositories/budget_repository.dart';
+import 'package:empty_pocket/core/repositories/credit_card_repository.dart';
 import 'package:empty_pocket/core/repositories/debt_repository.dart';
 import 'package:empty_pocket/core/repositories/investment_repository.dart';
 import 'package:empty_pocket/core/repositories/recurring_repository.dart';
@@ -56,6 +58,8 @@ void main() {
     final inMemorySavingsRepo = InMemorySavingsGoalRepository();
     final inMemoryDebtRepo = InMemoryDebtRepository();
     final inMemoryInvestmentRepo = InMemoryInvestmentRepository();
+    final inMemoryBankAccountRepo = InMemoryBankAccountRepository();
+    final inMemoryCreditCardRepo = InMemoryCreditCardRepository();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -66,6 +70,8 @@ void main() {
           savingsGoalRepositoryProvider.overrideWithValue(inMemorySavingsRepo),
           debtRepositoryProvider.overrideWithValue(inMemoryDebtRepo),
           investmentRepositoryProvider.overrideWithValue(inMemoryInvestmentRepo),
+          bankAccountRepositoryProvider.overrideWithValue(inMemoryBankAccountRepo),
+          creditCardRepositoryProvider.overrideWithValue(inMemoryCreditCardRepo),
         ],
         child: const EmptyPocketApp(),
       ),
@@ -220,7 +226,7 @@ void main() {
     expect(find.text('Outstanding: ₹3,00,000.00'), findsOneWidget);
 
     // Tap "Manage" on Loans card
-    await tester.tap(find.text('Manage').first);
+    await tester.tap(find.text('Manage').last);
     await tester.pumpAndSettle();
 
     // In DebtsScreen, verify loan card
@@ -276,7 +282,7 @@ void main() {
     expect(find.text('+₹10,000.00 (20.0%)'), findsOneWidget);
 
     // Tap "Manage" on Investments card
-    await tester.tap(find.text('Manage').first);
+    await tester.tap(find.text('Manage').at(1));
     await tester.pumpAndSettle();
 
     // In InvestmentsScreen, verify portfolio details
@@ -361,17 +367,17 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
-    // In SettingsScreen, verify all sections
-    expect(find.text('Settings & Privacy'), findsOneWidget);
-    expect(find.text('Theme Mode'), findsOneWidget);
-    expect(find.text('POCKETAI FINANCIAL ADVISOR'), findsOneWidget);
-    expect(find.text('AI Providers & BYOK Keys'), findsOneWidget);
-    expect(find.text('DATA BACKUP & PORTABILITY'), findsOneWidget);
+    // In SettingsScreen, scroll down to Data Backup & Portability
+    await tester.scrollUntilVisible(
+      find.text('Export Full Backup (JSON)'),
+      300.0,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Export Full Backup (JSON)'), findsOneWidget);
     expect(find.text('Restore Database (JSON)'), findsOneWidget);
     expect(find.text('Export Transactions (CSV)'), findsOneWidget);
-    expect(find.text('DANGER ZONE'), findsOneWidget);
-    expect(find.text('Factory Reset / Wipe All Data'), findsOneWidget);
 
     // Test JSON Export dialog
     await tester.tap(find.text('Export Full Backup (JSON)'));

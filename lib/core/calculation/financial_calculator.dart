@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../domain/entities/bank_account_entity.dart';
 import '../domain/entities/budget_entity.dart';
+import '../domain/entities/credit_card_entity.dart';
 import '../domain/entities/debt_entity.dart';
 import '../domain/entities/financial_health_entity.dart';
 import '../domain/entities/investment_entity.dart';
@@ -8,6 +10,39 @@ import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/reports_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
+
+class CombinedCreditSummary {
+  final double totalLimit;
+  final double totalUsed;
+  final double totalAvailable;
+  final double overallUtilizationRatio;
+  final CreditUtilizationHealth overallHealth;
+  final int activeCardsCount;
+  final CreditCardEntity? nextDueCard;
+  final int? daysUntilNextDue;
+
+  const CombinedCreditSummary({
+    required this.totalLimit,
+    required this.totalUsed,
+    required this.totalAvailable,
+    required this.overallUtilizationRatio,
+    required this.overallHealth,
+    required this.activeCardsCount,
+    this.nextDueCard,
+    this.daysUntilNextDue,
+  });
+
+  static const empty = CombinedCreditSummary(
+    totalLimit: 0.0,
+    totalUsed: 0.0,
+    totalAvailable: 0.0,
+    overallUtilizationRatio: 0.0,
+    overallHealth: CreditUtilizationHealth.optimal,
+    activeCardsCount: 0,
+    nextDueCard: null,
+    daysUntilNextDue: null,
+  );
+}
 
 class CategorySpendingSummary {
   final String category;
@@ -816,6 +851,55 @@ abstract class FinancialCalculator {
 
     breakdown.sort((a, b) => b.amount.compareTo(a.amount));
     return breakdown;
+  }
+
+  /// Calculate combined liquid cash across all non-archived bank accounts
+  static double calculateCombinedLiquidCash(List<BankAccountEntity> accounts) {
+    return accounts
+        .where((a) => !a.isArchived)
+        .fold(0.0, (sum, a) => sum + a.currentBalance);
+  }
+
+  /// Calculate combined credit cards summary across all non-archived cards
+  static CombinedCreditSummary calculateCombinedCreditSummary(List<CreditCardEntity> cards) {
+    final activeCards = cards.where((c) => !c.isArchived).toList();
+    if (activeCards.isEmpty) return CombinedCreditSummary.empty;
+
+    final totalLimit = activeCards.fold(0.0, (sum, c) => sum + c.creditLimit);
+    final totalUsed = activeCards.fold(0.0, (sum, c) => sum + c.usedAmount);
+    final totalAvailable = max(0.0, totalLimit - totalUsed);
+    final overallRatio = totalLimit > 0 ? (totalUsed / totalLimit) * 100 : 0.0;
+
+    CreditUtilizationHealth health;
+    if (overallRatio <= 30.0) {
+      health = CreditUtilizationHealth.optimal;
+    } else if (overallRatio <= 50.0) {
+      health = CreditUtilizationHealth.moderate;
+    } else {
+      health = CreditUtilizationHealth.highRisk;
+    }
+
+    // Find card with nearest upcoming payment due date with non-zero used amount
+    CreditCardEntity? nextDueCard;
+    int? daysUntilNextDue;
+
+    final cardsWithBalance = activeCards.where((c) => c.usedAmount > 0).toList();
+    if (cardsWithBalance.isNotEmpty) {
+      cardsWithBalance.sort((a, b) => a.daysUntilDue().compareTo(b.daysUntilDue()));
+      nextDueCard = cardsWithBalance.first;
+      daysUntilNextDue = nextDueCard.daysUntilDue();
+    }
+
+    return CombinedCreditSummary(
+      totalLimit: totalLimit,
+      totalUsed: totalUsed,
+      totalAvailable: totalAvailable,
+      overallUtilizationRatio: overallRatio,
+      overallHealth: health,
+      activeCardsCount: activeCards.length,
+      nextDueCard: nextDueCard,
+      daysUntilNextDue: daysUntilNextDue,
+    );
   }
 
   /// Format an executive financial context string to provide as context to PocketAI

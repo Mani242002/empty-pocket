@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/transaction_repository.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 
 /// Monthly Financial Summary model
 class MonthlyFinancialSummary {
@@ -90,6 +91,38 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final repository = ref.read(transactionRepositoryProvider);
+      final all = await repository.getAllTransactions();
+      final target = all.where((t) => t.id == id);
+      if (target.isNotEmpty) {
+        final prevTx = target.first;
+        // 1. Revert balance impact for linked accounts and credit cards
+        if (prevTx.type == TransactionType.income && prevTx.accountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(prevTx.accountId!, -prevTx.amount);
+        } else if (prevTx.type == TransactionType.expense) {
+          if (prevTx.creditCardId != null) {
+            await ref
+                .read(creditCardListProvider.notifier)
+                .adjustUsedAmount(prevTx.creditCardId!, -prevTx.amount);
+          } else if (prevTx.accountId != null) {
+            await ref
+                .read(bankAccountListProvider.notifier)
+                .adjustAccountBalance(prevTx.accountId!, prevTx.amount);
+          }
+        } else if (prevTx.type == TransactionType.transfer) {
+          if (prevTx.accountId != null) {
+            await ref
+                .read(bankAccountListProvider.notifier)
+                .adjustAccountBalance(prevTx.accountId!, prevTx.amount);
+          }
+          if (prevTx.toAccountId != null) {
+            await ref
+                .read(bankAccountListProvider.notifier)
+                .adjustAccountBalance(prevTx.toAccountId!, -prevTx.amount);
+          }
+        }
+      }
       await repository.deleteTransaction(id);
       return await repository.getAllTransactions();
     });
