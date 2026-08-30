@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/database/app_database.dart';
@@ -72,6 +73,17 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
     _titleController.text = _selectedCategory;
     _titleController.addListener(_onTitleChanged);
     _loadAccountsAndCards();
+
+    // Ensure immediate overlay size synchronization upon engine attach
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isExpanded) {
+        FlutterOverlayWindow.resizeOverlay(
+          OverlayService.bubbleWindowSize,
+          OverlayService.bubbleWindowSize,
+          true,
+        );
+      }
+    });
   }
 
   @override
@@ -401,8 +413,8 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           splashColor: AppColors.primaryEmerald.withAlpha(80),
           highlightColor: AppColors.primaryEmerald.withAlpha(40),
           child: Container(
-            width: 58,
-            height: 58,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               gradient: const LinearGradient(
@@ -417,20 +429,12 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 color: AppColors.primaryEmerald,
                 width: 2.0,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryEmerald.withAlpha(80),
-                  blurRadius: 8,
-                  spreadRadius: 0,
-                  offset: Offset.zero,
-                ),
-              ],
             ),
             child: Center(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(7.0),
                   child: Image.asset(
                     'assets/icon/app_icon.png',
                     fit: BoxFit.contain,

@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'log_service.dart';
@@ -11,8 +12,8 @@ class OverlayService {
   static OverlayPosition? _savedPosition;
   static bool _isTransitioning = false;
 
-  /// Standardized window size in DP (88dp window provides 14dp internal padding for 60dp bubble & contained glow)
-  static const int bubbleWindowSize = 88;
+  /// Standardized window size in DP (60dp window provides a crisp 56dp squircle with 2dp margin)
+  static const int bubbleWindowSize = 60;
   static const int expandedWidth = 360;
   static const int expandedHeight = 640;
 
@@ -55,6 +56,12 @@ class OverlayService {
     }
 
     try {
+      // In flutter_overlay_window plugin, showOverlay expects physical pixels for WindowManager.LayoutParams,
+      // while resizeOverlay expects density-independent pixels (DP) and converts via dpToPx(dp).
+      // We calculate initial physical pixels using the device's display pixel ratio to ensure identical sizing on launch.
+      final pixelRatio = ui.PlatformDispatcher.instance.views.firstOrNull?.devicePixelRatio ?? 3.0;
+      final initialPhysicalPixels = (bubbleWindowSize * pixelRatio).round();
+
       await FlutterOverlayWindow.showOverlay(
         enableDrag: true,
         overlayTitle: "EmptyPocket Quick-Add",
@@ -63,18 +70,11 @@ class OverlayService {
         visibility: NotificationVisibility.visibilityPrivate,
         alignment: OverlayAlignment.center,
         positionGravity: PositionGravity.none,
-        height: bubbleWindowSize,
-        width: bubbleWindowSize,
+        height: initialPhysicalPixels,
+        width: initialPhysicalPixels,
       );
 
-      // Force initial size sync to eliminate DP vs PX disparity on launch
-      await Future.delayed(const Duration(milliseconds: 150));
-      await FlutterOverlayWindow.resizeOverlay(
-        bubbleWindowSize,
-        bubbleWindowSize,
-        true,
-      );
-      LogService.info(_tag, 'Floating bubble overlay opened and size synchronized ($bubbleWindowSize dp).');
+      LogService.info(_tag, 'Floating bubble overlay opened ($bubbleWindowSize dp / $initialPhysicalPixels px).');
     } catch (e, stack) {
       LogService.error(_tag, 'showFloatingBubble error', e, stack);
     }

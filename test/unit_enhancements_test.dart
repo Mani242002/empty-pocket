@@ -97,7 +97,7 @@ void main() {
 
   group('Overlay Service Sizing Tests', () {
     test('Standardizes window size across densities', () {
-      expect(OverlayService.bubbleWindowSize, 88);
+      expect(OverlayService.bubbleWindowSize, 60);
       expect(OverlayService.expandedWidth, 360);
       expect(OverlayService.expandedHeight, 640);
     });
