@@ -49,9 +49,6 @@ class OverlayService {
 
   /// Show the floating bubble on top of other apps centered on screen.
   static Future<void> showFloatingBubble() async {
-    _isTransitioning = false;
-    _savedPosition = null;
-
     final granted = await isPermissionGranted();
     if (!granted) {
       final res = await requestPermission();
@@ -91,22 +88,26 @@ class OverlayService {
     _isTransitioning = true;
 
     try {
-      final pos = await FlutterOverlayWindow.getOverlayPosition();
-      _savedPosition = pos;
+      await FlutterOverlayWindow.updateFlag(OverlayFlag.focusPointer);
 
+      final currentPos = await FlutterOverlayWindow.getOverlayPosition();
+      _savedPosition = currentPos;
+
+      // Persist position to preferences
       try {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setDouble(_prefPosX, pos.x);
-        await prefs.setDouble(_prefPosY, pos.y);
+        await prefs.setDouble(_prefPosX, currentPos.x.toDouble());
+        await prefs.setDouble(_prefPosY, currentPos.y.toDouble());
       } catch (e) {
-        LogService.warning(_tag, 'Failed to save overlay position to prefs', e);
+        LogService.warning(_tag, 'Failed to persist overlay position', e);
       }
 
-      await FlutterOverlayWindow.updateFlag(OverlayFlag.focusPointer);
+      // Move to center of screen (0, 0)
       await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
+
       await FlutterOverlayWindow.resizeOverlay(
-        WindowSize.fullCover,
-        WindowSize.fullCover,
+        expandedWidth,
+        expandedHeight,
         false,
       );
     } catch (e, stack) {
@@ -156,8 +157,6 @@ class OverlayService {
 
   /// Close the overlay completely
   static Future<void> closeOverlay() async {
-    _isTransitioning = false;
-    _savedPosition = null;
     try {
       await FlutterOverlayWindow.closeOverlay();
       LogService.info(_tag, 'Overlay closed.');

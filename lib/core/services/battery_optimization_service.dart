@@ -40,17 +40,6 @@ class BatteryOptimizationService {
     }
   }
 
-  /// Open application details settings (Battery usage, Auto-launch, and Background execution settings)
-  static Future<bool> openAppDetailsSettings() async {
-    try {
-      final result = await _channel.invokeMethod<bool>('openAppDetailsSettings');
-      return result ?? false;
-    } catch (e, stack) {
-      LogService.error(_tag, 'openAppDetailsSettings error', e, stack);
-      return false;
-    }
-  }
-
   /// Check if notification permission is granted (required on Android 13+ for persistent 24/7 foreground services)
   static Future<bool> hasNotificationPermission() async {
     try {

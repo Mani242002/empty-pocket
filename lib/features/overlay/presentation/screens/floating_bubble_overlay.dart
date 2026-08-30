@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/database/app_database.dart';
@@ -395,6 +396,15 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
     }
   }
 
+  Future<void> _disableBubble() async {
+    AppHaptics.deleteAction();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('floating_bubble_enabled', false);
+    } catch (_) {}
+    await OverlayService.closeOverlay();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isExpanded) {
@@ -405,85 +415,103 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
 
   Widget _buildCollapsedBubble() {
     return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _expand,
-          borderRadius: BorderRadius.circular(16),
-          splashColor: AppColors.primaryEmerald.withAlpha(80),
-          highlightColor: AppColors.primaryEmerald.withAlpha(40),
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _expand,
+              onLongPress: _disableBubble,
               borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF1E293B),
-                  Color(0xFF0F172A),
-                ],
-              ),
-              border: Border.all(
-                color: AppColors.primaryEmerald,
-                width: 2.0,
-              ),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.asset(
-                'assets/icon/app_icon.png',
-                fit: BoxFit.cover,
+              splashColor: AppColors.primaryEmerald.withAlpha(80),
+              highlightColor: AppColors.primaryEmerald.withAlpha(40),
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF1E293B),
+                      Color(0xFF0F172A),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: AppColors.primaryEmerald,
+                    width: 2.0,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.asset(
+                    'assets/icon/app_icon.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          // Quick close badge at top-right
+          Positioned(
+            top: -2,
+            right: -2,
+            child: GestureDetector(
+              onTap: _disableBubble,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.2),
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 11,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildExpandedCard() {
-    return GestureDetector(
-      onTap: _collapse,
-      behavior: HitTestBehavior.opaque,
-      child: Scaffold(
-        backgroundColor: Colors.black54,
-        resizeToAvoidBottomInset: true,
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: GestureDetector(
-                onTap: () {},
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF131B26),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.primaryEmerald.withAlpha(120), width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(160),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                        BoxShadow(
-                          color: AppColors.primaryEmerald.withAlpha(30),
-                          blurRadius: 20,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF131B26),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.primaryEmerald.withAlpha(120), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(120),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: AppColors.primaryEmerald.withAlpha(25),
+              blurRadius: 16,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
@@ -502,11 +530,22 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                       ),
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
-                    tooltip: 'Minimize',
-                    onPressed: _collapse,
-                    visualDensity: VisualDensity.compact,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.power_settings_new_rounded, color: Color(0xFFEF4444), size: 18),
+                        tooltip: 'Turn off floating bubble',
+                        onPressed: _disableBubble,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                        tooltip: 'Minimize',
+                        onPressed: _collapse,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -775,12 +814,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           ),
         ),
       ),
-    ),
-  ),
-),
-),
-),
-);
+    );
   }
 
   Widget _buildBubbleLinkedSourceDropdown() {
