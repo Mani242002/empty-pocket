@@ -133,7 +133,17 @@ class FloatingBubbleNotifier extends StateNotifier<bool> with WidgetsBindingObse
         }
       }
 
-      // Automatically request battery optimization whitelist for 24/7 background resilience
+      // 1. Request notification permission on Android 13+ so the ongoing foreground service stays alive 24/7
+      try {
+        final hasNotif = await BatteryOptimizationService.hasNotificationPermission();
+        if (!hasNotif) {
+          await BatteryOptimizationService.requestNotificationPermission();
+        }
+      } catch (e) {
+        LogService.warning('FloatingBubbleNotifier', 'Notification permission request error', e);
+      }
+
+      // 2. Automatically request battery optimization whitelist for 24/7 background resilience
       try {
         final isIgnoring = await BatteryOptimizationService.isIgnoringBatteryOptimizations();
         if (!isIgnoring) {
