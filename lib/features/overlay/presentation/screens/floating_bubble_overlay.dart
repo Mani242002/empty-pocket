@@ -444,35 +444,46 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
   }
 
   Widget _buildExpandedCard() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF131B26),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.primaryEmerald.withAlpha(120), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(120),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
-            ),
-            BoxShadow(
-              color: AppColors.primaryEmerald.withAlpha(25),
-              blurRadius: 16,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return GestureDetector(
+      onTap: _collapse,
+      behavior: HitTestBehavior.opaque,
+      child: Scaffold(
+        backgroundColor: Colors.black54,
+        resizeToAvoidBottomInset: true,
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: GestureDetector(
+                onTap: () {},
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF131B26),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppColors.primaryEmerald.withAlpha(120), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(160),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                        BoxShadow(
+                          color: AppColors.primaryEmerald.withAlpha(30),
+                          blurRadius: 20,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
@@ -764,7 +775,12 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           ),
         ),
       ),
-    );
+    ),
+  ),
+),
+),
+),
+);
   }
 
   Widget _buildBubbleLinkedSourceDropdown() {

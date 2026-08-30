@@ -105,8 +105,8 @@ class OverlayService {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.focusPointer);
       await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
       await FlutterOverlayWindow.resizeOverlay(
-        expandedWidth,
-        expandedHeight,
+        WindowSize.fullCover,
+        WindowSize.fullCover,
         false,
       );
     } catch (e, stack) {

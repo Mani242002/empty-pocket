@@ -54,12 +54,6 @@
                 android:value="Overlay for quick expense logging" />
         </service>
 
-        <service
-            android:name=".StickyOverlayService"
-            android:exported="false"
-            android:stopWithTask="false"
-            android:enabled="true" />
-
         <receiver
             android:name=".OverlayRestartReceiver"
             android:enabled="true"
