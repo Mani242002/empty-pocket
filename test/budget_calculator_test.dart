@@ -147,6 +147,23 @@ void main() {
       expect(yearly, DateTime(2027, 8, 15));
     });
 
+    test('calculateNextDueDate clamps month-end dates safely (Jan 31 -> Feb 28, Feb 29 leap -> Feb 28)', () {
+      // Jan 31 -> Feb 28 in non-leap year (2025)
+      final jan31 = DateTime(2025, 1, 31);
+      final febDue = FinancialCalculator.calculateNextDueDate(jan31, RecurringFrequency.monthly);
+      expect(febDue, DateTime(2025, 2, 28));
+
+      // Jan 31 -> Feb 29 in leap year (2024)
+      final jan31Leap = DateTime(2024, 1, 31);
+      final febDueLeap = FinancialCalculator.calculateNextDueDate(jan31Leap, RecurringFrequency.monthly);
+      expect(febDueLeap, DateTime(2024, 2, 29));
+
+      // Feb 29 leap year -> Feb 28 non-leap year next year
+      final feb29Leap = DateTime(2024, 2, 29);
+      final nextYearDue = FinancialCalculator.calculateNextDueDate(feb29Leap, RecurringFrequency.yearly);
+      expect(nextYearDue, DateTime(2025, 2, 28));
+    });
+
     test('getUpcomingRecurringExpenses returns only upcoming active items within window', () {
       final recurringList = [
         RecurringExpenseEntity(
@@ -190,7 +207,7 @@ void main() {
         ),
       ];
 
-      final upcoming = FinancialCalculator.getUpcomingRecurringExpenses(recurringList, daysAhead: 30);
+      final upcoming = FinancialCalculator.getUpcomingRecurringExpenses(recurringList, daysAhead: 30, fromDate: now);
       expect(upcoming.length, 1);
       expect(upcoming.first.title, 'Active Due Soon');
     });

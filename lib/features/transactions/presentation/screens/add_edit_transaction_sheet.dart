@@ -108,6 +108,7 @@ class _AddEditTransactionSheetState
 
   void _onTypeChanged(TransactionType newType) {
     if (_selectedType == newType) return;
+    HapticFeedback.selectionClick();
     setState(() {
       final oldCategories = _selectedType == TransactionType.income
           ? CategoryConstants.incomeCategories
@@ -653,6 +654,7 @@ class _AddEditTransactionSheetState
                       final isSelected = _selectedCategory == item.name;
                       return GestureDetector(
                         onTap: () {
+                          HapticFeedback.selectionClick();
                           setState(() {
                             final oldCategory = _selectedCategory;
                             _selectedCategory = item.name;
@@ -739,6 +741,7 @@ class _AddEditTransactionSheetState
                   }).toList(),
                   onChanged: (mode) {
                     if (mode == null) return;
+                    HapticFeedback.selectionClick();
                     setState(() {
                       _selectedPaymentMode = mode;
                       _autoSelectLinkedSource(mode, bankAccounts, creditCards);
@@ -797,6 +800,32 @@ class _AddEditTransactionSheetState
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                // Quick Date Shortcuts
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildDateShortcutChip('Today', DateTime.now(), theme, isDark, financialColors),
+                      const SizedBox(width: 8),
+                      _buildDateShortcutChip(
+                        'Yesterday',
+                        DateTime.now().subtract(const Duration(days: 1)),
+                        theme,
+                        isDark,
+                        financialColors,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildDateShortcutChip(
+                        'Day Before',
+                        DateTime.now().subtract(const Duration(days: 2)),
+                        theme,
+                        isDark,
+                        financialColors,
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 20),
 
                 // Optional Notes
@@ -853,6 +882,48 @@ class _AddEditTransactionSheetState
       case PaymentMode.cash:
         return 'SELECT CASH WALLET / STASH';
     }
+  }
+
+  Widget _buildDateShortcutChip(
+    String label,
+    DateTime targetDate,
+    ThemeData theme,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    final isSelected = _selectedDate.year == targetDate.year &&
+        _selectedDate.month == targetDate.month &&
+        _selectedDate.day == targetDate.day;
+
+    return ActionChip(
+      label: Text(label),
+      backgroundColor: isSelected
+          ? AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40)
+          : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+      side: BorderSide(
+        color: isSelected ? AppColors.primaryEmerald : financialColors.cardBorder,
+        width: isSelected ? 1.5 : 1,
+      ),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+        color: isSelected
+            ? (isDark ? AppColors.primaryEmerald : const Color(0xFF047857))
+            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+      ),
+      onPressed: () {
+        HapticFeedback.selectionClick();
+        setState(() {
+          _selectedDate = DateTime(
+            targetDate.year,
+            targetDate.month,
+            targetDate.day,
+            _selectedDate.hour,
+            _selectedDate.minute,
+          );
+        });
+      },
+    );
   }
 
   Widget _buildLinkedSourceDropdown(

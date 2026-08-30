@@ -14,6 +14,7 @@ import '../../../investments/presentation/state/investments_provider.dart';
 import '../../../net_worth/presentation/state/net_worth_provider.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
+import '../../../../core/services/log_service.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -59,7 +60,9 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
           try {
             await _secureStorage.write(key: _keyGeminiApiKey, value: geminiKey);
             await prefs.remove(_keyGeminiApiKey);
-          } catch (_) {}
+          } catch (e) {
+            LogService.warning('AiProviderConfigNotifier', 'Failed to migrate gemini key to secure storage', e);
+          }
         }
       }
 
@@ -69,7 +72,9 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
           try {
             await _secureStorage.write(key: _keyGroqApiKey, value: groqKey);
             await prefs.remove(_keyGroqApiKey);
-          } catch (_) {}
+          } catch (e) {
+            LogService.warning('AiProviderConfigNotifier', 'Failed to migrate groq key to secure storage', e);
+          }
         }
       }
 
@@ -80,7 +85,9 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
           geminiKey = legacyKey;
           try {
             await _secureStorage.write(key: _keyGeminiApiKey, value: legacyKey);
-          } catch (_) {}
+          } catch (e) {
+            LogService.warning('AiProviderConfigNotifier', 'Failed to migrate legacy key to secure storage', e);
+          }
           await prefs.remove(_keyLegacyApiKey);
         }
       }

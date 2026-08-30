@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/database/app_database.dart';
@@ -6,6 +7,7 @@ import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
+import '../../../../core/services/log_service.dart';
 import '../../../../core/services/overlay_service.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 
@@ -36,6 +38,7 @@ class FloatingBubbleOverlayScreen extends StatefulWidget {
 
 class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScreen> {
   bool _isExpanded = false;
+  bool _isTransitioning = false;
   TransactionType _type = TransactionType.expense;
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
@@ -79,31 +82,52 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           _autoSelectLinkedSource(_selectedPaymentMode);
         });
       }
-    } catch (_) {}
+    } catch (e, stack) {
+      LogService.error('FloatingBubble', 'Error loading accounts and cards', e, stack);
+    }
   }
 
   void _expand() async {
-    await _loadAccountsAndCards();
-    await OverlayService.expandOverlay();
-    if (mounted) {
-      setState(() {
-        _isExpanded = true;
-        _justSaved = false;
-        _validationError = null;
-        if (_titleController.text.trim().isEmpty) {
-          _titleController.text = _selectedCategory;
-        }
-      });
+    if (_isTransitioning || _isExpanded) return;
+    _isTransitioning = true;
+    HapticFeedback.lightImpact();
+
+    try {
+      await _loadAccountsAndCards();
+      await OverlayService.expandOverlay();
+      if (mounted) {
+        setState(() {
+          _isExpanded = true;
+          _justSaved = false;
+          _validationError = null;
+          if (_titleController.text.trim().isEmpty) {
+            _titleController.text = _selectedCategory;
+          }
+        });
+      }
+    } catch (e, stack) {
+      LogService.error('FloatingBubble', 'Failed to expand overlay', e, stack);
+    } finally {
+      _isTransitioning = false;
     }
   }
 
   void _collapse() async {
-    await OverlayService.collapseOverlay();
-    if (mounted) {
-      setState(() {
-        _isExpanded = false;
-        _validationError = null;
-      });
+    if (_isTransitioning || !_isExpanded) return;
+    _isTransitioning = true;
+
+    try {
+      await OverlayService.collapseOverlay();
+      if (mounted) {
+        setState(() {
+          _isExpanded = false;
+          _validationError = null;
+        });
+      }
+    } catch (e, stack) {
+      LogService.error('FloatingBubble', 'Failed to collapse overlay', e, stack);
+    } finally {
+      _isTransitioning = false;
     }
   }
 
@@ -311,9 +335,13 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         await Future.delayed(const Duration(milliseconds: 700));
         _collapse();
       }
-    } catch (_) {
+    } catch (e, stack) {
+      LogService.error('FloatingBubble', 'Failed to save quick transaction', e, stack);
       if (mounted) {
-        setState(() => _isSaving = false);
+        setState(() {
+          _isSaving = false;
+          _validationError = 'Failed to save. Please try again.';
+        });
       }
     }
   }
@@ -331,8 +359,8 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       child: GestureDetector(
         onTap: _expand,
         child: SizedBox(
-          width: 56,
-          height: 56,
+          width: 58,
+          height: 58,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
@@ -343,9 +371,14 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
               color: const Color(0xFF131B26),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withAlpha(140),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: AppColors.primaryEmerald.withAlpha(45),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+                BoxShadow(
+                  color: Colors.black.withAlpha(80),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -373,9 +406,14 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           border: Border.all(color: AppColors.primaryEmerald.withAlpha(120), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(180),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+              color: Colors.black.withAlpha(120),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: AppColors.primaryEmerald.withAlpha(25),
+              blurRadius: 16,
+              offset: const Offset(0, 2),
             ),
           ],
         ),

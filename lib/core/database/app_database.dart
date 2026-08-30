@@ -12,6 +12,7 @@ import '../domain/entities/investment_entity.dart';
 import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
+import '../services/log_service.dart';
 
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
@@ -35,6 +36,8 @@ class AppDatabase {
 
   Database? db;
   Completer<Database>? _dbCompleter;
+  int _initRetryCount = 0;
+  static const int _maxRetries = 3;
 
   AppDatabase._internal({this.db});
 
@@ -52,14 +55,21 @@ class AppDatabase {
       return _dbCompleter!.future;
     }
 
+    if (_initRetryCount >= _maxRetries) {
+      throw Exception('Database initialization failed after $_maxRetries attempts. Storage may be unavailable or corrupted.');
+    }
+
     final completer = Completer<Database>();
     _dbCompleter = completer;
     try {
+      _initRetryCount++;
       db = await _initDatabase();
+      _initRetryCount = 0;
       completer.complete(db!);
       return db!;
-    } catch (e) {
+    } catch (e, stack) {
       _dbCompleter = null;
+      LogService.error('AppDatabase', 'Database init failure (Attempt $_initRetryCount)', e, stack);
       completer.completeError(e);
       completer.future.ignore();
       rethrow;
@@ -167,17 +177,25 @@ class AppDatabase {
       await _createCreditCardsTable(db);
       try {
         await db.execute('ALTER TABLE $tableTransactions ADD COLUMN account_id TEXT');
-      } catch (_) {}
+      } catch (e) {
+        LogService.debug('AppDatabase', 'account_id column migration: $e');
+      }
       try {
         await db.execute('ALTER TABLE $tableTransactions ADD COLUMN to_account_id TEXT');
-      } catch (_) {}
+      } catch (e) {
+        LogService.debug('AppDatabase', 'to_account_id column migration: $e');
+      }
       try {
         await db.execute('ALTER TABLE $tableTransactions ADD COLUMN credit_card_id TEXT');
-      } catch (_) {}
+      } catch (e) {
+        LogService.debug('AppDatabase', 'credit_card_id column migration: $e');
+      }
       try {
         await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_account ON $tableTransactions(account_id)');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_card ON $tableTransactions(credit_card_id)');
-      } catch (_) {}
+      } catch (e) {
+        LogService.debug('AppDatabase', 'Transaction indexes migration: $e');
+      }
     }
   }
 

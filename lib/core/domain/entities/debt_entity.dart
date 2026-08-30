@@ -115,6 +115,8 @@ class DebtEntity {
     required this.updatedAt,
   });
 
+  static const Object _sentinel = Object();
+
   DebtEntity copyWith({
     String? id,
     String? title,
@@ -126,7 +128,7 @@ class DebtEntity {
     double? monthlyEmi,
     DateTime? startDate,
     int? dueDateDay,
-    String? lenderName,
+    Object? lenderName = _sentinel,
     DebtStatus? status,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -142,7 +144,7 @@ class DebtEntity {
       monthlyEmi: monthlyEmi ?? this.monthlyEmi,
       startDate: startDate ?? this.startDate,
       dueDateDay: dueDateDay ?? this.dueDateDay,
-      lenderName: lenderName ?? this.lenderName,
+      lenderName: identical(lenderName, _sentinel) ? this.lenderName : (lenderName as String?),
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

@@ -1,5 +1,4 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
@@ -13,6 +12,7 @@ import '../../../../core/repositories/recurring_repository.dart';
 import '../../../../core/repositories/savings_goal_repository.dart';
 import '../../../../core/repositories/transaction_repository.dart';
 import '../../../../core/services/backup_service.dart';
+import '../../../../core/services/log_service.dart';
 import '../../../../core/services/overlay_service.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
@@ -58,11 +58,40 @@ final appLockProvider = AsyncNotifierProvider<AppLockNotifier, bool>(
   AppLockNotifier.new,
 );
 
-class FloatingBubbleNotifier extends StateNotifier<bool> {
+class FloatingBubbleNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
   static const String _keyBubble = 'floating_bubble_enabled';
 
   FloatingBubbleNotifier() : super(false) {
+    WidgetsBinding.instance.addObserver(this);
     _loadState();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && this.state) {
+      _checkAndRecoverBubble();
+    }
+  }
+
+  Future<void> _checkAndRecoverBubble() async {
+    try {
+      final isGranted = await OverlayService.isPermissionGranted();
+      if (isGranted) {
+        final isActive = await OverlayService.isActive();
+        if (!isActive) {
+          LogService.info('FloatingBubbleNotifier', 'Auto-recovering floating bubble on app resume');
+          await OverlayService.showFloatingBubble();
+        }
+      }
+    } catch (e, stack) {
+      LogService.error('FloatingBubbleNotifier', '_checkAndRecoverBubble error', e, stack);
+    }
   }
 
   Future<void> _loadState() async {
@@ -71,16 +100,10 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
       final enabled = prefs.getBool(_keyBubble) ?? false;
       state = enabled;
       if (enabled) {
-        final isGranted = await OverlayService.isPermissionGranted();
-        if (isGranted) {
-          final isActive = await OverlayService.isActive();
-          if (!isActive) {
-            await OverlayService.showFloatingBubble();
-          }
-        }
+        await _checkAndRecoverBubble();
       }
-    } catch (e) {
-      debugPrint('[FloatingBubbleNotifier] _loadState error: $e');
+    } catch (e, stack) {
+      LogService.error('FloatingBubbleNotifier', '_loadState error', e, stack);
     }
   }
 
@@ -90,7 +113,7 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyBubble, enabled);
     } catch (e) {
-      debugPrint('[FloatingBubbleNotifier] toggleBubble error: $e');
+      LogService.error('FloatingBubbleNotifier', 'toggleBubble error', e);
     }
 
     if (enabled) {
@@ -103,7 +126,7 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setBool(_keyBubble, false);
           } catch (e) {
-            debugPrint('[FloatingBubbleNotifier] error resetting bubble pref: $e');
+            LogService.error('FloatingBubbleNotifier', 'error resetting bubble pref', e);
           }
           return false;
         }
@@ -113,7 +136,7 @@ class FloatingBubbleNotifier extends StateNotifier<bool> {
       try {
         await OverlayService.closeOverlay();
       } catch (e) {
-        debugPrint('[FloatingBubbleNotifier] closeOverlay error: $e');
+        LogService.error('FloatingBubbleNotifier', 'closeOverlay error', e);
       }
     }
 

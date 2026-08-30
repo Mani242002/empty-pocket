@@ -58,17 +58,89 @@ class CategorySpendingSummary {
   });
 }
 
+class MonthlySpendingComparison {
+  final double currentMonthExpense;
+  final double previousMonthExpense;
+  final double differenceAmount;
+  final double percentageChange;
+  final bool isLower;
+  final bool hasPreviousMonthData;
+
+  const MonthlySpendingComparison({
+    required this.currentMonthExpense,
+    required this.previousMonthExpense,
+    required this.differenceAmount,
+    required this.percentageChange,
+    required this.isLower,
+    required this.hasPreviousMonthData,
+  });
+
+  static const empty = MonthlySpendingComparison(
+    currentMonthExpense: 0.0,
+    previousMonthExpense: 0.0,
+    differenceAmount: 0.0,
+    percentageChange: 0.0,
+    isLower: false,
+    hasPreviousMonthData: false,
+  );
+}
+
 /// Pure financial calculation engine for EmptyPocket
 abstract class FinancialCalculator {
+  /// Safely rounds a monetary value to 2 decimal places to eliminate IEEE-754 floating point inaccuracies.
+  static double roundMoney(double value) {
+    if (value.isNaN || value.isInfinite) return 0.0;
+    return (value * 100).roundToDouble() / 100;
+  }
+
+  /// Calculate month-over-month spending comparison.
+  /// Compares spending in [targetMonth] against the immediately preceding month.
+  static MonthlySpendingComparison calculateMonthOverMonthComparison(
+    List<TransactionEntity> allTransactions,
+    DateTime targetMonth,
+  ) {
+    final currentMonthTxs = filterByMonth(allTransactions, targetMonth);
+    final currentExpense = calculateTotalExpense(currentMonthTxs);
+
+    final prevMonthDate = DateTime(targetMonth.year, targetMonth.month - 1, 1);
+    final prevMonthTxs = filterByMonth(allTransactions, prevMonthDate);
+    final prevExpense = calculateTotalExpense(prevMonthTxs);
+
+    if (prevExpense <= 0) {
+      return MonthlySpendingComparison(
+        currentMonthExpense: currentExpense,
+        previousMonthExpense: 0.0,
+        differenceAmount: currentExpense,
+        percentageChange: 0.0,
+        isLower: false,
+        hasPreviousMonthData: false,
+      );
+    }
+
+    final diff = roundMoney(currentExpense - prevExpense);
+    final pctChange = roundMoney(((currentExpense - prevExpense).abs() / prevExpense) * 100);
+    final isLower = currentExpense < prevExpense;
+
+    return MonthlySpendingComparison(
+      currentMonthExpense: currentExpense,
+      previousMonthExpense: prevExpense,
+      differenceAmount: diff,
+      percentageChange: pctChange,
+      isLower: isLower,
+      hasPreviousMonthData: true,
+    );
+  }
+
   /// Calculate total income from list of transactions.
   ///
   /// Note: Transfer transactions ([TransactionType.transfer]) are intentionally
   /// excluded from income/expense calculations as they represent internal account
   /// fund movements rather than external cash flow events.
   static double calculateTotalIncome(List<TransactionEntity> transactions) {
-    return transactions
+    final total = transactions
         .where((t) => t.type == TransactionType.income)
         .fold(0.0, (sum, t) => sum + t.amount);
+    return roundMoney(total);
   }
 
   /// Calculate total expense from list of transactions.
@@ -76,14 +148,15 @@ abstract class FinancialCalculator {
   /// Note: Transfer transactions ([TransactionType.transfer]) are intentionally
   /// excluded from expense totals as they do not constitute net expenditure.
   static double calculateTotalExpense(List<TransactionEntity> transactions) {
-    return transactions
+    final total = transactions
         .where((t) => t.type == TransactionType.expense)
         .fold(0.0, (sum, t) => sum + t.amount);
+    return roundMoney(total);
   }
 
   /// Calculate net balance (Total Income - Total Expense)
   static double calculateNetBalance(List<TransactionEntity> transactions) {
-    return calculateTotalIncome(transactions) - calculateTotalExpense(transactions);
+    return roundMoney(calculateTotalIncome(transactions) - calculateTotalExpense(transactions));
   }
 
   /// Calculate savings rate as a percentage: ((income - expense) / income) * 100
@@ -91,7 +164,8 @@ abstract class FinancialCalculator {
   static double calculateSavingsRate(double income, double expense) {
     if (income <= 0) return 0.0;
     final rate = ((income - expense) / income) * 100;
-    return rate < 0 ? 0.0 : (rate > 100 ? 100.0 : rate);
+    final clamped = rate < 0 ? 0.0 : (rate > 100 ? 100.0 : rate);
+    return roundMoney(clamped);
   }
 
   /// Filter transactions for a given month and year
@@ -287,7 +361,7 @@ abstract class FinancialCalculator {
 
   // --- Milestone 3: Recurring Expense Calculations ---
 
-  /// Calculate next due date based on frequency
+  /// Calculate next due date based on frequency with robust month-end clamping
   static DateTime calculateNextDueDate(DateTime fromDate, RecurringFrequency frequency) {
     switch (frequency) {
       case RecurringFrequency.daily:
@@ -295,9 +369,15 @@ abstract class FinancialCalculator {
       case RecurringFrequency.weekly:
         return fromDate.add(const Duration(days: 7));
       case RecurringFrequency.monthly:
-        return DateTime(fromDate.year, fromDate.month + 1, fromDate.day);
+        final nextMonth = DateTime(fromDate.year, fromDate.month + 1, 1);
+        final lastDayOfNextMonth = DateTime(nextMonth.year, nextMonth.month + 1, 0).day;
+        final day = fromDate.day.clamp(1, lastDayOfNextMonth);
+        return DateTime(nextMonth.year, nextMonth.month, day, fromDate.hour, fromDate.minute, fromDate.second);
       case RecurringFrequency.yearly:
-        return DateTime(fromDate.year + 1, fromDate.month, fromDate.day);
+        final nextYear = fromDate.year + 1;
+        final lastDayOfTargetMonth = DateTime(nextYear, fromDate.month + 1, 0).day;
+        final day = fromDate.day.clamp(1, lastDayOfTargetMonth);
+        return DateTime(nextYear, fromDate.month, day, fromDate.hour, fromDate.minute, fromDate.second);
     }
   }
 
@@ -305,10 +385,11 @@ abstract class FinancialCalculator {
   static List<RecurringExpenseEntity> getUpcomingRecurringExpenses(
     List<RecurringExpenseEntity> expenses, {
     int daysAhead = 30,
+    DateTime? fromDate,
   }) {
     final active = expenses.where((e) => e.isActive).toList();
     final filtered = active.where((e) {
-      final days = e.daysUntilDue;
+      final days = fromDate != null ? e.daysUntilDueFrom(fromDate) : e.daysUntilDue;
       return days >= -1 && days <= daysAhead;
     }).toList();
 

@@ -120,9 +120,10 @@ class RecurringExpenseEntity {
     );
   }
 
-  int get daysUntilDue {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+  int get daysUntilDue => daysUntilDueFrom(DateTime.now());
+
+  int daysUntilDueFrom(DateTime fromDate) {
+    final today = DateTime(fromDate.year, fromDate.month, fromDate.day);
     final due = DateTime(nextDueDate.year, nextDueDate.month, nextDueDate.day);
     return due.difference(today).inDays;
   }

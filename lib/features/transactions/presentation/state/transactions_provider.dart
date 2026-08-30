@@ -70,31 +70,47 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
   }
 
   Future<void> addTransaction(TransactionEntity transaction) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    final previous = state.valueOrNull ?? [];
+    final optimistic = [transaction, ...previous]..sort((a, b) => b.date.compareTo(a.date));
+    state = AsyncValue.data(optimistic);
+
+    try {
       final repository = ref.read(transactionRepositoryProvider);
       await repository.addTransaction(transaction);
-      return await repository.getAllTransactions();
-    });
+    } catch (e, stack) {
+      state = AsyncValue.data(previous);
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
   }
 
   Future<void> updateTransaction(TransactionEntity transaction) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    final previous = state.valueOrNull ?? [];
+    final optimistic = previous.map((t) => t.id == transaction.id ? transaction : t).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    state = AsyncValue.data(optimistic);
+
+    try {
       final repository = ref.read(transactionRepositoryProvider);
       await repository.updateTransaction(transaction);
-      return await repository.getAllTransactions();
-    });
+    } catch (e, stack) {
+      state = AsyncValue.data(previous);
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
   }
 
   Future<void> deleteTransaction(String id) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    final previous = state.valueOrNull ?? [];
+    final target = previous.where((t) => t.id == id);
+    final prevTx = target.isNotEmpty ? target.first : null;
+
+    final optimistic = previous.where((t) => t.id != id).toList();
+    state = AsyncValue.data(optimistic);
+
+    try {
       final repository = ref.read(transactionRepositoryProvider);
-      final all = await repository.getAllTransactions();
-      final target = all.where((t) => t.id == id);
-      if (target.isNotEmpty) {
-        final prevTx = target.first;
+      if (prevTx != null) {
         // 1. Revert balance impact for linked accounts and credit cards
         if (prevTx.type == TransactionType.income) {
           if (prevTx.accountId != null) {
@@ -130,17 +146,24 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
         }
       }
       await repository.deleteTransaction(id);
-      return await repository.getAllTransactions();
-    });
+    } catch (e, stack) {
+      state = AsyncValue.data(previous);
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
   }
 
   Future<void> clearAll() async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    final previous = state.valueOrNull ?? [];
+    state = const AsyncValue.data([]);
+    try {
       final repository = ref.read(transactionRepositoryProvider);
       await repository.clearAllTransactions();
-      return [];
-    });
+    } catch (e, stack) {
+      state = AsyncValue.data(previous);
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
   }
 }
 
@@ -205,4 +228,16 @@ final recentTransactionsProvider = Provider<List<TransactionEntity>>((ref) {
 final monthlyCategoryBreakdownProvider = Provider<List<CategorySpendingSummary>>((ref) {
   final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
   return FinancialCalculator.calculateCategoryBreakdown(monthlyTransactions);
+});
+
+/// Provider for month-over-month spending comparison
+final monthlySpendingComparisonProvider = Provider<MonthlySpendingComparison>((ref) {
+  final transactionsAsync = ref.watch(transactionListNotifierProvider);
+  final selectedMonth = ref.watch(selectedMonthProvider);
+
+  return transactionsAsync.maybeWhen(
+    data: (transactions) =>
+        FinancialCalculator.calculateMonthOverMonthComparison(transactions, selectedMonth),
+    orElse: () => MonthlySpendingComparison.empty,
+  );
 });

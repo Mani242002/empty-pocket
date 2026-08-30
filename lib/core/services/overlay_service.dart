@@ -1,13 +1,25 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'log_service.dart';
 
 class OverlayService {
+  static const String _tag = 'OverlayService';
+  static const String _prefPosX = 'overlay_pos_x';
+  static const String _prefPosY = 'overlay_pos_y';
+
+  static OverlayPosition? _savedPosition;
+  static bool _isTransitioning = false;
+
+  static const int _bubbleSize = 58;
+  static const int _expandedWidth = 360;
+  static const int _expandedHeight = 620;
+
   /// Check if the device has granted "Display over other apps" permission
   static Future<bool> isPermissionGranted() async {
     try {
       return await FlutterOverlayWindow.isPermissionGranted();
-    } catch (e) {
-      debugPrint('[OverlayService] isPermissionGranted error: $e');
+    } catch (e, stack) {
+      LogService.error(_tag, 'isPermissionGranted error', e, stack);
       return false;
     }
   }
@@ -16,8 +28,8 @@ class OverlayService {
   static Future<bool?> requestPermission() async {
     try {
       return await FlutterOverlayWindow.requestPermission();
-    } catch (e) {
-      debugPrint('[OverlayService] requestPermission error: $e');
+    } catch (e, stack) {
+      LogService.error(_tag, 'requestPermission error', e, stack);
       return false;
     }
   }
@@ -26,16 +38,11 @@ class OverlayService {
   static Future<bool> isActive() async {
     try {
       return await FlutterOverlayWindow.isActive();
-    } catch (e) {
-      debugPrint('[OverlayService] isActive error: $e');
+    } catch (e, stack) {
+      LogService.error(_tag, 'isActive error', e, stack);
       return false;
     }
   }
-
-  static OverlayPosition? _savedPosition;
-  static const int _bubbleSize = 58;
-  static const int _expandedWidth = 360;
-  static const int _expandedHeight = 620;
 
   /// Show the floating bubble on top of other apps centered on screen.
   static Future<void> showFloatingBubble() async {
@@ -57,8 +64,9 @@ class OverlayService {
         height: _bubbleSize,
         width: _bubbleSize,
       );
-    } catch (e) {
-      debugPrint('[OverlayService] showFloatingBubble error: $e');
+      LogService.info(_tag, 'Floating bubble overlay opened successfully.');
+    } catch (e, stack) {
+      LogService.error(_tag, 'showFloatingBubble error', e, stack);
     }
   }
 
@@ -66,11 +74,24 @@ class OverlayService {
   /// Always moves to (0, 0) so the modal opens in the EXACT CENTER of the screen
   /// with 100% visibility, regardless of where the bubble was placed.
   static Future<void> expandOverlay() async {
+    if (_isTransitioning) return;
+    _isTransitioning = true;
+
     try {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.focusPointer);
 
-      _savedPosition = await FlutterOverlayWindow.getOverlayPosition();
-      
+      final currentPos = await FlutterOverlayWindow.getOverlayPosition();
+      _savedPosition = currentPos;
+
+      // Persist position to preferences
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble(_prefPosX, currentPos.x.toDouble());
+        await prefs.setDouble(_prefPosY, currentPos.y.toDouble());
+      } catch (e) {
+        LogService.warning(_tag, 'Failed to persist overlay position', e);
+      }
+
       // Move to center of screen (0, 0)
       await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
 
@@ -79,18 +100,37 @@ class OverlayService {
         _expandedHeight,
         false,
       );
-    } catch (e) {
-      debugPrint('[OverlayService] expandOverlay error: $e');
+    } catch (e, stack) {
+      LogService.error(_tag, 'expandOverlay error', e, stack);
+    } finally {
+      _isTransitioning = false;
     }
   }
 
   /// Collapse the overlay back to small floating bubble and restore default touch flag
   static Future<void> collapseOverlay() async {
+    if (_isTransitioning) return;
+    _isTransitioning = true;
+
     try {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);
 
+      // Brief delay to allow window manager to switch focus flags before resizing
+      await Future.delayed(const Duration(milliseconds: 50));
+
       if (_savedPosition != null) {
         await FlutterOverlayWindow.moveOverlay(_savedPosition!);
+      } else {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final x = prefs.getDouble(_prefPosX);
+          final y = prefs.getDouble(_prefPosY);
+          if (x != null && y != null) {
+            await FlutterOverlayWindow.moveOverlay(OverlayPosition(x, y));
+          }
+        } catch (e) {
+          LogService.warning(_tag, 'Failed to restore overlay position from prefs', e);
+        }
       }
 
       await FlutterOverlayWindow.resizeOverlay(
@@ -98,8 +138,10 @@ class OverlayService {
         _bubbleSize,
         true,
       );
-    } catch (e) {
-      debugPrint('[OverlayService] collapseOverlay error: $e');
+    } catch (e, stack) {
+      LogService.error(_tag, 'collapseOverlay error', e, stack);
+    } finally {
+      _isTransitioning = false;
     }
   }
 
@@ -107,8 +149,9 @@ class OverlayService {
   static Future<void> closeOverlay() async {
     try {
       await FlutterOverlayWindow.closeOverlay();
-    } catch (e) {
-      debugPrint('[OverlayService] closeOverlay error: $e');
+      LogService.info(_tag, 'Overlay closed.');
+    } catch (e, stack) {
+      LogService.error(_tag, 'closeOverlay error', e, stack);
     }
   }
 }

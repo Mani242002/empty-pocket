@@ -127,6 +127,8 @@ class BankAccountEntity {
     required this.updatedAt,
   });
 
+  static const Object _sentinel = Object();
+
   BankAccountEntity copyWith({
     String? id,
     String? accountName,
@@ -135,7 +137,7 @@ class BankAccountEntity {
     String? usedFor,
     double? initialBalance,
     double? currentBalance,
-    String? colorHex,
+    Object? colorHex = _sentinel,
     bool? isDefault,
     bool? isArchived,
     DateTime? createdAt,
@@ -149,7 +151,7 @@ class BankAccountEntity {
       usedFor: usedFor ?? this.usedFor,
       initialBalance: initialBalance ?? this.initialBalance,
       currentBalance: currentBalance ?? this.currentBalance,
-      colorHex: colorHex ?? this.colorHex,
+      colorHex: identical(colorHex, _sentinel) ? this.colorHex : (colorHex as String?),
       isDefault: isDefault ?? this.isDefault,
       isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,

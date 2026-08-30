@@ -156,5 +156,134 @@ void main() {
       expect(breakdown.first.amount, 25000.0);
       expect(breakdown.first.percentage, closeTo(83.33, 0.01));
     });
+
+    test('roundMoney eliminates floating point inaccuracies', () {
+      expect(FinancialCalculator.roundMoney(0.1 + 0.2), 0.3);
+      expect(FinancialCalculator.roundMoney(1234.5678), 1234.57);
+      expect(FinancialCalculator.roundMoney(10.000000000000002), 10.0);
+      expect(FinancialCalculator.roundMoney(-50.555), -50.56);
+    });
+
+    test('calculateMonthOverMonthComparison calculates accurate delta and percentage', () {
+      final augMonth = DateTime(2026, 8, 1);
+
+      final transactions = [
+        // August expenses: 25,000 + 5,000 = 30,000
+        TransactionEntity(
+          id: 'tx1',
+          title: 'Rent',
+          amount: 25000,
+          type: TransactionType.expense,
+          category: 'Housing',
+          date: DateTime(2026, 8, 5),
+          paymentSource: 'Bank',
+          createdAt: DateTime(2026, 8, 5),
+          updatedAt: DateTime(2026, 8, 5),
+        ),
+        TransactionEntity(
+          id: 'tx2',
+          title: 'Groceries',
+          amount: 5000,
+          type: TransactionType.expense,
+          category: 'Food',
+          date: DateTime(2026, 8, 12),
+          paymentSource: 'Bank',
+          createdAt: DateTime(2026, 8, 12),
+          updatedAt: DateTime(2026, 8, 12),
+        ),
+        // July expenses: 40,000
+        TransactionEntity(
+          id: 'tx3',
+          title: 'July Rent & Shopping',
+          amount: 40000,
+          type: TransactionType.expense,
+          category: 'Housing',
+          date: DateTime(2026, 7, 10),
+          paymentSource: 'Bank',
+          createdAt: DateTime(2026, 7, 10),
+          updatedAt: DateTime(2026, 7, 10),
+        ),
+      ];
+
+      final comparison = FinancialCalculator.calculateMonthOverMonthComparison(
+        transactions,
+        augMonth,
+      );
+
+      expect(comparison.hasPreviousMonthData, isTrue);
+      expect(comparison.currentMonthExpense, 30000.0);
+      expect(comparison.previousMonthExpense, 40000.0);
+      expect(comparison.isLower, isTrue);
+      expect(comparison.differenceAmount, -10000.0);
+      expect(comparison.percentageChange, 25.0); // (10000 / 40000) * 100
+    });
+
+    test('calculateMonthOverMonthComparison handles missing previous month baseline', () {
+      final augMonth = DateTime(2026, 8, 1);
+      final transactions = [
+        TransactionEntity(
+          id: 'tx1',
+          title: 'Rent',
+          amount: 25000,
+          type: TransactionType.expense,
+          category: 'Housing',
+          date: DateTime(2026, 8, 5),
+          paymentSource: 'Bank',
+          createdAt: DateTime(2026, 8, 5),
+          updatedAt: DateTime(2026, 8, 5),
+        ),
+      ];
+
+      final comparison = FinancialCalculator.calculateMonthOverMonthComparison(
+        transactions,
+        augMonth,
+      );
+
+      expect(comparison.hasPreviousMonthData, isFalse);
+      expect(comparison.currentMonthExpense, 25000.0);
+      expect(comparison.previousMonthExpense, 0.0);
+      expect(comparison.isLower, isFalse);
+    });
+  });
+
+  group('Domain Entity copyWith Null-Reset Tests', () {
+    final now = DateTime(2026, 8, 30);
+
+    test('TransactionEntity can reset nullable fields to null', () {
+      final tx = TransactionEntity(
+        id: 'tx1',
+        title: 'Salary',
+        amount: 5000,
+        type: TransactionType.income,
+        category: 'Salary',
+        date: now,
+        paymentSource: 'Bank',
+        accountId: 'acc-123',
+        toAccountId: 'acc-456',
+        creditCardId: 'cc-789',
+        notes: 'Monthly bonus',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      final resetTx = tx.copyWith(
+        accountId: null,
+        toAccountId: null,
+        creditCardId: null,
+        notes: null,
+      );
+
+      expect(resetTx.accountId, isNull);
+      expect(resetTx.toAccountId, isNull);
+      expect(resetTx.creditCardId, isNull);
+      expect(resetTx.notes, isNull);
+      expect(resetTx.title, 'Salary');
+      expect(resetTx.amount, 5000);
+
+      // Omitting parameters should keep original values
+      final partialUpdate = tx.copyWith(title: 'Updated Salary');
+      expect(partialUpdate.accountId, 'acc-123');
+      expect(partialUpdate.notes, 'Monthly bonus');
+    });
   });
 }

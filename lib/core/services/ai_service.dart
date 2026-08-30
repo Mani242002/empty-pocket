@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../domain/entities/ai_assistant_entity.dart';
+import 'log_service.dart';
 
 class AiService {
   final http.Client _httpClient;
@@ -19,7 +20,8 @@ class AiService {
         userPrompt: 'Respond with exactly the single word "OK".',
       );
       return response.trim().isNotEmpty;
-    } catch (_) {
+    } catch (e) {
+      LogService.debug('AiService', 'testConnection ping error: $e');
       return false;
     }
   }

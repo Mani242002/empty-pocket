@@ -111,17 +111,19 @@ class InvestmentEntity {
     required this.updatedAt,
   });
 
+  static const Object _sentinel = Object();
+
   InvestmentEntity copyWith({
     String? id,
     String? name,
     AssetClass? assetClass,
     double? investedAmount,
     double? currentValue,
-    double? units,
-    double? buyPrice,
-    double? currentPrice,
-    String? institution,
-    String? notes,
+    Object? units = _sentinel,
+    Object? buyPrice = _sentinel,
+    Object? currentPrice = _sentinel,
+    Object? institution = _sentinel,
+    Object? notes = _sentinel,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -131,11 +133,11 @@ class InvestmentEntity {
       assetClass: assetClass ?? this.assetClass,
       investedAmount: investedAmount ?? this.investedAmount,
       currentValue: currentValue ?? this.currentValue,
-      units: units ?? this.units,
-      buyPrice: buyPrice ?? this.buyPrice,
-      currentPrice: currentPrice ?? this.currentPrice,
-      institution: institution ?? this.institution,
-      notes: notes ?? this.notes,
+      units: identical(units, _sentinel) ? this.units : (units as double?),
+      buyPrice: identical(buyPrice, _sentinel) ? this.buyPrice : (buyPrice as double?),
+      currentPrice: identical(currentPrice, _sentinel) ? this.currentPrice : (currentPrice as double?),
+      institution: identical(institution, _sentinel) ? this.institution : (institution as String?),
+      notes: identical(notes, _sentinel) ? this.notes : (notes as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

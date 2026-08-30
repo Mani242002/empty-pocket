@@ -59,6 +59,8 @@ class TransactionEntity {
     required this.updatedAt,
   });
 
+  static const Object _sentinel = Object();
+
   TransactionEntity copyWith({
     String? id,
     String? title,
@@ -67,10 +69,10 @@ class TransactionEntity {
     String? category,
     DateTime? date,
     String? paymentSource,
-    String? accountId,
-    String? toAccountId,
-    String? creditCardId,
-    String? notes,
+    Object? accountId = _sentinel,
+    Object? toAccountId = _sentinel,
+    Object? creditCardId = _sentinel,
+    Object? notes = _sentinel,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -82,10 +84,10 @@ class TransactionEntity {
       category: category ?? this.category,
       date: date ?? this.date,
       paymentSource: paymentSource ?? this.paymentSource,
-      accountId: accountId ?? this.accountId,
-      toAccountId: toAccountId ?? this.toAccountId,
-      creditCardId: creditCardId ?? this.creditCardId,
-      notes: notes ?? this.notes,
+      accountId: identical(accountId, _sentinel) ? this.accountId : (accountId as String?),
+      toAccountId: identical(toAccountId, _sentinel) ? this.toAccountId : (toAccountId as String?),
+      creditCardId: identical(creditCardId, _sentinel) ? this.creditCardId : (creditCardId as String?),
+      notes: identical(notes, _sentinel) ? this.notes : (notes as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -8,13 +8,15 @@ import '../../../../app/theme/theme_provider.dart';
 import '../../../ai_assistant/presentation/screens/ai_settings_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../../core/presentation/widgets/app_lock_gate.dart';
+import '../../../../core/services/log_service.dart';
 import '../state/backup_provider.dart';
 
 final appVersionProvider = FutureProvider<String>((ref) async {
   try {
     final info = await PackageInfo.fromPlatform();
     return 'v${info.version}+${info.buildNumber}';
-  } catch (_) {
+  } catch (e) {
+    LogService.debug('SettingsScreen', 'PackageInfo read error (fallback to default): $e');
     return 'v1.0.0+1';
   }
 });
