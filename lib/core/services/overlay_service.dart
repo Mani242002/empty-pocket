@@ -159,7 +159,6 @@ class OverlayService {
     _isTransitioning = false;
     _savedPosition = null;
     try {
-      await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);
       await FlutterOverlayWindow.closeOverlay();
       LogService.info(_tag, 'Overlay closed.');
     } catch (e, stack) {
