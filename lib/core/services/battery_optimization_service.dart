@@ -39,26 +39,4 @@ class BatteryOptimizationService {
       return false;
     }
   }
-
-  /// Check if notification permission is granted (required on Android 13+ for persistent 24/7 foreground services)
-  static Future<bool> hasNotificationPermission() async {
-    try {
-      final result = await _channel.invokeMethod<bool>('hasNotificationPermission');
-      return result ?? true;
-    } catch (e, stack) {
-      LogService.error(_tag, 'hasNotificationPermission error', e, stack);
-      return true;
-    }
-  }
-
-  /// Request runtime notification permission on Android 13+
-  static Future<bool> requestNotificationPermission() async {
-    try {
-      final result = await _channel.invokeMethod<bool>('requestNotificationPermission');
-      return result ?? true;
-    } catch (e, stack) {
-      LogService.error(_tag, 'requestNotificationPermission error', e, stack);
-      return true;
-    }
-  }
 }

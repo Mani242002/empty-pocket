@@ -68,8 +68,8 @@ class OverlayService {
         overlayContent: "Tap to record expense or income",
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPrivate,
-        alignment: OverlayAlignment.centerRight,
-        positionGravity: PositionGravity.auto,
+        alignment: OverlayAlignment.center,
+        positionGravity: PositionGravity.none,
         height: initialPhysicalPixels,
         width: initialPhysicalPixels,
       );

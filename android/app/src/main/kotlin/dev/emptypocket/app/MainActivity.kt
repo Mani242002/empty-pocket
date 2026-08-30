@@ -85,35 +85,6 @@ class MainActivity : FlutterFragmentActivity() {
                         result.error("INTENT_FAILED", "Could not open battery settings", e.message)
                     }
                 }
-                "hasNotificationPermission" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
-                            this@MainActivity,
-                            android.Manifest.permission.POST_NOTIFICATIONS
-                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                        result.success(granted)
-                    } else {
-                        result.success(true)
-                    }
-                }
-                "requestNotificationPermission" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
-                            this@MainActivity,
-                            android.Manifest.permission.POST_NOTIFICATIONS
-                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                        if (!granted) {
-                            androidx.core.app.ActivityCompat.requestPermissions(
-                                this@MainActivity,
-                                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                                1001
-                            )
-                        }
-                        result.success(true)
-                    } else {
-                        result.success(true)
-                    }
-                }
                 else -> result.notImplemented()
             }
         }
