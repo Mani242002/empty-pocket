@@ -64,3 +64,12 @@ final overallMonthlyBudgetSummaryProvider = Provider<OverallBudgetSummary>((ref)
 
   return FinancialCalculator.calculateOverallBudgetSummary(budgets, monthlyTransactions);
 });
+
+/// Daily Safe-to-Spend limit for the active month
+final dailySafeToSpendProvider = Provider<double>((ref) {
+  final budgetSummary = ref.watch(overallMonthlyBudgetSummaryProvider);
+  return FinancialCalculator.calculateDailySafeToSpend(
+    budgetSummary.totalLimit,
+    budgetSummary.totalSpent,
+  );
+});

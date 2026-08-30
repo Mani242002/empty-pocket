@@ -58,6 +58,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final creditCards = ref.watch(activeCreditCardsProvider);
     final combinedCash = ref.watch(combinedLiquidCashProvider);
     final creditSummary = ref.watch(combinedCreditSummaryProvider);
+    final dailySafeToSpend = ref.watch(dailySafeToSpendProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -93,6 +94,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: DashboardBalanceCard(
                   summary: summary,
                   healthSummary: healthSummary,
+                  dailySafeToSpend: dailySafeToSpend,
                   isBalanceVisible: _isBalanceVisible,
                   onToggleBalanceVisibility: () {
                     setState(() {

@@ -9,7 +9,10 @@ import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
+import '../../../../core/utilities/app_haptics.dart';
+import '../../../../core/utilities/category_matcher.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../../core/utilities/math_expression_parser.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/transactions_provider.dart';
 
@@ -75,6 +78,7 @@ class _AddEditTransactionSheetState
 
     _selectedCategory = tx?.category ?? categories.first.name;
     _titleController = TextEditingController(text: tx?.title ?? _selectedCategory);
+    _titleController.addListener(_onTitleChanged);
     _amountController = TextEditingController(
       text: tx != null ? (tx.amount == tx.amount.roundToDouble() ? tx.amount.toInt().toString() : tx.amount.toString()) : '',
     );
@@ -100,10 +104,29 @@ class _AddEditTransactionSheetState
 
   @override
   void dispose() {
+    _titleController.removeListener(_onTitleChanged);
     _titleController.dispose();
     _amountController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  void _onTitleChanged() {
+    final title = _titleController.text.trim();
+    if (title.isNotEmpty) {
+      final detected = CategoryMatcher.detectCategory(title);
+      if (detected != null && detected != _selectedCategory) {
+        final categories = _selectedType == TransactionType.income
+            ? CategoryConstants.incomeCategories
+            : CategoryConstants.expenseCategories;
+        if (categories.any((c) => c.name.toLowerCase() == detected.toLowerCase())) {
+          final matched = categories.firstWhere((c) => c.name.toLowerCase() == detected.toLowerCase());
+          setState(() {
+            _selectedCategory = matched.name;
+          });
+        }
+      }
+    }
   }
 
   void _onTypeChanged(TransactionType newType) {
@@ -224,13 +247,17 @@ class _AddEditTransactionSheetState
   }
 
   Future<void> _saveTransaction() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppHaptics.warning();
+      return;
+    }
 
-    final amount = double.tryParse(_amountController.text.trim());
+    final amount = MathExpressionParser.tryEvaluate(_amountController.text.trim());
     if (amount == null || amount <= 0) {
+      AppHaptics.warning();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid positive amount.'),
+          content: Text('Please enter a valid positive amount or expression.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -239,6 +266,7 @@ class _AddEditTransactionSheetState
 
     final title = _titleController.text.trim();
     if (title.isEmpty) {
+      AppHaptics.warning();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter title or reason.'),
@@ -274,6 +302,21 @@ class _AddEditTransactionSheetState
               .read(bankAccountListProvider.notifier)
               .adjustAccountBalance(prevTx.accountId!, prevTx.amount);
         }
+      } else if (prevTx.type == TransactionType.transfer) {
+        if (prevTx.accountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(prevTx.accountId!, prevTx.amount);
+        }
+        if (prevTx.toAccountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(prevTx.toAccountId!, -prevTx.amount);
+        } else if (prevTx.creditCardId != null) {
+          await ref
+              .read(creditCardListProvider.notifier)
+              .adjustUsedAmount(prevTx.creditCardId!, prevTx.amount);
+        }
       }
 
       // 2. Apply new transaction impact
@@ -297,6 +340,17 @@ class _AddEditTransactionSheetState
               .read(bankAccountListProvider.notifier)
               .adjustAccountBalance(_selectedAccountId!, -amount);
         }
+      } else if (_selectedType == TransactionType.transfer) {
+        if (_selectedAccountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(_selectedAccountId!, -amount);
+        }
+        if (_selectedCreditCardId != null) {
+          await ref
+              .read(creditCardListProvider.notifier)
+              .adjustUsedAmount(_selectedCreditCardId!, -amount);
+        }
       }
 
       final updated = prevTx.copyWith(
@@ -317,6 +371,8 @@ class _AddEditTransactionSheetState
       await ref
           .read(transactionListNotifierProvider.notifier)
           .updateTransaction(updated);
+
+      AppHaptics.success();
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -349,6 +405,17 @@ class _AddEditTransactionSheetState
               .read(bankAccountListProvider.notifier)
               .adjustAccountBalance(_selectedAccountId!, -amount);
         }
+      } else if (_selectedType == TransactionType.transfer) {
+        if (_selectedAccountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(_selectedAccountId!, -amount);
+        }
+        if (_selectedCreditCardId != null) {
+          await ref
+              .read(creditCardListProvider.notifier)
+              .adjustUsedAmount(_selectedCreditCardId!, -amount);
+        }
       }
 
       final newTx = TransactionEntity(
@@ -371,6 +438,8 @@ class _AddEditTransactionSheetState
       await ref
           .read(transactionListNotifierProvider.notifier)
           .addTransaction(newTx);
+
+      AppHaptics.success();
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -398,8 +467,13 @@ class _AddEditTransactionSheetState
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
-            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: context.financialColors.expense,
+            ),
+            onPressed: () {
+              AppHaptics.deleteAction();
+              Navigator.of(ctx).pop(true);
+            },
             child: const Text('Delete'),
           ),
         ],
@@ -407,15 +481,16 @@ class _AddEditTransactionSheetState
     );
 
     if (confirmed == true && mounted) {
+      final tx = widget.initialTransaction!;
       await ref
           .read(transactionListNotifierProvider.notifier)
-          .deleteTransaction(widget.initialTransaction!.id);
+          .deleteTransaction(tx.id);
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Transaction deleted.'),
+          SnackBar(
+            content: Text('Deleted "${tx.title}" successfully.'),
             behavior: SnackBarBehavior.floating,
           ),
         );

@@ -8,7 +8,9 @@ import '../../../../app/theme/theme_provider.dart';
 import '../../../ai_assistant/presentation/screens/ai_settings_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../../core/presentation/widgets/app_lock_gate.dart';
+import '../../../../core/services/battery_optimization_service.dart';
 import '../../../../core/services/log_service.dart';
+import '../../../../core/utilities/app_haptics.dart';
 import '../state/backup_provider.dart';
 
 final appVersionProvider = FutureProvider<String>((ref) async {
@@ -535,6 +537,22 @@ class SettingsScreen extends ConsumerWidget {
                           backgroundColor: AppColors.warning,
                         ),
                       );
+                    }
+                  },
+                ),
+                const Divider(),
+                _buildListTile(
+                  context,
+                  icon: Icons.battery_charging_full_rounded,
+                  iconColor: AppColors.primaryEmerald,
+                  title: '24/7 Overlay Whitelist (OnePlus / Xiaomi / Moto)',
+                  subtitle: 'Exclude EmptyPocket from battery optimization so bubble stays alive',
+                  trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                  onTap: () async {
+                    AppHaptics.buttonPress();
+                    final success = await BatteryOptimizationService.requestIgnoreBatteryOptimizations();
+                    if (context.mounted && !success) {
+                      await BatteryOptimizationService.openBatterySettings();
                     }
                   },
                 ),

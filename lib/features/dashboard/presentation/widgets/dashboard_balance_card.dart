@@ -11,6 +11,7 @@ class DashboardBalanceCard extends StatelessWidget {
   final FinancialHealthSummary healthSummary;
   final bool isBalanceVisible;
   final VoidCallback onToggleBalanceVisibility;
+  final double? dailySafeToSpend;
 
   const DashboardBalanceCard({
     super.key,
@@ -18,6 +19,7 @@ class DashboardBalanceCard extends StatelessWidget {
     required this.healthSummary,
     required this.isBalanceVisible,
     required this.onToggleBalanceVisibility,
+    this.dailySafeToSpend,
   });
 
   Widget _buildFlowMetric(
@@ -208,6 +210,38 @@ class DashboardBalanceCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (dailySafeToSpend != null && dailySafeToSpend! > 0) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryEmerald.withAlpha(isDark ? 25 : 15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.speed_rounded,
+                      color: AppColors.primaryEmerald,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Safe to spend today: ${isBalanceVisible ? CurrencyFormatter.format(dailySafeToSpend!) : '••••'}/day',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: AppColors.primaryEmerald,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             // Net Worth & Health Score banner
             Material(

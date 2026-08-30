@@ -4,18 +4,21 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
+import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 
 class TransactionListItem extends StatelessWidget {
   final TransactionEntity transaction;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onDuplicate;
 
   const TransactionListItem({
     super.key,
     required this.transaction,
     this.onTap,
     this.onDelete,
+    this.onDuplicate,
   });
 
   @override
@@ -111,7 +114,16 @@ class TransactionListItem extends StatelessWidget {
           ),
         ),
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            AppHaptics.buttonPress();
+            onTap?.call();
+          },
+          onLongPress: onDuplicate != null
+              ? () {
+                  AppHaptics.selectionClick();
+                  onDuplicate?.call();
+                }
+              : null,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

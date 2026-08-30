@@ -159,6 +159,20 @@ abstract class FinancialCalculator {
     return roundMoney(calculateTotalIncome(transactions) - calculateTotalExpense(transactions));
   }
 
+  /// Calculate daily safe-to-spend limit based on remaining monthly budget and days left in the month
+  static double calculateDailySafeToSpend(
+    double monthlyBudget,
+    double totalSpentThisMonth, [
+    DateTime? currentDate,
+  ]) {
+    if (monthlyBudget <= 0) return 0.0;
+    final now = currentDate ?? DateTime.now();
+    final lastDay = DateTime(now.year, now.month + 1, 0).day;
+    final daysRemaining = max(1, lastDay - now.day + 1);
+    final remainingBudget = max(0.0, monthlyBudget - totalSpentThisMonth);
+    return roundMoney(remainingBudget / daysRemaining);
+  }
+
   /// Calculate savings rate as a percentage: ((income - expense) / income) * 100
   /// Clamped between 0% and 100% for standard financial representation.
   static double calculateSavingsRate(double income, double expense) {

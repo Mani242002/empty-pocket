@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
+import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../screens/add_edit_transaction_sheet.dart';
 import '../state/transactions_provider.dart';
 import '../widgets/transaction_list_item.dart';
@@ -41,6 +44,54 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       return 'Yesterday';
     } else {
       return DateFormat('EEE, d MMMM yyyy').format(date);
+    }
+  }
+
+  void _duplicateTransaction(TransactionEntity tx) async {
+    final now = DateTime.now();
+    final cloned = tx.copyWith(
+      id: const Uuid().v4(),
+      date: now,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    // Apply balance impact for cloned transaction
+    if (cloned.type == TransactionType.income) {
+      if (cloned.accountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(cloned.accountId!, cloned.amount);
+      } else if (cloned.creditCardId != null) {
+        await ref
+            .read(creditCardListProvider.notifier)
+            .adjustUsedAmount(cloned.creditCardId!, -cloned.amount);
+      }
+    } else if (cloned.type == TransactionType.expense) {
+      if (cloned.creditCardId != null) {
+        await ref
+            .read(creditCardListProvider.notifier)
+            .adjustUsedAmount(cloned.creditCardId!, cloned.amount);
+      } else if (cloned.accountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(cloned.accountId!, -cloned.amount);
+      }
+    }
+
+    await ref
+        .read(transactionListNotifierProvider.notifier)
+        .addTransaction(cloned);
+
+    AppHaptics.success();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Duplicated "${cloned.title}" (${CurrencyFormatter.format(cloned.amount)}).'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -334,6 +385,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                     context,
                                     transaction: tx,
                                   ),
+                                  onDuplicate: () => _duplicateTransaction(tx),
                                   onDelete: () => ref
                                       .read(transactionListNotifierProvider.notifier)
                                       .deleteTransaction(tx.id),

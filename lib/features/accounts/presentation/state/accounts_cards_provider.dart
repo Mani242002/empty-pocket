@@ -217,13 +217,13 @@ class AccountOperationsNotifier {
         .read(creditCardListProvider.notifier)
         .adjustUsedAmount(creditCard.id, -amount);
 
-    // 3. Record repayment transaction
+    // 3. Record repayment transaction as internal transfer (avoiding double-counting in expenses)
     final tx = TransactionEntity(
       id: const Uuid().v4(),
       title: 'Bill Pay: ${creditCard.cardName}',
       amount: amount,
-      type: TransactionType.expense,
-      category: 'Debt & EMI',
+      type: TransactionType.transfer,
+      category: 'Credit Card Bill Pay',
       date: now,
       paymentSource: fromAccount.accountName,
       accountId: fromAccount.id,

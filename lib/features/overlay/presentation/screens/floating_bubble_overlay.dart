@@ -9,7 +9,10 @@ import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/services/log_service.dart';
 import '../../../../core/services/overlay_service.dart';
+import '../../../../core/utilities/app_haptics.dart';
+import '../../../../core/utilities/category_matcher.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../../core/utilities/math_expression_parser.dart';
 
 class FloatingBubbleOverlayApp extends StatelessWidget {
   const FloatingBubbleOverlayApp({super.key});
@@ -60,14 +63,34 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
   void initState() {
     super.initState();
     _titleController.text = _selectedCategory;
+    _titleController.addListener(_onTitleChanged);
     _loadAccountsAndCards();
   }
 
   @override
   void dispose() {
+    _titleController.removeListener(_onTitleChanged);
     _amountController.dispose();
     _titleController.dispose();
     super.dispose();
+  }
+
+  void _onTitleChanged() {
+    final title = _titleController.text.trim();
+    if (title.isNotEmpty) {
+      final detected = CategoryMatcher.detectCategory(title);
+      if (detected != null && detected != _selectedCategory) {
+        final categories = _type == TransactionType.income
+            ? CategoryConstants.incomeCategories
+            : CategoryConstants.expenseCategories;
+        if (categories.any((c) => c.name.toLowerCase() == detected.toLowerCase())) {
+          final matched = categories.firstWhere((c) => c.name.toLowerCase() == detected.toLowerCase());
+          setState(() {
+            _selectedCategory = matched.name;
+          });
+        }
+      }
+    }
   }
 
   Future<void> _loadAccountsAndCards() async {
@@ -217,31 +240,36 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
   }
 
   Future<void> _saveQuickTransaction() async {
-    // 1. Mandatory Amount Validation
+    // 1. Mandatory Amount Validation with Math Expression Support
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
+      AppHaptics.warning();
       setState(() => _validationError = 'Please enter an amount.');
       return;
     }
-    final amount = double.tryParse(amountText);
+    final amount = MathExpressionParser.tryEvaluate(amountText);
     if (amount == null || amount <= 0) {
-      setState(() => _validationError = 'Please enter a valid amount greater than 0.');
+      AppHaptics.warning();
+      setState(() => _validationError = 'Please enter a valid amount or expression.');
       return;
     }
 
     // 2. Mandatory Title / Reason Validation
     final title = _titleController.text.trim();
     if (title.isEmpty) {
+      AppHaptics.warning();
       setState(() => _validationError = 'Please enter title or reason.');
       return;
     }
 
     // 3. Mandatory Linked Source Validation
     if (_selectedPaymentMode == PaymentMode.bankAccount && _bankAccounts.isNotEmpty && _selectedAccountId == null) {
+      AppHaptics.warning();
       setState(() => _validationError = 'Please select a linked bank account.');
       return;
     }
     if (_selectedPaymentMode == PaymentMode.creditCard && _creditCards.isNotEmpty && _selectedCreditCardId == null) {
+      AppHaptics.warning();
       setState(() => _validationError = 'Please select a linked credit card.');
       return;
     }
@@ -322,6 +350,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       );
 
       await db.insertTransaction(tx);
+      AppHaptics.success();
 
       if (mounted) {
         setState(() {
@@ -337,6 +366,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       }
     } catch (e, stack) {
       LogService.error('FloatingBubble', 'Failed to save quick transaction', e, stack);
+      AppHaptics.warning();
       if (mounted) {
         setState(() {
           _isSaving = false;
@@ -356,37 +386,40 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
 
   Widget _buildCollapsedBubble() {
     return Center(
-      child: GestureDetector(
-        onTap: _expand,
-        child: SizedBox(
-          width: 58,
-          height: 58,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: GestureDetector(
+          onTap: _expand,
           child: Container(
+            width: 58,
+            height: 58,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.primaryEmerald.withAlpha(220),
-                width: 1.5,
+              shape: BoxShape.circle,
+              gradient: const RadialGradient(
+                colors: [
+                  Color(0xFF1E293B),
+                  Color(0xFF0F172A),
+                ],
               ),
-              color: const Color(0xFF131B26),
+              border: Border.all(
+                color: AppColors.primaryEmerald,
+                width: 2.0,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primaryEmerald.withAlpha(45),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-                BoxShadow(
-                  color: Colors.black.withAlpha(80),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
+                  color: AppColors.primaryEmerald.withAlpha(90),
+                  blurRadius: 10,
+                  spreadRadius: 1,
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14.5),
-              child: Image.asset(
-                'assets/icon/app_icon.png',
-                fit: BoxFit.cover,
+            child: ClipOval(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Image.asset(
+                  'assets/icon/app_icon.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),

@@ -2,6 +2,7 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'log_service.dart';
 
+/// Service managing the 24/7 Floating Bubble System Alert Window
 class OverlayService {
   static const String _tag = 'OverlayService';
   static const String _prefPosX = 'overlay_pos_x';
@@ -10,9 +11,10 @@ class OverlayService {
   static OverlayPosition? _savedPosition;
   static bool _isTransitioning = false;
 
-  static const int _bubbleSize = 58;
-  static const int _expandedWidth = 360;
-  static const int _expandedHeight = 620;
+  /// Standardized window size in DP (74dp window provides 8dp internal padding for glow & touch padding)
+  static const int bubbleWindowSize = 74;
+  static const int expandedWidth = 360;
+  static const int expandedHeight = 620;
 
   /// Check if the device has granted "Display over other apps" permission
   static Future<bool> isPermissionGranted() async {
@@ -61,10 +63,10 @@ class OverlayService {
         visibility: NotificationVisibility.visibilityPrivate,
         alignment: OverlayAlignment.center,
         positionGravity: PositionGravity.none,
-        height: _bubbleSize,
-        width: _bubbleSize,
+        height: bubbleWindowSize,
+        width: bubbleWindowSize,
       );
-      LogService.info(_tag, 'Floating bubble overlay opened successfully.');
+      LogService.info(_tag, 'Floating bubble overlay opened successfully with size $bubbleWindowSize.');
     } catch (e, stack) {
       LogService.error(_tag, 'showFloatingBubble error', e, stack);
     }
@@ -96,8 +98,8 @@ class OverlayService {
       await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
 
       await FlutterOverlayWindow.resizeOverlay(
-        _expandedWidth,
-        _expandedHeight,
+        expandedWidth,
+        expandedHeight,
         false,
       );
     } catch (e, stack) {
@@ -116,7 +118,7 @@ class OverlayService {
       await FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag);
 
       // Brief delay to allow window manager to switch focus flags before resizing
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future.delayed(const Duration(milliseconds: 60));
 
       if (_savedPosition != null) {
         await FlutterOverlayWindow.moveOverlay(_savedPosition!);
@@ -134,8 +136,8 @@ class OverlayService {
       }
 
       await FlutterOverlayWindow.resizeOverlay(
-        _bubbleSize,
-        _bubbleSize,
+        bubbleWindowSize,
+        bubbleWindowSize,
         true,
       );
     } catch (e, stack) {

@@ -142,6 +142,10 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
             await ref
                 .read(bankAccountListProvider.notifier)
                 .adjustAccountBalance(prevTx.toAccountId!, -prevTx.amount);
+          } else if (prevTx.creditCardId != null) {
+            await ref
+                .read(creditCardListProvider.notifier)
+                .adjustUsedAmount(prevTx.creditCardId!, prevTx.amount);
           }
         }
       }
