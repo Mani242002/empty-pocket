@@ -90,7 +90,16 @@ abstract class FinancialCalculator {
   /// Safely rounds a monetary value to 2 decimal places to eliminate IEEE-754 floating point inaccuracies.
   static double roundMoney(double value) {
     if (value.isNaN || value.isInfinite) return 0.0;
-    return (value * 100).roundToDouble() / 100;
+    return (value * 100).roundToDouble() / 100.0;
+  }
+
+  /// Safely divides numerator by denominator, returning [fallback] (default 0.0) if denominator is zero, NaN, or infinite.
+  static double safeDivide(double numerator, double denominator, [double fallback = 0.0]) {
+    if (denominator == 0.0 || denominator.isNaN || denominator.isInfinite) {
+      return fallback;
+    }
+    final res = numerator / denominator;
+    return (res.isNaN || res.isInfinite) ? fallback : roundMoney(res);
   }
 
   /// Calculate month-over-month spending comparison.

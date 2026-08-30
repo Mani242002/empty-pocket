@@ -11,10 +11,10 @@ class OverlayService {
   static OverlayPosition? _savedPosition;
   static bool _isTransitioning = false;
 
-  /// Standardized window size in DP (74dp window provides 8dp internal padding for glow & touch padding)
-  static const int bubbleWindowSize = 74;
+  /// Standardized window size in DP (88dp window provides 14dp internal padding for 60dp bubble & contained glow)
+  static const int bubbleWindowSize = 88;
   static const int expandedWidth = 360;
-  static const int expandedHeight = 620;
+  static const int expandedHeight = 640;
 
   /// Check if the device has granted "Display over other apps" permission
   static Future<bool> isPermissionGranted() async {
@@ -66,7 +66,15 @@ class OverlayService {
         height: bubbleWindowSize,
         width: bubbleWindowSize,
       );
-      LogService.info(_tag, 'Floating bubble overlay opened successfully with size $bubbleWindowSize.');
+
+      // Force initial size sync to eliminate DP vs PX disparity on launch
+      await Future.delayed(const Duration(milliseconds: 150));
+      await FlutterOverlayWindow.resizeOverlay(
+        bubbleWindowSize,
+        bubbleWindowSize,
+        true,
+      );
+      LogService.info(_tag, 'Floating bubble overlay opened and size synchronized ($bubbleWindowSize dp).');
     } catch (e, stack) {
       LogService.error(_tag, 'showFloatingBubble error', e, stack);
     }

@@ -21,8 +21,15 @@ class FloatingBubbleOverlayApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true).copyWith(
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        canvasColor: Colors.transparent,
         scaffoldBackgroundColor: Colors.transparent,
+        cardColor: Colors.transparent,
+        dialogTheme: const DialogThemeData(backgroundColor: Colors.transparent),
+        colorScheme: const ColorScheme.dark(
+          surface: Colors.transparent,
+        ),
       ),
       home: const Scaffold(
         backgroundColor: Colors.transparent,
@@ -386,16 +393,21 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
 
   Widget _buildCollapsedBubble() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: GestureDetector(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
           onTap: _expand,
+          borderRadius: BorderRadius.circular(16),
+          splashColor: AppColors.primaryEmerald.withAlpha(80),
+          highlightColor: AppColors.primaryEmerald.withAlpha(40),
           child: Container(
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const RadialGradient(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
                   Color(0xFF1E293B),
                   Color(0xFF0F172A),
@@ -407,18 +419,22 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primaryEmerald.withAlpha(90),
-                  blurRadius: 10,
-                  spreadRadius: 1,
+                  color: AppColors.primaryEmerald.withAlpha(80),
+                  blurRadius: 8,
+                  spreadRadius: 0,
+                  offset: Offset.zero,
                 ),
               ],
             ),
-            child: ClipOval(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Image.asset(
-                  'assets/icon/app_icon.png',
-                  fit: BoxFit.contain,
+            child: Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Image.asset(
+                    'assets/icon/app_icon.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
             ),

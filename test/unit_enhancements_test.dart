@@ -97,9 +97,18 @@ void main() {
 
   group('Overlay Service Sizing Tests', () {
     test('Standardizes window size across densities', () {
-      expect(OverlayService.bubbleWindowSize, 74);
+      expect(OverlayService.bubbleWindowSize, 88);
       expect(OverlayService.expandedWidth, 360);
-      expect(OverlayService.expandedHeight, 620);
+      expect(OverlayService.expandedHeight, 640);
+    });
+  });
+
+  group('Safe Financial Division Tests', () {
+    test('Handles division by zero and invalid values safely', () {
+      expect(FinancialCalculator.safeDivide(100, 0), 0.0);
+      expect(FinancialCalculator.safeDivide(100, 0, -1.0), -1.0);
+      expect(FinancialCalculator.safeDivide(100, 4), 25.0);
+      expect(FinancialCalculator.safeDivide(10, 3), 3.33);
     });
   });
 
