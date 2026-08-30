@@ -8,6 +8,7 @@ import '../../../../app/theme/theme_provider.dart';
 import '../../../ai_assistant/presentation/screens/ai_settings_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../../core/presentation/widgets/app_lock_gate.dart';
+import '../../../../core/services/battery_optimization_service.dart';
 import '../../../../core/services/log_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../state/backup_provider.dart';
@@ -522,7 +523,7 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   title: const Text('Floating Quick Add', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                   subtitle: Text(
-                    isBubbleEnabled ? 'Active 24/7 on top of other apps' : 'Tap to enable 24/7 quick add bubble',
+                    isBubbleEnabled ? 'Active on screen edges' : 'Tap to show floating quick-entry bubble',
                     style: TextStyle(color: financialColors.textMuted, fontSize: 12),
                   ),
                   value: isBubbleEnabled,
@@ -537,6 +538,54 @@ class SettingsScreen extends ConsumerWidget {
                           backgroundColor: AppColors.warning,
                         ),
                       );
+                    }
+                  },
+                ),
+                const Divider(),
+                _buildListTile(
+                  context,
+                  icon: Icons.battery_charging_full_rounded,
+                  iconColor: AppColors.primaryEmerald,
+                  title: '24/7 Background Whitelist',
+                  subtitle: 'Keep floating bubble alive in background (OnePlus / Xiaomi / Moto)',
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryEmerald.withAlpha(30),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.primaryEmerald.withAlpha(90)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Whitelist',
+                          style: TextStyle(
+                            color: AppColors.primaryEmerald,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_ios_rounded, color: AppColors.primaryEmerald, size: 11),
+                      ],
+                    ),
+                  ),
+                  onTap: () async {
+                    AppHaptics.buttonPress();
+                    final success = await BatteryOptimizationService.requestIgnoreBatteryOptimizations();
+                    if (context.mounted) {
+                      if (!success) {
+                        await BatteryOptimizationService.openBatterySettings();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Battery optimization whitelist requested.'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: AppColors.primaryEmerald,
+                          ),
+                        );
+                      }
                     }
                   },
                 ),
