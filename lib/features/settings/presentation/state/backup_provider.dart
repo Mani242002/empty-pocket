@@ -12,6 +12,7 @@ import '../../../../core/repositories/recurring_repository.dart';
 import '../../../../core/repositories/savings_goal_repository.dart';
 import '../../../../core/repositories/transaction_repository.dart';
 import '../../../../core/services/backup_service.dart';
+import '../../../../core/services/battery_optimization_service.dart';
 import '../../../../core/services/log_service.dart';
 import '../../../../core/services/overlay_service.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
@@ -131,6 +132,17 @@ class FloatingBubbleNotifier extends StateNotifier<bool> with WidgetsBindingObse
           return false;
         }
       }
+
+      // Automatically request battery optimization whitelist for 24/7 background resilience
+      try {
+        final isIgnoring = await BatteryOptimizationService.isIgnoringBatteryOptimizations();
+        if (!isIgnoring) {
+          await BatteryOptimizationService.requestIgnoreBatteryOptimizations();
+        }
+      } catch (e) {
+        LogService.warning('FloatingBubbleNotifier', 'Battery optimization request error', e);
+      }
+
       await OverlayService.showFloatingBubble();
     } else {
       try {

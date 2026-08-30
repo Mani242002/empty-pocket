@@ -430,16 +430,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 width: 2.0,
               ),
             ),
-            child: Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Padding(
-                  padding: const EdgeInsets.all(7.0),
-                  child: Image.asset(
-                    'assets/icon/app_icon.png',
-                    fit: BoxFit.contain,
-                  ),
-                ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Image.asset(
+                'assets/icon/app_icon.png',
+                fit: BoxFit.cover,
               ),
             ),
           ),
