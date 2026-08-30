@@ -1,27 +1,51 @@
 package dev.emptypocket.app
 
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
 import android.content.Intent
-import flutter.overlay.window.flutter_overlay_window.OverlayService
+import android.os.Build
+import android.os.IBinder
+import android.os.SystemClock
+import android.util.Log
 
-/**
- * Enhanced StickyOverlayService extending flutter_overlay_window's OverlayService.
- * Overrides onStartCommand with START_STICKY and onTaskRemoved to ensure the
- * 24/7 floating bubble overlay stays alive even when the app is swiped from Recent Apps.
- */
-class StickyOverlayService : OverlayService() {
+class StickyOverlayService : Service() {
+    companion object {
+        private const val TAG = "StickyOverlayService"
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        super.onStartCommand(intent, flags, startId)
         return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        try {
-            val restartIntent = Intent(applicationContext, StickyOverlayService::class.java)
-            restartIntent.setPackage(packageName)
-            startService(restartIntent)
-        } catch (_: Exception) {
-            // Ignored - system handles restart via sticky flag
-        }
         super.onTaskRemoved(rootIntent)
+        Log.d(TAG, "onTaskRemoved: Task removed, scheduling overlay persistence")
+        try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val bubbleEnabled = prefs.getBoolean("flutter.floating_bubble_enabled", false)
+            if (bubbleEnabled) {
+                val restartIntent = Intent(applicationContext, OverlayRestartReceiver::class.java).apply {
+                    action = "dev.emptypocket.app.RESTART_OVERLAY"
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    applicationContext,
+                    888,
+                    restartIntent,
+                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val alarmManager = getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+                alarmManager?.set(
+                    AlarmManager.ELAPSED_REALTIME,
+                    SystemClock.elapsedRealtime() + 250,
+                    pendingIntent
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onTaskRemoved", e)
+        }
     }
 }

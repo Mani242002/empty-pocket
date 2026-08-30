@@ -1,10 +1,13 @@
 package dev.emptypocket.app
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
+import android.os.SystemClock
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -128,6 +131,13 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+        // Start StickyOverlayService to ensure 24/7 background overlay persistence on task swipe
+        try {
+            val stickyIntent = Intent(this, StickyOverlayService::class.java)
+            startService(stickyIntent)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Error starting StickyOverlayService", e)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -136,6 +146,22 @@ class MainActivity : FlutterFragmentActivity() {
         val action = intent.getStringExtra("action")
         if (action == "quick_add") {
             methodChannel?.invokeMethod("triggerQuickAdd", null)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val isBubbleEnabled = prefs.getBoolean("flutter.floating_bubble_enabled", false)
+            if (isBubbleEnabled) {
+                val restartIntent = Intent(applicationContext, OverlayRestartReceiver::class.java).apply {
+                    action = "dev.emptypocket.app.RESTART_OVERLAY"
+                }
+                sendBroadcast(restartIntent)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Error in onDestroy", e)
         }
     }
 }
