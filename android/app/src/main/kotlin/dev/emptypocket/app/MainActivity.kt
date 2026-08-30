@@ -85,6 +85,17 @@ class MainActivity : FlutterFragmentActivity() {
                         result.error("INTENT_FAILED", "Could not open battery settings", e.message)
                     }
                 }
+                "openAppDetailsSettings" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("INTENT_FAILED", "Could not open app details settings", e.message)
+                    }
+                }
                 "hasNotificationPermission" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         val granted = androidx.core.content.ContextCompat.checkSelfPermission(

@@ -547,7 +547,7 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.battery_charging_full_rounded,
                   iconColor: AppColors.primaryEmerald,
                   title: '24/7 Background Whitelist',
-                  subtitle: 'Keep floating bubble alive in background (OnePlus / Xiaomi / Moto)',
+                  subtitle: 'Keep floating bubble alive on OnePlus / Xiaomi / Moto',
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
@@ -571,22 +571,9 @@ class SettingsScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  onTap: () async {
+                  onTap: () {
                     AppHaptics.buttonPress();
-                    final success = await BatteryOptimizationService.requestIgnoreBatteryOptimizations();
-                    if (context.mounted) {
-                      if (!success) {
-                        await BatteryOptimizationService.openBatterySettings();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Battery optimization whitelist requested.'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: AppColors.primaryEmerald,
-                          ),
-                        );
-                      }
-                    }
+                    _showBatteryWhitelistBottomSheet(context);
                   },
                 ),
               ],
@@ -798,6 +785,199 @@ class SettingsScreen extends ConsumerWidget {
       ),
       trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right_rounded, size: 20) : null),
       onTap: onTap,
+    );
+  }
+
+  void _showBatteryWhitelistBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryEmerald.withAlpha(30),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.shield_rounded, color: AppColors.primaryEmerald, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      '24/7 Background Whitelist',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'OnePlus (OxygenOS 14/15), Xiaomi, and Motorola aggressively kill floating apps when swiped from Recent Apps. Follow these quick steps to keep your floating bubble alive 24/7:',
+                style: TextStyle(fontSize: 13, color: context.financialColors.textMuted, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+
+              // Step 1: Battery Optimization
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 12,
+                      backgroundColor: AppColors.primaryEmerald,
+                      child: Text('1', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Battery Optimization', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          Text('Set to "Don\'t optimize" or "Unrestricted"', style: TextStyle(fontSize: 11, color: Colors.white70)),
+                        ],
+                      ),
+                    ),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        side: const BorderSide(color: AppColors.primaryEmerald),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () async {
+                        final success = await BatteryOptimizationService.requestIgnoreBatteryOptimizations();
+                        if (!success) {
+                          await BatteryOptimizationService.openBatterySettings();
+                        }
+                      },
+                      child: const Text('Allow', style: TextStyle(color: AppColors.primaryEmerald, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Step 2: Auto-Launch & Background Activity
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 12,
+                      backgroundColor: AppColors.primaryEmerald,
+                      child: Text('2', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Allow Background Activity', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          Text('Enable "Allow auto-launch" in App Battery info', style: TextStyle(fontSize: 11, color: Colors.white70)),
+                        ],
+                      ),
+                    ),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        side: const BorderSide(color: AppColors.primaryEmerald),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () async {
+                        await BatteryOptimizationService.openAppDetailsSettings();
+                      },
+                      child: const Text('Open', style: TextStyle(color: AppColors.primaryEmerald, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Step 3: Lock in Recent Apps
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundColor: AppColors.primaryEmerald,
+                      child: Text('3', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Lock in Recent Apps (Critical for OnePlus)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          SizedBox(height: 2),
+                          Text(
+                            'Open Recent Apps, tap the 3-dots on EmptyPocket, and tap "Lock" (padlock icon). This stops OxygenOS from killing the bubble when closing all apps.',
+                            style: TextStyle(fontSize: 11, color: Colors.white70, height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryEmerald,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Got It', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
