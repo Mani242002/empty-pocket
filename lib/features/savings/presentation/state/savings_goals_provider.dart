@@ -12,7 +12,16 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
   @override
   FutureOr<List<SavingsGoalEntity>> build() async {
     final repository = ref.watch(savingsGoalRepositoryProvider);
-    return await repository.getAllGoals();
+    final goals = await repository.getAllGoals();
+
+    // Automatically sync linked goal progress whenever bank account balances change
+    ref.listen(bankAccountListProvider, (previous, next) {
+      next.whenData((_) {
+        syncAllLinkedGoals();
+      });
+    });
+
+    return goals;
   }
 
   Future<void> saveGoal(SavingsGoalEntity goal) async {
@@ -31,6 +40,72 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
       await repository.deleteGoal(id);
       return await repository.getAllGoals();
     });
+  }
+
+  Future<void> syncGoalsForAccount(String accountId) async {
+    final currentGoals = state.valueOrNull ?? await ref.read(savingsGoalRepositoryProvider).getAllGoals();
+    final accounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
+    final account = accounts.where((a) => a.id == accountId).firstOrNull;
+    if (account == null) return;
+
+    final repository = ref.read(savingsGoalRepositoryProvider);
+    bool anyChanged = false;
+    final now = DateTime.now();
+
+    for (final goal in currentGoals) {
+      if (goal.linkedAccountId == accountId && goal.autoSyncAccount) {
+        final syncedAmount = (account.currentBalance * (goal.allocationPercentage / 100.0)).clamp(0.0, double.infinity);
+        if ((syncedAmount - goal.currentAmount).abs() > 0.01) {
+          final isCompleted = syncedAmount >= goal.targetAmount;
+          final updated = goal.copyWith(
+            currentAmount: syncedAmount,
+            status: isCompleted
+                ? GoalStatus.completed
+                : (goal.status == GoalStatus.completed ? GoalStatus.active : goal.status),
+            updatedAt: now,
+          );
+          await repository.saveGoal(updated);
+          anyChanged = true;
+        }
+      }
+    }
+    if (anyChanged) {
+      state = AsyncValue.data(await repository.getAllGoals());
+    }
+  }
+
+  Future<void> syncAllLinkedGoals() async {
+    final currentGoals = state.valueOrNull ?? await ref.read(savingsGoalRepositoryProvider).getAllGoals();
+    final accounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
+    if (accounts.isEmpty) return;
+
+    final repository = ref.read(savingsGoalRepositoryProvider);
+    bool anyChanged = false;
+    final now = DateTime.now();
+
+    for (final goal in currentGoals) {
+      if (goal.linkedAccountId != null && goal.autoSyncAccount) {
+        final account = accounts.where((a) => a.id == goal.linkedAccountId).firstOrNull;
+        if (account != null) {
+          final syncedAmount = (account.currentBalance * (goal.allocationPercentage / 100.0)).clamp(0.0, double.infinity);
+          if ((syncedAmount - goal.currentAmount).abs() > 0.01) {
+            final isCompleted = syncedAmount >= goal.targetAmount;
+            final updated = goal.copyWith(
+              currentAmount: syncedAmount,
+              status: isCompleted
+                  ? GoalStatus.completed
+                  : (goal.status == GoalStatus.completed ? GoalStatus.active : goal.status),
+              updatedAt: now,
+            );
+            await repository.saveGoal(updated);
+            anyChanged = true;
+          }
+        }
+      }
+    }
+    if (anyChanged) {
+      state = AsyncValue.data(await repository.getAllGoals());
+    }
   }
 
   Future<void> addFunds({

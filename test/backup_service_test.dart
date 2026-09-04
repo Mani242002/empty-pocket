@@ -127,7 +127,7 @@ void main() {
         recurringExpenses: [recurring],
       );
 
-      expect(jsonStr, contains('"schemaVersion": 9'));
+      expect(jsonStr, contains('"schemaVersion": 10'));
       expect(jsonStr, contains('"transactionsCount": 1'));
 
       final parsed = backupService.parseBackupJson(jsonStr);

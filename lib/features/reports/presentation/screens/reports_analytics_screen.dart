@@ -27,6 +27,10 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
     final paymentSources = ref.watch(paymentSourceBreakdownProvider);
     final categoryBreakdown = ref.watch(monthlyCategoryBreakdownProvider);
     final aiConfig = ref.watch(aiProviderConfigProvider);
+    final accountOutflows = ref.watch(accountOutflowBreakdownProvider);
+    final sharedImpact = ref.watch(sharedExpenseImpactProvider);
+    final wealthBuilding = ref.watch(wealthBuildingSummaryProvider);
+    final categoryChanges = ref.watch(categoryMomChangesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -271,6 +275,12 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 20),
 
+          // MoM Category Changes
+          if (categoryChanges.isNotEmpty) ...[
+            _buildCategoryMomCard(context, categoryChanges, isDark, financialColors),
+            const SizedBox(height: 20),
+          ],
+
           // 4. Payment Methods Distribution
           if (paymentSources.isNotEmpty) ...[
             Text(
@@ -316,6 +326,22 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                 }).toList(),
               ),
             ),
+            const SizedBox(height: 20),
+          ],
+
+          // Account-Wise Outflow Breakdown (Purpose Linked)
+          if (accountOutflows.isNotEmpty) ...[
+            _buildAccountOutflowCard(context, accountOutflows, isDark, financialColors),
+            const SizedBox(height: 20),
+          ],
+
+          // Wealth Building & Capital Allocation
+          _buildWealthBuildingCard(context, wealthBuilding, isDark, financialColors),
+          const SizedBox(height: 20),
+
+          // True Personal Spend vs Shared Reimbursements
+          if (sharedImpact.grossExpense > 0) ...[
+            _buildSharedImpactCard(context, sharedImpact, isDark, financialColors),
             const SizedBox(height: 20),
           ],
 
@@ -493,6 +519,452 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAccountOutflowCard(
+    BuildContext context,
+    List<AccountOutflowBreakdown> outflows,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Account-Wise Outflow Breakdown',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            Text(
+              '${outflows.length} Sources',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: financialColors.textMuted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: outflows.map((item) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 25),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                item.purpose,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryEmerald,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              item.accountName,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  CurrencyFormatter.format(item.totalOutflow),
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '(${item.percentage.toStringAsFixed(1)}%)',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: financialColors.textMuted),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: (item.percentage / 100).clamp(0.0, 1.0),
+                          minHeight: 6,
+                          backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryEmerald),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWealthBuildingCard(
+    BuildContext context,
+    WealthBuildingSummary wealth,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Wealth Retention & Savings Rate',
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [const Color(0xFF312E81), const Color(0xFF1E1B4B), const Color(0xFF0F172A)]
+                  : [const Color(0xFFEEF2FF), const Color(0xFFE0E7FF), const Color(0xFFFFFFFF)],
+            ),
+            border: Border.all(color: const Color(0xFF6366F1).withAlpha(80), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'CAPITAL PRESERVATION RATE',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                          color: Color(0xFF818CF8),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${wealth.wealthBuildingRate.toStringAsFixed(1)}%',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF6366F1),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withAlpha(40),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.shield_rounded, color: Color(0xFF6366F1), size: 28),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: (wealth.wealthBuildingRate / 100).clamp(0.0, 1.0),
+                  minHeight: 8,
+                  backgroundColor: isDark ? Colors.white12 : Colors.black12,
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildWealthMetric('Investments', wealth.investmentOutflow, const Color(0xFF6366F1)),
+                  const SizedBox(width: 8),
+                  _buildWealthMetric('Savings Goals', wealth.savingsTransfer, AppColors.savings),
+                  const SizedBox(width: 8),
+                  _buildWealthMetric('Living Expenses', wealth.pureExpense, financialColors.expense),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWealthMetric(String label, double amount, Color color) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              CurrencyFormatter.format(amount),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSharedImpactCard(
+    BuildContext context,
+    SharedExpenseImpact impact,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'True Spend vs Shared Expenses',
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Gross Outflow (Total Paid)',
+                            style: TextStyle(fontSize: 11, color: financialColors.textMuted),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              CurrencyFormatter.format(impact.grossExpense),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            'Your True Personal Share',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primaryEmerald),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              CurrencyFormatter.format(impact.truePersonalSpend),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primaryEmerald),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withAlpha(isDark ? 40 : 20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Pending Collection', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.warning)),
+                            const SizedBox(height: 2),
+                            Text(
+                              CurrencyFormatter.format(impact.pendingReimbursement),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.warning),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.income.withAlpha(isDark ? 40 : 20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Settled / Recovered', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.income)),
+                            const SizedBox(height: 2),
+                            Text(
+                              CurrencyFormatter.format(impact.settledReimbursement),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.income),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryMomCard(
+    BuildContext context,
+    List<CategoryMomChange> changes,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Month-Over-Month Category Shifts',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            Text(
+              'vs Previous Month',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: financialColors.textMuted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: changes.take(5).map((change) {
+                final isIncrease = change.isIncrease;
+                final badgeColor = isIncrease ? AppColors.expense : AppColors.primaryEmerald;
+                final icon = isIncrease ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+                final sign = isIncrease ? '+' : '';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              change.category,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                            ),
+                            Text(
+                              'Now: ${CurrencyFormatter.format(change.currentMonthAmount)} • Prior: ${CurrencyFormatter.format(change.previousMonthAmount)}',
+                              style: TextStyle(fontSize: 11, color: financialColors.textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: badgeColor.withAlpha(isDark ? 45 : 25),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(icon, size: 12, color: badgeColor),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '$sign${CurrencyFormatter.format(change.diffAmount)} ($sign${change.percentChange.toStringAsFixed(0)}%)',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: badgeColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -38,6 +38,8 @@ class SavingsGoalEntity {
   final bool isEmergencyFund;
   final GoalStatus status;
   final String? linkedAccountId;
+  final double allocationPercentage;
+  final bool autoSyncAccount;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -53,6 +55,8 @@ class SavingsGoalEntity {
     this.isEmergencyFund = false,
     this.status = GoalStatus.active,
     this.linkedAccountId,
+    this.allocationPercentage = 100.0,
+    this.autoSyncAccount = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -67,6 +71,8 @@ class SavingsGoalEntity {
     bool? isEmergencyFund,
     GoalStatus? status,
     Object? linkedAccountId = _sentinel,
+    double? allocationPercentage,
+    bool? autoSyncAccount,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -82,6 +88,8 @@ class SavingsGoalEntity {
       linkedAccountId: identical(linkedAccountId, _sentinel)
           ? this.linkedAccountId
           : (linkedAccountId as String?),
+      allocationPercentage: allocationPercentage ?? this.allocationPercentage,
+      autoSyncAccount: autoSyncAccount ?? this.autoSyncAccount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -98,6 +106,8 @@ class SavingsGoalEntity {
       'is_emergency_fund': isEmergencyFund ? 1 : 0,
       'status': status.name,
       'linked_account_id': linkedAccountId,
+      'allocation_percentage': allocationPercentage,
+      'auto_sync_account': autoSyncAccount ? 1 : 0,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
@@ -114,6 +124,8 @@ class SavingsGoalEntity {
       isEmergencyFund: (map['is_emergency_fund'] as int) == 1,
       status: GoalStatus.fromString(map['status'] as String),
       linkedAccountId: map['linked_account_id'] as String?,
+      allocationPercentage: (map['allocation_percentage'] as num?)?.toDouble() ?? 100.0,
+      autoSyncAccount: (map['auto_sync_account'] as int? ?? 0) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
     );
@@ -130,7 +142,9 @@ class SavingsGoalEntity {
           currentAmount == other.currentAmount &&
           category == other.category &&
           status == other.status &&
-          linkedAccountId == other.linkedAccountId;
+          linkedAccountId == other.linkedAccountId &&
+          allocationPercentage == other.allocationPercentage &&
+          autoSyncAccount == other.autoSyncAccount;
 
   @override
   int get hashCode => Object.hash(
@@ -141,6 +155,8 @@ class SavingsGoalEntity {
         category,
         status,
         linkedAccountId,
+        allocationPercentage,
+        autoSyncAccount,
       );
 }
 

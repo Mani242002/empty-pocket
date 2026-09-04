@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
+import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/category_constants.dart';
+import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/domain/entities/recurring_expense_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
@@ -37,6 +39,9 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
   late TextEditingController _amountController;
   late String _selectedCategory;
   late RecurringFrequency _selectedFrequency;
+  late PaymentMode _selectedPaymentMode;
+  String? _selectedAccountId;
+  String? _selectedCreditCardId;
   late String _selectedPaymentSource;
   late DateTime _nextDueDate;
   late bool _isActive;
@@ -60,9 +65,24 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
     );
     _selectedCategory = item?.category ?? CategoryConstants.expenseCategories.first.name;
     _selectedFrequency = item?.frequency ?? RecurringFrequency.monthly;
-    _selectedPaymentSource = item?.paymentSource ?? CategoryConstants.paymentSources.first;
+    _selectedPaymentSource = item?.paymentSource ?? 'Bank Account';
+    _selectedAccountId = item?.accountId;
+    _selectedCreditCardId = item?.creditCardId;
     _nextDueDate = item?.nextDueDate ?? DateTime.now().add(const Duration(days: 7));
     _isActive = item?.isActive ?? true;
+
+    if (item != null) {
+      _selectedPaymentMode = PaymentMode.fromString(item.paymentSource);
+      if (item.creditCardId != null && _selectedPaymentMode != PaymentMode.upiWallet) {
+        _selectedPaymentMode = PaymentMode.creditCard;
+      } else if (item.accountId != null &&
+          _selectedPaymentMode != PaymentMode.upiWallet &&
+          _selectedPaymentMode != PaymentMode.cash) {
+        _selectedPaymentMode = PaymentMode.bankAccount;
+      }
+    } else {
+      _selectedPaymentMode = PaymentMode.bankAccount;
+    }
   }
 
   @override
@@ -70,6 +90,82 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
     _titleController.dispose();
     _amountController.dispose();
     super.dispose();
+  }
+
+  void _autoSelectLinkedSource(
+    PaymentMode mode,
+    List<BankAccountEntity> bankAccounts,
+    List<CreditCardEntity> creditCards,
+  ) {
+    switch (mode) {
+      case PaymentMode.bankAccount:
+        if (bankAccounts.isNotEmpty) {
+          final def = bankAccounts.where((a) => a.isDefault).firstOrNull;
+          final matched = AccountPurposeTags.matchAccountForCategory(
+            _selectedCategory,
+            bankAccounts,
+            defaultAccount: def,
+          );
+          final acc = matched ?? (def ?? bankAccounts.first);
+          _selectedAccountId = acc.id;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = acc.accountName;
+        } else {
+          _selectedAccountId = null;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = 'Bank Account';
+        }
+        break;
+      case PaymentMode.creditCard:
+        if (creditCards.isNotEmpty) {
+          final card = creditCards.first;
+          _selectedCreditCardId = card.id;
+          _selectedAccountId = null;
+          _selectedPaymentSource = card.cardName;
+        } else {
+          _selectedAccountId = null;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = 'Credit Card';
+        }
+        break;
+      case PaymentMode.upiWallet:
+        if (bankAccounts.isNotEmpty) {
+          final def = bankAccounts.where((a) => a.isDefault).firstOrNull;
+          final matched = AccountPurposeTags.matchAccountForCategory(
+            _selectedCategory,
+            bankAccounts,
+            defaultAccount: def,
+          );
+          final acc = matched ?? (def ?? bankAccounts.first);
+          _selectedAccountId = acc.id;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = 'UPI (${acc.accountName})';
+        } else {
+          final rupayCards = creditCards.where((c) => c.cardNetwork == CardNetwork.rupay).toList();
+          if (rupayCards.isNotEmpty) {
+            _selectedCreditCardId = rupayCards.first.id;
+            _selectedAccountId = null;
+            _selectedPaymentSource = 'UPI (${rupayCards.first.cardName})';
+          } else {
+            _selectedAccountId = null;
+            _selectedCreditCardId = null;
+            _selectedPaymentSource = 'UPI / Wallet';
+          }
+        }
+        break;
+      case PaymentMode.cash:
+        final cashAccounts = bankAccounts.where((a) => a.accountType == AccountType.cash).toList();
+        if (cashAccounts.isNotEmpty) {
+          _selectedAccountId = cashAccounts.first.id;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = cashAccounts.first.accountName;
+        } else {
+          _selectedAccountId = null;
+          _selectedCreditCardId = null;
+          _selectedPaymentSource = 'Cash';
+        }
+        break;
+    }
   }
 
   Future<void> _pickDueDate() async {
@@ -104,22 +200,6 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
     final title = _titleController.text.trim();
     final now = DateTime.now();
 
-    final bankAccounts = ref.read(activeBankAccountsProvider);
-    final creditCards = ref.read(activeCreditCardsProvider);
-
-    String? accountId;
-    String? creditCardId;
-
-    final matchedBank = bankAccounts.where((a) => a.accountName.toLowerCase() == _selectedPaymentSource.toLowerCase()).firstOrNull;
-    if (matchedBank != null) {
-      accountId = matchedBank.id;
-    } else {
-      final matchedCard = creditCards.where((c) => c.cardName.toLowerCase() == _selectedPaymentSource.toLowerCase()).firstOrNull;
-      if (matchedCard != null) {
-        creditCardId = matchedCard.id;
-      }
-    }
-
     final item = RecurringExpenseEntity(
       id: widget.initialRecurring?.id ?? const Uuid().v4(),
       title: title,
@@ -127,8 +207,8 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
       category: _selectedCategory,
       frequency: _selectedFrequency,
       paymentSource: _selectedPaymentSource,
-      accountId: accountId ?? widget.initialRecurring?.accountId,
-      creditCardId: creditCardId ?? widget.initialRecurring?.creditCardId,
+      accountId: _selectedAccountId,
+      creditCardId: _selectedCreditCardId,
       startDate: widget.initialRecurring?.startDate ?? now,
       nextDueDate: _nextDueDate,
       isActive: _isActive,
@@ -188,6 +268,288 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
     }
   }
 
+  Widget _buildModeChip(PaymentMode mode, String label, IconData icon) {
+    final isSelected = _selectedPaymentMode == mode;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final financialColors = context.financialColors;
+
+    return ChoiceChip(
+      avatar: Icon(
+        icon,
+        size: 16,
+        color: isSelected ? Colors.white : financialColors.textMuted,
+      ),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          color: isSelected ? Colors.white : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: Theme.of(context).colorScheme.primary,
+      backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+      side: BorderSide(
+        color: isSelected ? Theme.of(context).colorScheme.primary : financialColors.cardBorder,
+      ),
+      onSelected: (selected) {
+        if (selected) {
+          setState(() {
+            _selectedPaymentMode = mode;
+            final bankAccounts = ref.read(activeBankAccountsProvider);
+            final creditCards = ref.read(activeCreditCardsProvider);
+            _autoSelectLinkedSource(mode, bankAccounts, creditCards);
+          });
+        }
+      },
+    );
+  }
+
+  Widget _buildLinkedSourceDropdown(
+    BuildContext context,
+    List<BankAccountEntity> bankAccounts,
+    List<CreditCardEntity> creditCards,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    switch (_selectedPaymentMode) {
+      case PaymentMode.bankAccount:
+        if (bankAccounts.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: financialColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No bank accounts configured. Will record as general Bank Account.',
+                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final currentValid = bankAccounts.any((a) => a.id == _selectedAccountId);
+        final initialVal = currentValid ? _selectedAccountId : bankAccounts.first.id;
+
+        return DropdownButtonFormField<String>(
+          initialValue: initialVal,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.account_balance_rounded, size: 18),
+          ),
+          items: bankAccounts.map((acc) {
+            return DropdownMenuItem<String>(
+              value: acc.id,
+              child: Text(
+                '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (accId) {
+            if (accId == null) return;
+            setState(() {
+              _selectedAccountId = accId;
+              _selectedCreditCardId = null;
+              final acc = bankAccounts.firstWhere((a) => a.id == accId);
+              _selectedPaymentSource = acc.accountName;
+            });
+          },
+        );
+
+      case PaymentMode.creditCard:
+        if (creditCards.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: financialColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.credit_card_off_rounded, size: 18, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No credit cards added. Will record as general Credit Card.',
+                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final currentValid = creditCards.any((c) => c.id == _selectedCreditCardId);
+        final initialVal = currentValid ? _selectedCreditCardId : creditCards.first.id;
+
+        return DropdownButtonFormField<String>(
+          initialValue: initialVal,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.credit_card_rounded, size: 18),
+          ),
+          items: creditCards.map((card) {
+            return DropdownMenuItem<String>(
+              value: card.id,
+              child: Text(
+                '💳 ${card.cardName} (${card.bankName}) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (cardId) {
+            if (cardId == null) return;
+            setState(() {
+              _selectedCreditCardId = cardId;
+              _selectedAccountId = null;
+              final card = creditCards.firstWhere((c) => c.id == cardId);
+              _selectedPaymentSource = card.cardName;
+            });
+          },
+        );
+
+      case PaymentMode.upiWallet:
+        final rupayCards = creditCards.where((c) => c.cardNetwork == CardNetwork.rupay).toList();
+        if (bankAccounts.isEmpty && rupayCards.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: financialColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'No bank accounts or RuPay cards added. Will record as UPI / Wallet.',
+                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final upiKey = _selectedCreditCardId != null
+            ? 'card_$_selectedCreditCardId'
+            : (_selectedAccountId != null ? 'acc_$_selectedAccountId' : null);
+
+        return DropdownButtonFormField<String>(
+          initialValue: upiKey,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.qr_code_scanner_rounded, size: 18),
+          ),
+          items: [
+            ...bankAccounts.map((acc) => DropdownMenuItem(
+                  value: 'acc_${acc.id}',
+                  child: Text(
+                    '🏦 ${acc.accountName} (Bank UPI)',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )),
+            ...rupayCards.map((card) => DropdownMenuItem(
+                  value: 'card_${card.id}',
+                  child: Text(
+                    '💳 ${card.cardName} (RuPay Credit UPI)',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )),
+          ],
+          onChanged: (val) {
+            if (val == null) return;
+            setState(() {
+              if (val.startsWith('acc_')) {
+                _selectedAccountId = val.substring(4);
+                _selectedCreditCardId = null;
+                final acc = bankAccounts.firstWhere((a) => a.id == _selectedAccountId);
+                _selectedPaymentSource = 'UPI (${acc.accountName})';
+              } else if (val.startsWith('card_')) {
+                _selectedCreditCardId = val.substring(5);
+                _selectedAccountId = null;
+                final card = creditCards.firstWhere((c) => c.id == _selectedCreditCardId);
+                _selectedPaymentSource = 'UPI (${card.cardName})';
+              }
+            });
+          },
+        );
+
+      case PaymentMode.cash:
+        final cashAccounts = bankAccounts.where((a) => a.accountType == AccountType.cash).toList();
+        if (cashAccounts.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: financialColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.payments_rounded, size: 18, color: AppColors.savings),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Recording as Physical Cash wallet.',
+                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final currentValid = cashAccounts.any((a) => a.id == _selectedAccountId);
+        final initialVal = currentValid ? _selectedAccountId : cashAccounts.first.id;
+
+        return DropdownButtonFormField<String>(
+          initialValue: initialVal,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.payments_rounded, size: 18),
+          ),
+          items: cashAccounts.map((acc) {
+            return DropdownMenuItem<String>(
+              value: acc.id,
+              child: Text(
+                '💵 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (accId) {
+            if (accId == null) return;
+            setState(() {
+              _selectedAccountId = accId;
+              _selectedCreditCardId = null;
+              final acc = cashAccounts.firstWhere((a) => a.id == accId);
+              _selectedPaymentSource = acc.accountName;
+            });
+          },
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -198,14 +560,10 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
     final bankAccounts = ref.watch(activeBankAccountsProvider);
     final creditCards = ref.watch(activeCreditCardsProvider);
 
-    final availableSources = <String>[
-      ...bankAccounts.map((a) => a.accountName),
-      ...creditCards.map((c) => c.cardName),
-      'Cash',
-      'UPI / Wallet',
-    ];
-    if (!availableSources.contains(_selectedPaymentSource)) {
-      availableSources.insert(0, _selectedPaymentSource);
+    if (_selectedAccountId == null &&
+        _selectedCreditCardId == null &&
+        (bankAccounts.isNotEmpty || creditCards.isNotEmpty)) {
+      _autoSelectLinkedSource(_selectedPaymentMode, bankAccounts, creditCards);
     }
 
     return Material(
@@ -368,7 +726,16 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
                       final item = categories[index];
                       final isSelected = _selectedCategory == item.name;
                       return GestureDetector(
-                        onTap: () => setState(() => _selectedCategory = item.name),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _selectedCategory = item.name;
+                            if (_selectedPaymentMode == PaymentMode.bankAccount ||
+                                _selectedPaymentMode == PaymentMode.upiWallet) {
+                              _autoSelectLinkedSource(_selectedPaymentMode, bankAccounts, creditCards);
+                            }
+                          });
+                        },
                         child: Container(
                           width: 80,
                           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
@@ -408,95 +775,88 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
                     },
                   ),
                 ),
-                const SizedBox(height: 18),
+                // Next Due Date
+                Text(
+                  'NEXT DUE DATE',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: financialColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: _pickDueDate,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: financialColors.cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.event_rounded, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            DateFormat('EEEE, dd MMMM yyyy').format(_nextDueDate),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.calendar_month_outlined, size: 18, color: financialColors.textMuted),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-                // Next Due Date & Payment Source
-                IntrinsicHeight(
+                // Pay Via (Payment Mode)
+                Text(
+                  'PAY FROM (MODE)',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: financialColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'NEXT DUE DATE',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.1,
-                                color: financialColors.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: InkWell(
-                                onTap: _pickDueDate,
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: financialColors.cardBorder),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.event_rounded, size: 18),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          DateFormat('dd MMM yyyy').format(_nextDueDate),
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PAYMENT SOURCE',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.1,
-                                color: financialColors.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              initialValue: _selectedPaymentSource,
-                              isExpanded: true,
-                              decoration: const InputDecoration(
-                                prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 18),
-                              ),
-                              items: availableSources.map((s) {
-                                return DropdownMenuItem(
-                                  value: s,
-                                  child: Text(s, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) setState(() => _selectedPaymentSource = val);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildModeChip(PaymentMode.bankAccount, 'Bank Account', Icons.account_balance_rounded),
+                      const SizedBox(width: 8),
+                      _buildModeChip(PaymentMode.creditCard, 'Credit Card', Icons.credit_card_rounded),
+                      const SizedBox(width: 8),
+                      _buildModeChip(PaymentMode.upiWallet, 'UPI / Wallet', Icons.qr_code_scanner_rounded),
+                      const SizedBox(width: 8),
+                      _buildModeChip(PaymentMode.cash, 'Cash', Icons.payments_rounded),
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // Account / Card Selector
+                Text(
+                  _selectedPaymentMode == PaymentMode.creditCard
+                      ? 'SELECT CREDIT CARD'
+                      : _selectedPaymentMode == PaymentMode.bankAccount
+                          ? 'SELECT BANK ACCOUNT'
+                          : _selectedPaymentMode == PaymentMode.upiWallet
+                              ? 'SELECT UPI LINK'
+                              : 'SELECT CASH WALLET',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: financialColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildLinkedSourceDropdown(context, bankAccounts, creditCards, isDark, financialColors),
                 const SizedBox(height: 28),
 
                 // Save Action

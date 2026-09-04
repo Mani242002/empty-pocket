@@ -163,62 +163,70 @@ class TransactionListItem extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              categoryItem.name,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: financialColors.textMuted,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 3,
-                            height: 3,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: financialColors.textMuted,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? AppColors.darkSurfaceVariant
-                                    : AppColors.lightSurfaceVariant,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                transaction.paymentSource,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.lightTextSecondary,
+                      Builder(
+                        builder: (context) {
+                          final hasSource = transaction.paymentSource.trim().isNotEmpty;
+                          return Row(
+                            children: [
+                              Flexible(
+                                flex: 3,
+                                child: Text(
+                                  categoryItem.name,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            timeStr,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: 11,
-                              color: financialColors.textMuted,
-                            ),
-                            maxLines: 1,
-                          ),
-                        ],
+                              const SizedBox(width: 4),
+                              Text(
+                                '• $timeStr',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontSize: 11,
+                                  color: financialColors.textMuted,
+                                ),
+                              ),
+                              if (hasSource) ...[
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  flex: 4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? AppColors.darkSurfaceVariant
+                                          : AppColors.lightSurfaceVariant,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: financialColors.cardBorder.withAlpha(90)),
+                                    ),
+                                    child: Text(
+                                      transaction.paymentSource.trim(),
+                                      style: theme.textTheme.labelSmall?.copyWith(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.darkTextSecondary
+                                            : AppColors.lightTextSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (transaction.isShared) ...[
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.group_outlined,
+                                  size: 13,
+                                  color: transaction.isSettled ? financialColors.income : financialColors.warning,
+                                ),
+                              ],
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),

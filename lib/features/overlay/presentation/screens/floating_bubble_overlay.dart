@@ -118,6 +118,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           final matched = categories.firstWhere((c) => c.name.toLowerCase() == detected.toLowerCase());
           setState(() {
             _selectedCategory = matched.name;
+            if (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet) {
+              _autoSelectLinkedSource(_selectedPaymentMode);
+            }
           });
         }
       }
@@ -207,6 +210,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase())) {
         _titleController.text = _selectedCategory;
       }
+      if (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet) {
+        _autoSelectLinkedSource(_selectedPaymentMode);
+      }
     });
   }
 
@@ -214,8 +220,13 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
     switch (mode) {
       case PaymentMode.bankAccount:
         if (_bankAccounts.isNotEmpty) {
-          final def = _bankAccounts.where((a) => a.isDefault);
-          final acc = def.isNotEmpty ? def.first : _bankAccounts.first;
+          final def = _bankAccounts.where((a) => a.isDefault).firstOrNull;
+          final matched = AccountPurposeTags.matchAccountForCategory(
+            _selectedCategory,
+            _bankAccounts,
+            defaultAccount: def,
+          );
+          final acc = matched ?? (def ?? _bankAccounts.first);
           _selectedAccountId = acc.id;
           _selectedCreditCardId = null;
           _selectedPaymentSource = acc.accountName;
@@ -239,8 +250,13 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         break;
       case PaymentMode.upiWallet:
         if (_bankAccounts.isNotEmpty) {
-          final def = _bankAccounts.where((a) => a.isDefault);
-          final acc = def.isNotEmpty ? def.first : _bankAccounts.first;
+          final def = _bankAccounts.where((a) => a.isDefault).firstOrNull;
+          final matched = AccountPurposeTags.matchAccountForCategory(
+            _selectedCategory,
+            _bankAccounts,
+            defaultAccount: def,
+          );
+          final acc = matched ?? (def ?? _bankAccounts.first);
           _selectedAccountId = acc.id;
           _selectedCreditCardId = null;
           _selectedPaymentSource = 'UPI (${acc.accountName})';
@@ -730,6 +746,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                                 currentTitle.toLowerCase() == oldCategory.toLowerCase() ||
                                 allCategoryNames.contains(currentTitle.toLowerCase())) {
                               _titleController.text = cat.name;
+                            }
+                            if (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet) {
+                              _autoSelectLinkedSource(_selectedPaymentMode);
                             }
                           }),
                           child: Container(

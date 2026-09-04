@@ -123,7 +123,7 @@ void main() {
       expect(jsonStr, contains('runway is 4.2 months'));
 
       final parsed = service.parseBackupJson(jsonStr);
-      expect(parsed.metadata.schemaVersion, 9);
+      expect(parsed.metadata.schemaVersion, 10);
       expect(parsed.metadata.chatSessionsCount, 1);
       expect(parsed.metadata.chatMessagesCount, 2);
       expect(parsed.chatSessions.length, 1);

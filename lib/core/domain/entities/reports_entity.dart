@@ -45,3 +45,71 @@ class PaymentSourceBreakdown {
     required this.count,
   });
 }
+
+class AccountOutflowBreakdown {
+  final String accountId;
+  final String accountName;
+  final String purpose;
+  final double totalOutflow;
+  final double percentage;
+  final int transactionCount;
+
+  const AccountOutflowBreakdown({
+    required this.accountId,
+    required this.accountName,
+    required this.purpose,
+    required this.totalOutflow,
+    required this.percentage,
+    required this.transactionCount,
+  });
+}
+
+class SharedExpenseImpact {
+  final double grossExpense;
+  final double truePersonalSpend;
+  final double pendingReimbursement;
+  final double settledReimbursement;
+
+  const SharedExpenseImpact({
+    required this.grossExpense,
+    required this.truePersonalSpend,
+    required this.pendingReimbursement,
+    required this.settledReimbursement,
+  });
+
+  double get reimbursementRate => grossExpense > 0 ? (settledReimbursement / grossExpense * 100).clamp(0.0, 100.0) : 0.0;
+}
+
+class WealthBuildingSummary {
+  final double totalInflow;
+  final double investmentOutflow;
+  final double savingsTransfer;
+  final double pureExpense;
+  final double wealthBuildingRate; // (investment + savings) / totalInflow * 100
+
+  const WealthBuildingSummary({
+    required this.totalInflow,
+    required this.investmentOutflow,
+    required this.savingsTransfer,
+    required this.pureExpense,
+    required this.wealthBuildingRate,
+  });
+}
+
+class CategoryMomChange {
+  final String category;
+  final double currentMonthAmount;
+  final double previousMonthAmount;
+  final double diffAmount;
+  final double percentChange;
+
+  const CategoryMomChange({
+    required this.category,
+    required this.currentMonthAmount,
+    required this.previousMonthAmount,
+    required this.diffAmount,
+    required this.percentChange,
+  });
+
+  bool get isIncrease => diffAmount > 0;
+}

@@ -17,7 +17,7 @@ import '../services/log_service.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 9;
+  static const int _databaseVersion = 10;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
@@ -274,6 +274,18 @@ class AppDatabase {
         LogService.debug('AppDatabase', 'Investments source_account_id migration: $e');
       }
     }
+    if (oldVersion < 10) {
+      try {
+        await db.execute('ALTER TABLE $tableSavingsGoals ADD COLUMN allocation_percentage REAL NOT NULL DEFAULT 100.0');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'allocation_percentage column migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableSavingsGoals ADD COLUMN auto_sync_account INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'auto_sync_account column migration: $e');
+      }
+    }
   }
 
   Future<void> _createBankAccountsTable(Database db) async {
@@ -407,6 +419,8 @@ class AppDatabase {
         is_emergency_fund INTEGER NOT NULL,
         status TEXT NOT NULL,
         linked_account_id TEXT,
+        allocation_percentage REAL NOT NULL DEFAULT 100.0,
+        auto_sync_account INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )

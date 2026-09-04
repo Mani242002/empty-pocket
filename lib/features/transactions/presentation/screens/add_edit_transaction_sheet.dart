@@ -68,6 +68,7 @@ class _AddEditTransactionSheetState
   String? _selectedAccountId;
   String? _selectedCreditCardId;
   late String _selectedPaymentSource;
+  String? _autoSelectedReason;
   late DateTime _selectedDate;
 
   final _formKey = GlobalKey<FormState>();
@@ -145,6 +146,25 @@ class _AddEditTransactionSheetState
           final matched = categories.firstWhere((c) => c.name.toLowerCase() == detected.toLowerCase());
           setState(() {
             _selectedCategory = matched.name;
+            final bankAccounts = ref.read(activeBankAccountsProvider);
+            final defaultAcc = ref.read(defaultBankAccountProvider);
+            if (_selectedPaymentMode == PaymentMode.bankAccount ||
+                (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null)) {
+              final acc = AccountPurposeTags.matchAccountForCategory(
+                matched.name,
+                bankAccounts,
+                defaultAccount: defaultAcc,
+              );
+              if (acc != null) {
+                _selectedAccountId = acc.id;
+                if (_selectedPaymentMode == PaymentMode.upiWallet) {
+                  _selectedPaymentSource = 'UPI (${acc.accountName})';
+                } else {
+                  _selectedPaymentSource = acc.accountName;
+                }
+                _autoSelectedReason = '${acc.accountName} (${acc.usedFor})';
+              }
+            }
           });
         }
       }
@@ -184,15 +204,22 @@ class _AddEditTransactionSheetState
     switch (mode) {
       case PaymentMode.bankAccount:
         if (bankAccounts.isNotEmpty) {
-          final def = bankAccounts.where((a) => a.isDefault);
-          final acc = def.isNotEmpty ? def.first : bankAccounts.first;
+          final def = bankAccounts.where((a) => a.isDefault).firstOrNull;
+          final matched = AccountPurposeTags.matchAccountForCategory(
+            _selectedCategory,
+            bankAccounts,
+            defaultAccount: def,
+          );
+          final acc = matched ?? (def ?? bankAccounts.first);
           _selectedAccountId = acc.id;
           _selectedCreditCardId = null;
           _selectedPaymentSource = acc.accountName;
+          _autoSelectedReason = '${acc.accountName} (${acc.usedFor})';
         } else {
           _selectedAccountId = null;
           _selectedCreditCardId = null;
           _selectedPaymentSource = 'Bank Account';
+          _autoSelectedReason = null;
         }
         break;
       case PaymentMode.creditCard:
@@ -209,21 +236,29 @@ class _AddEditTransactionSheetState
         break;
       case PaymentMode.upiWallet:
         if (bankAccounts.isNotEmpty) {
-          final def = bankAccounts.where((a) => a.isDefault);
-          final acc = def.isNotEmpty ? def.first : bankAccounts.first;
+          final def = bankAccounts.where((a) => a.isDefault).firstOrNull;
+          final matched = AccountPurposeTags.matchAccountForCategory(
+            _selectedCategory,
+            bankAccounts,
+            defaultAccount: def,
+          );
+          final acc = matched ?? (def ?? bankAccounts.first);
           _selectedAccountId = acc.id;
           _selectedCreditCardId = null;
           _selectedPaymentSource = 'UPI (${acc.accountName})';
+          _autoSelectedReason = '${acc.accountName} (${acc.usedFor})';
         } else {
           final rupayCards = creditCards.where((c) => c.cardNetwork == CardNetwork.rupay).toList();
           if (rupayCards.isNotEmpty) {
             _selectedCreditCardId = rupayCards.first.id;
             _selectedAccountId = null;
             _selectedPaymentSource = 'UPI (${rupayCards.first.cardName})';
+            _autoSelectedReason = null;
           } else {
             _selectedAccountId = null;
             _selectedCreditCardId = null;
             _selectedPaymentSource = 'UPI / Wallet';
+            _autoSelectedReason = null;
           }
         }
         break;
@@ -608,9 +643,15 @@ class _AddEditTransactionSheetState
 
     if (_selectedAccountId == null && _selectedCreditCardId == null) {
       if (bankAccounts.isNotEmpty) {
-        final def = defaultAcc ?? bankAccounts.first;
+        final matched = AccountPurposeTags.matchAccountForCategory(
+          _selectedCategory,
+          bankAccounts,
+          defaultAccount: defaultAcc,
+        );
+        final def = matched ?? (defaultAcc ?? bankAccounts.first);
         _selectedAccountId = def.id;
         _selectedPaymentSource = def.accountName;
+        _autoSelectedReason = '${def.accountName} (${def.usedFor})';
       }
     }
 
@@ -846,6 +887,25 @@ class _AddEditTransactionSheetState
                                 allCategoryNames.contains(currentTitle.toLowerCase())) {
                               _titleController.text = item.name;
                             }
+
+                            // Smart category-based account defaulting
+                            if (_selectedPaymentMode == PaymentMode.bankAccount ||
+                                (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null)) {
+                              final matched = AccountPurposeTags.matchAccountForCategory(
+                                item.name,
+                                bankAccounts,
+                                defaultAccount: defaultAcc,
+                              );
+                              if (matched != null) {
+                                _selectedAccountId = matched.id;
+                                if (_selectedPaymentMode == PaymentMode.upiWallet) {
+                                  _selectedPaymentSource = 'UPI (${matched.accountName})';
+                                } else {
+                                  _selectedPaymentSource = matched.accountName;
+                                }
+                                _autoSelectedReason = '${matched.accountName} (${matched.usedFor})';
+                              }
+                            }
                           });
                         },
                         child: Container(
@@ -937,6 +997,30 @@ class _AddEditTransactionSheetState
                 ),
                 const SizedBox(height: 8),
                 _buildLinkedSourceDropdown(context, bankAccounts, creditCards, isDark, financialColors),
+                if (_autoSelectedReason != null &&
+                    (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt_rounded, size: 14, color: AppColors.primaryEmerald),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Smart auto-selected: $_autoSelectedReason',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryEmerald,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (!isIncome) _buildSharedExpenseSection(theme, financialColors, isDark),
                 if (isIncome) _buildIncomeReimbursementSection(theme, financialColors, isDark, creditCards),
                 const SizedBox(height: 20),
@@ -1162,6 +1246,7 @@ class _AddEditTransactionSheetState
               _selectedCreditCardId = null;
               final acc = bankAccounts.firstWhere((a) => a.id == accId);
               _selectedPaymentSource = acc.accountName;
+              _autoSelectedReason = null;
             });
           },
         );

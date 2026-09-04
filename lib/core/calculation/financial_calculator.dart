@@ -1008,6 +1008,178 @@ abstract class FinancialCalculator {
     return breakdown;
   }
 
+  /// Calculate account-wise outflow breakdown with purpose mapping
+  static List<AccountOutflowBreakdown> calculateAccountOutflowBreakdown(
+    List<TransactionEntity> transactions,
+    List<BankAccountEntity> bankAccounts,
+    List<CreditCardEntity> creditCards,
+  ) {
+    final outflows = transactions.where((t) => t.type == TransactionType.expense || (t.type == TransactionType.transfer && t.accountId != null)).toList();
+    if (outflows.isEmpty) return [];
+
+    final totalOutflow = outflows.fold(0.0, (sum, t) => sum + t.amount);
+    if (totalOutflow <= 0) return [];
+
+    final Map<String, List<TransactionEntity>> grouped = {};
+
+    for (final tx in outflows) {
+      final key = tx.accountId ?? (tx.creditCardId ?? tx.paymentSource);
+      grouped.putIfAbsent(key, () => []).add(tx);
+    }
+
+    final List<AccountOutflowBreakdown> list = [];
+    grouped.forEach((key, items) {
+      final amount = items.fold(0.0, (sum, t) => sum + t.amount);
+      final percentage = (amount / totalOutflow) * 100;
+
+      String name = items.first.paymentSource;
+      String purpose = 'General Outflow';
+
+      final acc = bankAccounts.where((a) => a.id == key || a.accountName.toLowerCase() == key.toLowerCase()).firstOrNull;
+      if (acc != null) {
+        name = acc.accountName;
+        purpose = acc.usedFor;
+      } else {
+        final card = creditCards.where((c) => c.id == key || c.cardName.toLowerCase() == key.toLowerCase()).firstOrNull;
+        if (card != null) {
+          name = card.cardName;
+          purpose = 'Credit Card (${card.bankName})';
+        }
+      }
+
+      list.add(
+        AccountOutflowBreakdown(
+          accountId: key,
+          accountName: name,
+          purpose: purpose,
+          totalOutflow: roundMoney(amount),
+          percentage: roundMoney(percentage),
+          transactionCount: items.length,
+        ),
+      );
+    });
+
+    list.sort((a, b) => b.totalOutflow.compareTo(a.totalOutflow));
+    return list;
+  }
+
+  /// Calculate true personal spend vs shared reimbursements
+  static SharedExpenseImpact calculateSharedExpenseImpact(List<TransactionEntity> transactions) {
+    final expenses = transactions.where((t) => t.type == TransactionType.expense).toList();
+    final gross = expenses.fold(0.0, (sum, t) => sum + t.amount);
+
+    double truePersonal = 0.0;
+    double pendingReimbursements = 0.0;
+    double settledReimbursements = 0.0;
+
+    for (final tx in expenses) {
+      if (tx.isShared) {
+        final myShare = tx.myShareAmount ?? (tx.amount - tx.reimbursedAmount);
+        truePersonal += myShare;
+        settledReimbursements += tx.reimbursedAmount;
+        if (!tx.isSettled) {
+          final pending = max(0.0, tx.amount - (tx.myShareAmount ?? 0.0) - tx.reimbursedAmount);
+          pendingReimbursements += pending;
+        }
+      } else {
+        truePersonal += tx.amount;
+      }
+    }
+
+    return SharedExpenseImpact(
+      grossExpense: roundMoney(gross),
+      truePersonalSpend: roundMoney(truePersonal),
+      pendingReimbursement: roundMoney(pendingReimbursements),
+      settledReimbursement: roundMoney(settledReimbursements),
+    );
+  }
+
+  /// Calculate wealth building & savings rate (investments + goals vs pure expenses)
+  static WealthBuildingSummary calculateWealthBuildingSummary(List<TransactionEntity> transactions) {
+    final totalInflow = calculateTotalIncome(transactions);
+    final expenses = transactions.where((t) => t.type == TransactionType.expense).toList();
+
+    double investmentOutflow = 0.0;
+    double savingsTransfer = 0.0;
+    double pureExpense = 0.0;
+
+    for (final tx in expenses) {
+      final catLower = tx.category.toLowerCase();
+      if (catLower.contains('investment') ||
+          catLower.contains('mutual') ||
+          catLower.contains('sip') ||
+          catLower.contains('stock') ||
+          catLower.contains('gold')) {
+        investmentOutflow += tx.amount;
+      } else if (catLower.contains('saving') || tx.linkedEntityId != null) {
+        savingsTransfer += tx.amount;
+      } else {
+        pureExpense += tx.amount;
+      }
+    }
+
+    final totalWealthAllocated = investmentOutflow + savingsTransfer;
+    final rate = totalInflow > 0 ? (totalWealthAllocated / totalInflow * 100).clamp(0.0, 100.0) : 0.0;
+
+    return WealthBuildingSummary(
+      totalInflow: roundMoney(totalInflow),
+      investmentOutflow: roundMoney(investmentOutflow),
+      savingsTransfer: roundMoney(savingsTransfer),
+      pureExpense: roundMoney(pureExpense),
+      wealthBuildingRate: roundMoney(rate),
+    );
+  }
+
+  /// Calculate month-over-month category spending changes
+  static List<CategoryMomChange> calculateCategoryMomChanges(
+    List<TransactionEntity> allTransactions,
+    DateTime currentMonth,
+  ) {
+    final currentTxs = allTransactions.where((t) =>
+        t.type == TransactionType.expense &&
+        t.date.year == currentMonth.year &&
+        t.date.month == currentMonth.month).toList();
+
+    final prevMonthDate = DateTime(currentMonth.year, currentMonth.month - 1);
+    final prevTxs = allTransactions.where((t) =>
+        t.type == TransactionType.expense &&
+        t.date.year == prevMonthDate.year &&
+        t.date.month == prevMonthDate.month).toList();
+
+    final Map<String, double> currentMap = {};
+    for (final t in currentTxs) {
+      currentMap[t.category] = (currentMap[t.category] ?? 0.0) + t.amount;
+    }
+
+    final Map<String, double> prevMap = {};
+    for (final t in prevTxs) {
+      prevMap[t.category] = (prevMap[t.category] ?? 0.0) + t.amount;
+    }
+
+    final allCategories = {...currentMap.keys, ...prevMap.keys};
+    final List<CategoryMomChange> changes = [];
+
+    for (final cat in allCategories) {
+      final curr = currentMap[cat] ?? 0.0;
+      final prev = prevMap[cat] ?? 0.0;
+      final diff = curr - prev;
+      final pct = prev > 0 ? ((curr - prev) / prev * 100) : (curr > 0 ? 100.0 : 0.0);
+
+      changes.add(
+        CategoryMomChange(
+          category: cat,
+          currentMonthAmount: roundMoney(curr),
+          previousMonthAmount: roundMoney(prev),
+          diffAmount: roundMoney(diff),
+          percentChange: roundMoney(pct),
+        ),
+      );
+    }
+
+    changes.sort((a, b) => b.diffAmount.abs().compareTo(a.diffAmount.abs()));
+    return changes;
+  }
+
   /// Calculate combined liquid cash across all non-archived bank accounts
   static double calculateCombinedLiquidCash(List<BankAccountEntity> accounts) {
     return accounts

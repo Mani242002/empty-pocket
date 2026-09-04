@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/reports_entity.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../budgets/presentation/state/recurring_provider.dart';
 import '../../../debts/presentation/state/debts_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
@@ -42,3 +43,31 @@ final paymentSourceBreakdownProvider = Provider<List<PaymentSourceBreakdown>>((r
     orElse: () => [],
   );
 });
+
+/// Account-wise outflow breakdown with purpose mapping (Kotak, ICICI, SBI, AU, IDFC, etc.)
+final accountOutflowBreakdownProvider = Provider<List<AccountOutflowBreakdown>>((ref) {
+  final transactions = ref.watch(monthlyTransactionsProvider);
+  final accounts = ref.watch(activeBankAccountsProvider);
+  final cards = ref.watch(activeCreditCardsProvider);
+  return FinancialCalculator.calculateAccountOutflowBreakdown(transactions, accounts, cards);
+});
+
+/// True personal spend vs shared reimbursements impact
+final sharedExpenseImpactProvider = Provider<SharedExpenseImpact>((ref) {
+  final transactions = ref.watch(monthlyTransactionsProvider);
+  return FinancialCalculator.calculateSharedExpenseImpact(transactions);
+});
+
+/// Wealth building rate (Investments + Goals vs living expenses)
+final wealthBuildingSummaryProvider = Provider<WealthBuildingSummary>((ref) {
+  final transactions = ref.watch(monthlyTransactionsProvider);
+  return FinancialCalculator.calculateWealthBuildingSummary(transactions);
+});
+
+/// Month-over-month category spending changes
+final categoryMomChangesProvider = Provider<List<CategoryMomChange>>((ref) {
+  final allTransactions = ref.watch(transactionListNotifierProvider).valueOrNull ?? [];
+  final currentMonth = ref.watch(selectedMonthProvider);
+  return FinancialCalculator.calculateCategoryMomChanges(allTransactions, currentMonth);
+});
+

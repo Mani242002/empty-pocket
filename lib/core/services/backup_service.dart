@@ -39,7 +39,7 @@ class BackupService {
     List<CreditCardEntity> creditCards = const [],
   }) {
     final metadata = BackupMetadata(
-      schemaVersion: 9,
+      schemaVersion: 10,
       exportedAt: DateTime.now(),
       transactionsCount: transactions.length,
       budgetsCount: budgets.length,

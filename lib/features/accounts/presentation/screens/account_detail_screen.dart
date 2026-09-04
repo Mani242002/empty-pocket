@@ -12,6 +12,10 @@ import 'account_transfer_sheet.dart';
 import 'add_edit_bank_account_sheet.dart';
 import 'add_edit_credit_card_sheet.dart';
 import 'pay_credit_card_sheet.dart';
+import 'smart_inflow_distribution_sheet.dart';
+import '../../../../core/domain/entities/savings_goal_entity.dart';
+import '../../../savings/presentation/state/savings_goals_provider.dart';
+import '../../../savings/presentation/screens/add_edit_savings_goal_sheet.dart';
 import '../state/accounts_cards_provider.dart';
 
 class AccountDetailScreen extends ConsumerWidget {
@@ -48,6 +52,11 @@ class AccountDetailScreen extends ConsumerWidget {
     final liveCard = creditCard != null
         ? liveCards.firstWhere((c) => c.id == creditCard!.id, orElse: () => creditCard!)
         : null;
+
+    final allGoals = ref.watch(savingsGoalsListNotifierProvider).valueOrNull ?? [];
+    final linkedGoals = liveAccount != null
+        ? allGoals.where((g) => g.linkedAccountId == liveAccount.id).toList()
+        : <SavingsGoalEntity>[];
 
     // Filter transactions linked to this account or card
     final filteredTransactions = allTransactions.where((tx) {
@@ -96,6 +105,15 @@ class AccountDetailScreen extends ConsumerWidget {
               ),
             ),
 
+            // Linked Goals & Allocations Card (if any exist)
+            if (linkedGoals.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: _buildLinkedGoalsCard(context, ref, liveAccount!, linkedGoals, isDark, financialColors),
+                ),
+              ),
+
             // Section Title
             SliverToBoxAdapter(
               child: Padding(
@@ -120,14 +138,28 @@ class AccountDetailScreen extends ConsumerWidget {
                         onPressed: () => PayCreditCardSheet.show(context, card: liveCard),
                       )
                     else
-                      FilledButton.tonalIcon(
-                        style: FilledButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                        ),
-                        icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-                        label: const Text('Transfer'),
-                        onPressed: () => AccountTransferSheet.show(context, fromAccount: liveAccount),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          FilledButton.tonalIcon(
+                            style: FilledButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                            ),
+                            icon: const Icon(Icons.pie_chart_rounded, size: 16),
+                            label: const Text('Smart Split'),
+                            onPressed: () => SmartInflowDistributionSheet.show(context, account: liveAccount!),
+                          ),
+                          FilledButton.tonalIcon(
+                            style: FilledButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                            ),
+                            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                            label: const Text('Transfer'),
+                            onPressed: () => AccountTransferSheet.show(context, fromAccount: liveAccount),
+                          ),
+                        ],
                       ),
                   ],
                 ),
@@ -415,6 +447,143 @@ class AccountDetailScreen extends ConsumerWidget {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLinkedGoalsCard(
+    BuildContext context,
+    WidgetRef ref,
+    BankAccountEntity account,
+    List<SavingsGoalEntity> goals,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    final theme = Theme.of(context);
+    final totalAllocatedPercent = goals.fold<double>(0.0, (sum, g) => sum + g.allocationPercentage);
+    final idlePercent = (100.0 - totalAllocatedPercent).clamp(0.0, 100.0);
+    final idleAmount = account.currentBalance * (idlePercent / 100.0);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: financialColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.track_changes_rounded, size: 18, color: AppColors.savings),
+                  const SizedBox(width: 8),
+                  Text(
+                    'LINKED GOALS & ALLOCATIONS',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                      color: financialColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.sync_rounded, size: 18, color: AppColors.primaryEmerald),
+                tooltip: 'Sync Goals with Balance',
+                onPressed: () async {
+                  await ref.read(savingsGoalsListNotifierProvider.notifier).syncGoalsForAccount(account.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Synced goal progress with current account balance.'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...goals.map((goal) {
+            final allocatedAmt = account.currentBalance * (goal.allocationPercentage / 100.0);
+            return InkWell(
+              onTap: () => AddEditSavingsGoalSheet.show(context, goal: goal),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.savings.withAlpha(isDark ? 50 : 30),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${goal.allocationPercentage.toInt()}%',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.savings,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            goal.title,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'Target: ${CurrencyFormatter.format(goal.targetAmount)} • Synced: ${CurrencyFormatter.format(goal.currentAmount)}',
+                            style: TextStyle(fontSize: 11, color: financialColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      CurrencyFormatter.format(allocatedAmt),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          if (idlePercent > 0) ...[
+            const Divider(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.nightlight_round, size: 14, color: AppColors.info),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Idle Buffer (${idlePercent.toInt()}% unallocated)',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: financialColors.textMuted),
+                    ),
+                  ],
+                ),
+                Text(
+                  CurrencyFormatter.format(idleAmount),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.info),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

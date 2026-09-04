@@ -50,6 +50,8 @@ class _AddEditSavingsGoalSheetState
   late DateTime _targetDate;
   late bool _isEmergencyFund;
   String? _selectedAccountId;
+  double _allocationPercentage = 100.0;
+  bool _autoSyncAccount = false;
   bool _deductInitialFromAccount = true;
 
   final _formKey = GlobalKey<FormState>();
@@ -75,6 +77,8 @@ class _AddEditSavingsGoalSheetState
 
     _isEmergencyFund = goal?.isEmergencyFund ?? widget.isEmergencyFundDefault;
     _selectedAccountId = goal?.linkedAccountId;
+    _allocationPercentage = goal?.allocationPercentage ?? 100.0;
+    _autoSyncAccount = goal?.autoSyncAccount ?? false;
     _titleController = TextEditingController(
       text: goal?.title ?? (_isEmergencyFund ? 'Emergency Fund (6 Months)' : ''),
     );
@@ -136,28 +140,39 @@ class _AddEditSavingsGoalSheetState
     final title = _titleController.text.trim();
     final now = DateTime.now();
 
+    double finalCurrent = current;
+    if (_autoSyncAccount && _selectedAccountId != null) {
+      final bankAccounts = ref.read(activeBankAccountsProvider);
+      final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+      if (selectedAcc != null) {
+        finalCurrent = (selectedAcc.currentBalance * (_allocationPercentage / 100.0)).clamp(0.0, double.infinity);
+      }
+    }
+
     final goal = SavingsGoalEntity(
       id: widget.initialGoal?.id ?? const Uuid().v4(),
       title: title,
       targetAmount: target,
-      currentAmount: current,
+      currentAmount: finalCurrent,
       category: _selectedCategory,
       targetDate: _targetDate,
       isEmergencyFund: _isEmergencyFund,
-      status: current >= target ? GoalStatus.completed : GoalStatus.active,
+      status: finalCurrent >= target ? GoalStatus.completed : GoalStatus.active,
       linkedAccountId: _selectedAccountId,
+      allocationPercentage: _allocationPercentage,
+      autoSyncAccount: _autoSyncAccount,
       createdAt: widget.initialGoal?.createdAt ?? now,
       updatedAt: now,
     );
 
-    if (!_isEditMode && current > 0) {
+    if (!_isEditMode && finalCurrent > 0 && !_autoSyncAccount) {
       final bankAccounts = ref.read(activeBankAccountsProvider);
       final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
       final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
 
       await ref.read(savingsGoalsListNotifierProvider.notifier).createGoalWithInitialDeposit(
             goal: goal,
-            initialAmount: current,
+            initialAmount: finalCurrent,
             deductFromAccount: _deductInitialFromAccount,
             accountId: _deductInitialFromAccount ? _selectedAccountId : null,
             paymentSource: paymentSource,
@@ -470,26 +485,150 @@ class _AddEditSavingsGoalSheetState
                     ),
                   ),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
+                  DropdownButtonFormField<String?>(
                     initialValue: _selectedAccountId,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.account_balance_rounded),
                     ),
-                    items: bankAccounts.map((acc) {
-                      return DropdownMenuItem(
-                        value: acc.id,
-                        child: Text(
-                          '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('None (Standalone Goal)'),
+                      ),
+                      ...bankAccounts.map((acc) {
+                        return DropdownMenuItem<String?>(
+                          value: acc.id,
+                          child: Text(
+                            '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                    ],
                     onChanged: (val) {
-                      if (val != null) setState(() => _selectedAccountId = val);
+                      setState(() {
+                        _selectedAccountId = val;
+                        if (val == null) {
+                          _autoSyncAccount = false;
+                        }
+                      });
                     },
                   ),
                   const SizedBox(height: 16),
-                  if (!_isEditMode) ...[
+                  if (_selectedAccountId != null) ...[
+                    Material(
+                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: financialColors.cardBorder),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Auto-Sync with Account Balance', style: TextStyle(fontWeight: FontWeight.w700)),
+                              subtitle: Text(
+                                _autoSyncAccount
+                                    ? 'Goal dynamically tracks ${_allocationPercentage.toInt()}% of linked bank account balance'
+                                    : 'Manual contribution mode (deposit funds when saving)',
+                                style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                              ),
+                              value: _autoSyncAccount,
+                              activeThumbColor: AppColors.primaryEmerald,
+                              onChanged: (val) {
+                                setState(() {
+                                  _autoSyncAccount = val;
+                                  if (val) {
+                                    final acc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+                                    if (acc != null) {
+                                      final calc = (acc.currentBalance * (_allocationPercentage / 100.0)).clamp(0.0, double.infinity);
+                                      _currentAmountController.text = calc == calc.roundToDouble()
+                                          ? calc.toInt().toString()
+                                          : calc.toStringAsFixed(2);
+                                    }
+                                  }
+                                });
+                              },
+                            ),
+                            const Divider(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'ALLOCATION SHARE',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.8,
+                                    color: financialColors.textMuted,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryEmerald.withAlpha(isDark ? 50 : 30),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${_allocationPercentage.toInt()}% of Balance',
+                                    style: const TextStyle(
+                                      color: AppColors.primaryEmerald,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Slider(
+                              value: _allocationPercentage,
+                              min: 5,
+                              max: 100,
+                              divisions: 19,
+                              label: '${_allocationPercentage.toInt()}%',
+                              activeColor: AppColors.primaryEmerald,
+                              onChanged: (val) {
+                                setState(() {
+                                  _allocationPercentage = val;
+                                  if (_autoSyncAccount) {
+                                    final acc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+                                    if (acc != null) {
+                                      final calc = (acc.currentBalance * (val / 100.0)).clamp(0.0, double.infinity);
+                                      _currentAmountController.text = calc == calc.roundToDouble()
+                                          ? calc.toInt().toString()
+                                          : calc.toStringAsFixed(2);
+                                    }
+                                  }
+                                });
+                              },
+                            ),
+                            Builder(
+                              builder: (context) {
+                                final acc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+                                final bal = acc?.currentBalance ?? 0.0;
+                                final allocated = bal * (_allocationPercentage / 100.0);
+                                final remaining = bal - allocated;
+                                return Text(
+                                  '• Allocated: ${CurrencyFormatter.format(allocated)} • Remaining/Idle: ${CurrencyFormatter.format(remaining)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: financialColors.textMuted,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (!_isEditMode && !_autoSyncAccount) ...[
                     Material(
                       color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
                       borderRadius: BorderRadius.circular(16),

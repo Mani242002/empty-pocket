@@ -81,6 +81,7 @@ abstract class AccountPurposeTags {
   static const String shortTermSavings = 'Short-Term Savings';
   static const String billsAndEmis = 'Bills & EMIs';
   static const String investments = 'Investments';
+  static const String investmentsAndInsurance = 'Investments & Insurance';
   static const String salaryHub = 'Salary & Income Hub';
   static const String familyShared = 'Family / Shared';
   static const String miscellaneous = 'Miscellaneous';
@@ -91,10 +92,90 @@ abstract class AccountPurposeTags {
     shortTermSavings,
     billsAndEmis,
     investments,
+    investmentsAndInsurance,
     salaryHub,
     familyShared,
     miscellaneous,
   ];
+
+  /// Intelligently matches a transaction category to the most appropriate BankAccount
+  static BankAccountEntity? matchAccountForCategory(
+    String category,
+    List<BankAccountEntity> accounts, {
+    BankAccountEntity? defaultAccount,
+  }) {
+    if (accounts.isEmpty) return null;
+    final catLower = category.toLowerCase();
+
+    // 1. Insurance Premiums -> SBI (Investments & Insurance or Investments)
+    if (catLower.contains('insurance')) {
+      final match = accounts.where((a) =>
+          a.usedFor == investmentsAndInsurance ||
+          a.usedFor.toLowerCase().contains('insurance') ||
+          a.bankName.toLowerCase().contains('sbi') ||
+          a.accountName.toLowerCase().contains('sbi') ||
+          a.usedFor == investments ||
+          a.usedFor.toLowerCase().contains('investment')).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 2. Investments & SIP -> SBI (Investments or Investments & Insurance)
+    if (catLower.contains('investment') || catLower.contains('sip') || catLower.contains('mutual fund')) {
+      final match = accounts.where((a) =>
+          a.usedFor == investments ||
+          a.usedFor == investmentsAndInsurance ||
+          a.bankName.toLowerCase().contains('sbi') ||
+          a.accountName.toLowerCase().contains('sbi') ||
+          a.usedFor.toLowerCase().contains('investment')).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 3. Bills & Utilities, Subscriptions, EMI -> ICICI (Bills & EMIs or Salary Hub)
+    if (catLower.contains('bill') ||
+        catLower.contains('utility') ||
+        catLower.contains('subscription') ||
+        catLower.contains('emi') ||
+        catLower.contains('rent')) {
+      final match = accounts.where((a) =>
+          a.usedFor == billsAndEmis ||
+          a.usedFor == salaryHub ||
+          a.usedFor.toLowerCase().contains('bill') ||
+          a.usedFor.toLowerCase().contains('salary')).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 4. Salary -> ICICI (Salary & Income Hub)
+    if (catLower.contains('salary')) {
+      final match = accounts.where((a) =>
+          a.usedFor == salaryHub ||
+          a.usedFor.toLowerCase().contains('salary')).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 5. Emergency Fund
+    if (catLower.contains('emergency')) {
+      final match = accounts.where((a) =>
+          a.usedFor == emergencyFund ||
+          a.usedFor.toLowerCase().contains('emergency')).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 6. Daily Spending categories (Food, Groceries, Shopping, Transport, Personal Care, Entertainment, etc.) -> Kotak (Daily Spending)
+    const dailyKeywords = [
+      'food', 'dining', 'grocer', 'shopping', 'transport', 'entertainment',
+      'personal', 'medical', 'health', 'cafe', 'fuel', 'lifestyle'
+    ];
+    if (dailyKeywords.any((kw) => catLower.contains(kw))) {
+      final match = accounts.where((a) =>
+          a.usedFor == dailySpending ||
+          a.usedFor.toLowerCase().contains('daily') ||
+          a.usedFor.toLowerCase().contains('spend')).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // Fallback: Default account or first account
+    return defaultAccount ?? accounts.first;
+  }
 }
 
 /// Core domain entity representing a Bank Account or Cash Wallet
