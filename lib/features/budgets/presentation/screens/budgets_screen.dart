@@ -12,6 +12,9 @@ import '../../../../core/utilities/currency_formatter.dart';
 import '../../../savings/presentation/screens/add_contribution_sheet.dart';
 import '../../../savings/presentation/screens/add_edit_savings_goal_sheet.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
+import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
+import '../../../transactions/presentation/screens/pending_shared_expenses_sheet.dart';
+import '../../../transactions/presentation/screens/transaction_detail_sheet.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../screens/add_recurring_sheet.dart';
 import '../screens/set_budget_sheet.dart';
@@ -28,11 +31,12 @@ class BudgetsScreen extends ConsumerStatefulWidget {
 class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _showPendingOnlySplits = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -52,15 +56,18 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
         title: const Text('Budgets & Goals'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           indicatorColor: AppColors.primaryEmerald,
           labelColor: isDark ? AppColors.primaryMint : AppColors.primaryTeal,
           unselectedLabelColor: financialColors.textMuted,
           labelStyle: const TextStyle(fontWeight: FontWeight.w700),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
           tabs: const [
-            Tab(text: 'Monthly Budgets'),
-            Tab(text: 'Savings & Goals'),
-            Tab(text: 'Recurring & Bills'),
+            Tab(icon: Icon(Icons.pie_chart_outline_rounded, size: 20), text: 'Monthly Budgets'),
+            Tab(icon: Icon(Icons.savings_outlined, size: 20), text: 'Savings & Goals'),
+            Tab(icon: Icon(Icons.event_repeat_rounded, size: 20), text: 'Recurring & Bills'),
+            Tab(icon: Icon(Icons.group_outlined, size: 20), text: 'Shared & Splits'),
           ],
         ),
       ),
@@ -70,6 +77,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
           _buildMonthlyBudgetsTab(context),
           _buildSavingsGoalsTab(context),
           _buildRecurringTab(context),
+          _buildSharedSplitsTab(context),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -79,11 +87,13 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
             SetBudgetSheet.show(context, targetMonth: ref.read(selectedMonthProvider));
           } else if (_tabController.index == 1) {
             AddEditSavingsGoalSheet.show(context);
-          } else {
+          } else if (_tabController.index == 2) {
             AddRecurringSheet.show(context);
+          } else {
+            AddEditTransactionSheet.show(context, initialType: TransactionType.expense);
           }
         },
-        tooltip: 'Add Budget, Goal or Recurring',
+        tooltip: 'Add Budget, Goal, Recurring or Shared Expense',
         child: const Icon(Icons.add_rounded, size: 28),
       ),
     );
@@ -1372,5 +1382,388 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
       case BudgetHealth.exceeded:
         return fc.expense;
     }
+  }
+
+  // --- TAB 4: SHARED & SPLITS ---
+
+  Widget _buildSharedSplitsTab(BuildContext context) {
+    final theme = Theme.of(context);
+    final financialColors = context.financialColors;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final allSplits = ref.watch(allSharedExpensesProvider);
+    final pendingSplits = ref.watch(pendingSharedExpensesProvider);
+    final pendingTotal = ref.watch(pendingReimbursementsTotalProvider);
+    final ccReserve = ref.watch(creditCardEarmarkedReserveProvider);
+
+    final displayedSplits = _showPendingOnlySplits ? pendingSplits : allSplits;
+
+    return ListView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+          children: [
+            // Hero Card: Total Pending & CC Reserve Earmark
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                      : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFBFDBFE),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(isDark ? 50 : 15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryEmerald.withAlpha(30),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.group_work_rounded,
+                          size: 20,
+                          color: AppColors.primaryEmerald,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Roommate & Shared Ledger',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (pendingSplits.isNotEmpty)
+                        FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: () => PendingSharedExpensesSheet.show(context),
+                          icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                          label: const Text('Settle', style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'TOTAL PENDING REIMBURSEMENT',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    CurrencyFormatter.format(pendingTotal),
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: pendingTotal > 0 ? financialColors.warning : financialColors.income,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Credit Card Reserve Note
+                  if (ccReserve > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: financialColors.warning.withAlpha(25),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: financialColors.warning.withAlpha(50)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.credit_card_rounded, size: 16, color: financialColors.warning),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${CurrencyFormatter.format(ccReserve)} is charged on Credit Cards. Keep incoming paybacks reserved for your CC bill.',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Filter Tabs (Pending vs All)
+            Row(
+              children: [
+                FilterChip(
+                  label: Text('Pending (${pendingSplits.length})'),
+                  selected: _showPendingOnlySplits,
+                  onSelected: (val) => setState(() => _showPendingOnlySplits = true),
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: Text('All Splits (${allSplits.length})'),
+                  selected: !_showPendingOnlySplits,
+                  onSelected: (val) => setState(() => _showPendingOnlySplits = false),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            if (displayedSplits.isEmpty)
+              _buildEmptySplitsCard(context, isDark, financialColors)
+            else
+              ...displayedSplits.map((tx) => _buildSplitItemCard(context, tx, isDark, financialColors)),
+          ],
+        );
+  }
+
+  Widget _buildSplitItemCard(
+    BuildContext context,
+    TransactionEntity tx,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    final theme = Theme.of(context);
+    final myShare = tx.myShareAmount ?? (tx.amount / 2);
+    final friendsShare = tx.friendsShare;
+    final isSettled = tx.isSettled;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSettled
+              ? financialColors.cardBorder
+              : financialColors.warning.withAlpha(80),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () => TransactionDetailSheet.show(context, transaction: tx),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header: Title, Category, Status Badge
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: (isSettled ? financialColors.income : financialColors.warning).withAlpha(30),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        isSettled ? Icons.check_circle_outline_rounded : Icons.pending_actions_rounded,
+                        size: 20,
+                        color: isSettled ? financialColors.income : financialColors.warning,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tx.title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${DateFormat('dd MMM yyyy').format(tx.date)} • ${tx.paymentSource}',
+                            style: TextStyle(fontSize: 11, color: financialColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (isSettled ? financialColors.income : financialColors.warning).withAlpha(25),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: (isSettled ? financialColors.income : financialColors.warning).withAlpha(60),
+                        ),
+                      ),
+                      child: Text(
+                        isSettled
+                            ? 'Settled'
+                            : '${CurrencyFormatter.format(tx.pendingReimbursement)} Pending',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isSettled ? financialColors.income : financialColors.warning,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (tx.sharedWith != null && tx.sharedWith!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.person_outline_rounded, size: 14, color: financialColors.textMuted),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Shared with: ${tx.sharedWith}',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: financialColors.textMuted),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const Divider(height: 20),
+                // Breakdown numbers
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total Bill',
+                            style: TextStyle(fontSize: 10.5, color: financialColors.textMuted),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              CurrencyFormatter.format(tx.amount),
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Your Share',
+                            style: TextStyle(fontSize: 10.5, color: financialColors.textMuted),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              CurrencyFormatter.format(myShare),
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: financialColors.expense),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Friends Share',
+                            style: TextStyle(fontSize: 10.5, color: financialColors.textMuted),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              CurrencyFormatter.format(friendsShare),
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: financialColors.income),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!isSettled) ...[
+                      const SizedBox(width: 8),
+                      FilledButton.tonal(
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () => PendingSharedExpensesSheet.show(context, preselectedTransaction: tx),
+                        child: const Text('Payback', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptySplitsCard(
+    BuildContext context,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: financialColors.cardBorder),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.group_outlined, size: 48, color: financialColors.textMuted),
+          const SizedBox(height: 12),
+          Text(
+            'No Shared Expenses Found',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'When you pay for roommates or group outings, toggle "Split / Shared with Others" when adding an expense to track paybacks here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+          ),
+        ],
+      ),
+    );
   }
 }

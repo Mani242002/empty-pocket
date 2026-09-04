@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
-import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/savings_goals_provider.dart';
 
 class AddContributionSheet extends ConsumerStatefulWidget {
@@ -30,8 +30,8 @@ class AddContributionSheet extends ConsumerStatefulWidget {
 class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
   late TextEditingController _amountController;
   late TextEditingController _notesController;
-  late String _selectedPaymentSource;
-  bool _logAsTransaction = true;
+  String? _selectedAccountId;
+  bool _deductAndLog = true;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -40,7 +40,6 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
     super.initState();
     _amountController = TextEditingController();
     _notesController = TextEditingController();
-    _selectedPaymentSource = CategoryConstants.paymentSources.first;
   }
 
   @override
@@ -64,12 +63,17 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
       return;
     }
 
+    final bankAccounts = ref.read(activeBankAccountsProvider);
+    final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+    final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
+
     await ref.read(savingsGoalsListNotifierProvider.notifier).addFunds(
           goal: widget.goal,
           amount: amount,
           notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-          logAsTransaction: _logAsTransaction,
-          paymentSource: _selectedPaymentSource,
+          logAsTransaction: _deductAndLog,
+          paymentSource: paymentSource,
+          accountId: _deductAndLog ? _selectedAccountId : null,
         );
 
     if (mounted) {
@@ -93,6 +97,13 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
 
     final goal = widget.goal;
     final remaining = (goal.targetAmount - goal.currentAmount).clamp(0.0, double.infinity);
+
+    final bankAccounts = ref.watch(activeBankAccountsProvider);
+    final defaultAcc = ref.watch(defaultBankAccountProvider);
+
+    if (_selectedAccountId == null && bankAccounts.isNotEmpty) {
+      _selectedAccountId = defaultAcc?.id ?? bankAccounts.first.id;
+    }
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -271,40 +282,58 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
                 ),
                 const SizedBox(height: 18),
 
-                // Payment Source
-                Text(
-                  'SOURCE ACCOUNT',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
+                // Deep Account Linking: ON/OFF Toggle
+                Material(
+                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: financialColors.cardBorder),
+                    ),
+                    child: Column(
+                    children: [
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Deduct from Account', style: TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text(
+                          _deductAndLog
+                              ? 'Deducts funds from bank balance and records expense in daily ledger'
+                              : 'Only update goal progress (No bank account balance change)',
+                          style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                        ),
+                        value: _deductAndLog,
+                        activeThumbColor: AppColors.primaryEmerald,
+                        onChanged: (val) => setState(() => _deductAndLog = val),
+                      ),
+                      if (_deductAndLog && bankAccounts.isNotEmpty) ...[
+                        const Divider(height: 16),
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedAccountId,
+                          decoration: const InputDecoration(
+                            labelText: 'Payment Account',
+                            prefixIcon: Icon(Icons.account_balance_rounded),
+                          ),
+                          items: bankAccounts.map((acc) {
+                            return DropdownMenuItem(
+                              value: acc.id,
+                              child: Text(
+                                '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => _selectedAccountId = val);
+                          },
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedPaymentSource,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.account_balance_wallet_rounded),
-                  ),
-                  items: CategoryConstants.paymentSources.map((s) {
-                    return DropdownMenuItem(value: s, child: Text(s));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedPaymentSource = val);
-                  },
                 ),
                 const SizedBox(height: 16),
-
-                // Log as ledger transaction checkbox
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Log as Expense in Daily Ledger', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Deducts from net balance and records savings contribution'),
-                  value: _logAsTransaction,
-                  activeColor: AppColors.primaryEmerald,
-                  onChanged: (val) => setState(() => _logAsTransaction = val ?? true),
-                ),
-                const SizedBox(height: 10),
 
                 // Optional Notes
                 Text(

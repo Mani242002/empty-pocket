@@ -5,6 +5,7 @@ import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/investment_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/investment_repository.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 
 class InvestmentListNotifier extends AsyncNotifier<List<InvestmentEntity>> {
@@ -18,6 +19,7 @@ class InvestmentListNotifier extends AsyncNotifier<List<InvestmentEntity>> {
     InvestmentEntity investment, {
     bool logAsTransaction = false,
     String paymentSource = 'Bank Account',
+    String? accountId,
   }) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
@@ -25,15 +27,20 @@ class InvestmentListNotifier extends AsyncNotifier<List<InvestmentEntity>> {
       await repository.saveInvestment(investment);
 
       if (logAsTransaction) {
+        if (accountId != null) {
+          await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(accountId, -investment.investedAmount);
+        }
         final now = DateTime.now();
         final tx = TransactionEntity(
           id: const Uuid().v4(),
           title: 'Investment: ${investment.name}',
           amount: investment.investedAmount,
           type: TransactionType.expense,
-          category: 'Investment & Savings',
+          category: 'Investments & SIP',
           date: now,
           paymentSource: paymentSource,
+          accountId: accountId,
+          linkedEntityId: investment.id,
           notes: 'Asset allocation in ${investment.assetClass.displayName}',
           createdAt: now,
           updatedAt: now,

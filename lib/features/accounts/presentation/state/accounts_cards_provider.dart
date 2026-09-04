@@ -56,7 +56,8 @@ class BankAccountListNotifier extends AsyncNotifier<List<BankAccountEntity>> {
         updatedAt: DateTime.now(),
       );
       await repository.updateAccount(updated);
-      ref.invalidateSelf();
+      final current = state.valueOrNull ?? [];
+      state = AsyncValue.data(current.map((a) => a.id == id ? updated : a).toList());
     }
   }
 }
@@ -125,7 +126,8 @@ class CreditCardListNotifier extends AsyncNotifier<List<CreditCardEntity>> {
         updatedAt: DateTime.now(),
       );
       await repository.updateCard(updated);
-      ref.invalidateSelf();
+      final current = state.valueOrNull ?? [];
+      state = AsyncValue.data(current.map((c) => c.id == id ? updated : c).toList());
     }
   }
 }

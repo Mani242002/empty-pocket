@@ -331,14 +331,14 @@ void main() {
         creditCards: [card],
       );
 
-      expect(jsonStr, contains('"schemaVersion": 8'));
+      expect(jsonStr, contains('"schemaVersion": 9'));
       expect(jsonStr, contains('"bankAccountsCount": 1'));
       expect(jsonStr, contains('"creditCardsCount": 1'));
       expect(jsonStr, contains('Main Hub'));
       expect(jsonStr, contains('Tata Neu Infinity'));
 
       final parsed = backupService.parseBackupJson(jsonStr);
-      expect(parsed.metadata.schemaVersion, 8);
+      expect(parsed.metadata.schemaVersion, 9);
       expect(parsed.bankAccounts.length, 1);
       expect(parsed.bankAccounts.first.accountName, 'Main Hub');
       expect(parsed.creditCards.length, 1);

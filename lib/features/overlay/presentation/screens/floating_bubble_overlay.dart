@@ -60,6 +60,16 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
   String? _selectedCreditCardId;
   String _selectedPaymentSource = 'Bank Account';
 
+  // Shared / Split expense tracking
+  bool _isShared = false;
+  final TextEditingController _myShareController = TextEditingController();
+  final TextEditingController _sharedWithController = TextEditingController();
+
+  // Income Expense Share / Reimbursement tracking
+  bool _isIncomeReimbursement = false;
+  TransactionEntity? _selectedSharedExpenseToSettle;
+  List<TransactionEntity> _pendingSharedExpenses = [];
+
   List<BankAccountEntity> _bankAccounts = [];
   List<CreditCardEntity> _creditCards = [];
 
@@ -91,6 +101,8 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
     _titleController.removeListener(_onTitleChanged);
     _amountController.dispose();
     _titleController.dispose();
+    _myShareController.dispose();
+    _sharedWithController.dispose();
     super.dispose();
   }
 
@@ -117,10 +129,12 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       final db = AppDatabase.instance;
       final accs = await db.getAllBankAccounts();
       final cards = await db.getAllCreditCards();
+      final pending = await db.getPendingSharedExpenses();
       if (mounted) {
         setState(() {
           _bankAccounts = accs;
           _creditCards = cards;
+          _pendingSharedExpenses = pending;
           _autoSelectLinkedSource(_selectedPaymentMode);
         });
       }
@@ -302,6 +316,70 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       final now = DateTime.now();
       final db = AppDatabase.instance;
 
+      // Settle Shared Expense Inflow
+      if (_type == TransactionType.income && _isIncomeReimbursement && _selectedSharedExpenseToSettle != null) {
+        final original = _selectedSharedExpenseToSettle!;
+        final updatedReimbursed = original.reimbursedAmount + amount;
+        final isFullySettled = updatedReimbursed >= original.friendsShare;
+        final updatedOriginal = original.copyWith(
+          reimbursedAmount: updatedReimbursed,
+          isSettled: isFullySettled,
+          updatedAt: now,
+        );
+
+        if (_selectedAccountId != null) {
+          final matching = _bankAccounts.where((a) => a.id == _selectedAccountId);
+          if (matching.isNotEmpty) {
+            final acc = matching.first;
+            await db.updateBankAccount(
+              acc.copyWith(
+                currentBalance: acc.currentBalance + amount,
+                updatedAt: now,
+              ),
+            );
+          }
+        }
+
+        final settlementTx = TransactionEntity(
+          id: const Uuid().v4(),
+          title: title,
+          amount: amount,
+          type: TransactionType.income,
+          category: 'Shared Expense Reimbursement',
+          date: now,
+          notes: 'Payback for "${original.title}" via 24/7 Bubble',
+          paymentSource: _selectedPaymentSource,
+          accountId: _selectedAccountId,
+          creditCardId: original.creditCardId,
+          linkedEntityId: original.id,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await db.updateTransaction(updatedOriginal);
+        await db.insertTransaction(settlementTx);
+        AppHaptics.success();
+
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+            _justSaved = true;
+            _amountController.clear();
+            _titleController.clear();
+            _myShareController.clear();
+            _sharedWithController.clear();
+            _isShared = false;
+            _isIncomeReimbursement = false;
+            _selectedSharedExpenseToSettle = null;
+            _validationError = null;
+          });
+
+          await Future.delayed(const Duration(milliseconds: 700));
+          if (mounted) _collapse();
+        }
+        return;
+      }
+
       // Balance & Limit adjustments
       if (_type == TransactionType.income) {
         if (_selectedAccountId != null) {
@@ -353,6 +431,18 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         }
       }
 
+      final isShared = _type == TransactionType.expense && _isShared;
+      double? myShare;
+      String? sharedWith;
+      if (isShared) {
+        final parsedShare = MathExpressionParser.tryEvaluate(_myShareController.text.trim());
+        myShare = (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
+            ? parsedShare
+            : (amount / 2);
+        final rawNames = _sharedWithController.text.trim();
+        sharedWith = rawNames.isNotEmpty ? rawNames : null;
+      }
+
       final tx = TransactionEntity(
         id: const Uuid().v4(),
         title: title,
@@ -364,6 +454,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         paymentSource: _selectedPaymentSource,
         accountId: _selectedAccountId,
         creditCardId: _selectedCreditCardId,
+        isShared: isShared,
+        myShareAmount: isShared ? myShare : null,
+        sharedWith: isShared ? sharedWith : null,
+        reimbursedAmount: 0.0,
+        isSettled: false,
         createdAt: now,
         updatedAt: now,
       );
@@ -377,6 +472,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           _justSaved = true;
           _amountController.clear();
           _titleController.clear();
+          _myShareController.clear();
+          _sharedWithController.clear();
+          _isShared = false;
           _validationError = null;
         });
 
@@ -617,6 +715,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                           onTap: () => setState(() {
                             final oldCategory = _selectedCategory;
                             _selectedCategory = cat.name;
+                            if (cat.name == 'Shared Expense Reimbursement') {
+                              _isIncomeReimbursement = true;
+                            }
                             if (_validationError != null) _validationError = null;
 
                             final currentTitle = _titleController.text.trim();
@@ -656,6 +757,217 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                   ),
                 ),
                 const SizedBox(height: 10),
+
+                // Quick Split Toggle Chip (for expense)
+                if (_type == TransactionType.expense) ...[
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _isShared = !_isShared;
+                        if (_isShared && _myShareController.text.isEmpty) {
+                          final amt = double.tryParse(_amountController.text) ?? 0;
+                          if (amt > 0) _myShareController.text = (amt / 2).toStringAsFixed(0);
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _isShared ? AppColors.primaryEmerald.withAlpha(40) : Colors.white.withAlpha(15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _isShared ? AppColors.primaryEmerald : Colors.white24,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.group_outlined,
+                            size: 14,
+                            color: _isShared ? AppColors.primaryEmerald : Colors.white70,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _isShared ? 'Split with Roommates / Friends' : 'Split with Roommates?',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _isShared ? AppColors.primaryEmerald : Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_isShared) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 36,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: TextField(
+                              controller: _myShareController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(fontSize: 12, color: Colors.white),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                prefixText: 'My Share: ₹',
+                                prefixStyle: TextStyle(fontSize: 12, color: Colors.white70),
+                                hintText: '50%',
+                                hintStyle: TextStyle(fontSize: 11, color: Colors.white38),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            height: 36,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: TextField(
+                              controller: _sharedWithController,
+                              style: const TextStyle(fontSize: 12, color: Colors.white),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                hintText: 'With: Roommates',
+                                hintStyle: TextStyle(fontSize: 11, color: Colors.white38),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
+
+                // Income Shared Expense Reimbursement Chip (for income)
+                if (_type == TransactionType.income && _pendingSharedExpenses.isNotEmpty) ...[
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _isIncomeReimbursement = !_isIncomeReimbursement;
+                        if (_isIncomeReimbursement) {
+                          _selectedCategory = 'Shared Expense Reimbursement';
+                          _selectedSharedExpenseToSettle ??= _pendingSharedExpenses.first;
+                          final amt = _selectedSharedExpenseToSettle!.pendingReimbursement;
+                          _amountController.text = amt == amt.roundToDouble()
+                              ? amt.toInt().toString()
+                              : amt.toStringAsFixed(2);
+                          _titleController.text = 'Reimbursement: ${_selectedSharedExpenseToSettle!.title}';
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _isIncomeReimbursement ? AppColors.primaryEmerald.withAlpha(40) : Colors.white.withAlpha(15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _isIncomeReimbursement ? AppColors.primaryEmerald : Colors.white24,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.handshake_rounded,
+                            size: 14,
+                            color: _isIncomeReimbursement ? AppColors.primaryEmerald : Colors.white70,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _isIncomeReimbursement ? 'Reimbursement for Shared Expense' : 'Roommate Expense Payback?',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _isIncomeReimbursement ? AppColors.primaryEmerald : Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_isIncomeReimbursement && _selectedSharedExpenseToSettle != null) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedSharedExpenseToSettle!.id,
+                          isExpanded: true,
+                          dropdownColor: const Color(0xFF1B2430),
+                          items: _pendingSharedExpenses.map((tx) {
+                            return DropdownMenuItem(
+                              value: tx.id,
+                              child: Text(
+                                '${tx.title} (₹${tx.pendingReimbursement.toStringAsFixed(0)} pending)',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (id) {
+                            if (id == null) return;
+                            final match = _pendingSharedExpenses.firstWhere((t) => t.id == id);
+                            setState(() {
+                              _selectedSharedExpenseToSettle = match;
+                              final amt = match.pendingReimbursement;
+                              _amountController.text = amt == amt.roundToDouble()
+                                  ? amt.toInt().toString()
+                                  : amt.toStringAsFixed(2);
+                              _titleController.text = 'Reimbursement: ${match.title}';
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    if (_selectedSharedExpenseToSettle!.creditCardId != null) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withAlpha(40),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.credit_card_rounded, size: 12, color: AppColors.info),
+                            SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'Paid on Credit Card: will be kept earmarked for CC bill',
+                                style: TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                  const SizedBox(height: 8),
+                ],
 
                 // TWO-TIER PAYMENT METHOD SELECTION
                 // Tier 1: Method Dropdown

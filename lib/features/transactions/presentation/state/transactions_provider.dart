@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/transaction_repository.dart';
@@ -105,12 +106,30 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     final target = previous.where((t) => t.id == id);
     final prevTx = target.isNotEmpty ? target.first : null;
 
-    final optimistic = previous.where((t) => t.id != id).toList();
+    var optimistic = previous.where((t) => t.id != id).toList();
     state = AsyncValue.data(optimistic);
 
     try {
       final repository = ref.read(transactionRepositoryProvider);
       if (prevTx != null) {
+        // If this was a reimbursement settlement, roll back the original transaction's reimbursedAmount and isSettled status
+        if (prevTx.category == 'Shared Expense Reimbursement' && prevTx.linkedEntityId != null) {
+          final origMatches = previous.where((t) => t.id == prevTx.linkedEntityId).toList();
+          if (origMatches.isNotEmpty) {
+            final orig = origMatches.first;
+            final rolledBackReimbursed = (orig.reimbursedAmount - prevTx.amount).clamp(0.0, double.infinity);
+            final rolledBackSettled = rolledBackReimbursed >= orig.friendsShare && orig.friendsShare > 0;
+            final updatedOrig = orig.copyWith(
+              reimbursedAmount: rolledBackReimbursed,
+              isSettled: rolledBackSettled,
+              updatedAt: DateTime.now(),
+            );
+            await repository.updateTransaction(updatedOrig);
+            optimistic = optimistic.map((t) => t.id == orig.id ? updatedOrig : t).toList();
+            state = AsyncValue.data(optimistic);
+          }
+        }
+
         // 1. Revert balance impact for linked accounts and credit cards
         if (prevTx.type == TransactionType.income) {
           if (prevTx.accountId != null) {
@@ -163,6 +182,69 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     try {
       final repository = ref.read(transactionRepositoryProvider);
       await repository.clearAllTransactions();
+    } catch (e, stack) {
+      state = AsyncValue.data(previous);
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+
+  Future<void> settleSharedExpense({
+    required String transactionId,
+    required double amountReceived,
+    required String destinationAccountId,
+    String? notes,
+  }) async {
+    final previous = state.valueOrNull ?? [];
+    final targetList = previous.where((t) => t.id == transactionId).toList();
+    if (targetList.isEmpty) return;
+
+    final original = targetList.first;
+    final updatedReimbursed = original.reimbursedAmount + amountReceived;
+    final isFullySettled = updatedReimbursed >= original.friendsShare;
+
+    final updatedOriginal = original.copyWith(
+      reimbursedAmount: updatedReimbursed,
+      isSettled: isFullySettled,
+      updatedAt: DateTime.now(),
+    );
+
+    final now = DateTime.now();
+    final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
+    final destAcc = destAccounts.firstWhere(
+      (a) => a.id == destinationAccountId,
+      orElse: () => destAccounts.first,
+    );
+
+    final settlementTx = TransactionEntity(
+      id: const Uuid().v4(),
+      title: 'Reimbursement: ${original.title}',
+      amount: amountReceived,
+      type: TransactionType.income,
+      category: 'Shared Expense Reimbursement',
+      date: now,
+      paymentSource: destAcc.accountName,
+      accountId: destAcc.id,
+      creditCardId: original.creditCardId,
+      linkedEntityId: original.id,
+      notes: notes ?? 'Reimbursement collected for "${original.title}"',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final optimistic = previous
+        .map((t) => t.id == transactionId ? updatedOriginal : t)
+        .toList();
+    state = AsyncValue.data([settlementTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)));
+
+    try {
+      final repository = ref.read(transactionRepositoryProvider);
+      await repository.updateTransaction(updatedOriginal);
+      await repository.addTransaction(settlementTx);
+
+      await ref
+          .read(bankAccountListProvider.notifier)
+          .adjustAccountBalance(destAcc.id, amountReceived);
     } catch (e, stack) {
       state = AsyncValue.data(previous);
       state = AsyncValue.error(e, stack);
@@ -243,5 +325,40 @@ final monthlySpendingComparisonProvider = Provider<MonthlySpendingComparison>((r
     data: (transactions) =>
         FinancialCalculator.calculateMonthOverMonthComparison(transactions, selectedMonth),
     orElse: () => MonthlySpendingComparison.empty,
+  );
+});
+
+/// Provider for active un-settled shared transactions
+final pendingSharedExpensesProvider = Provider<List<TransactionEntity>>((ref) {
+  final transactionsAsync = ref.watch(transactionListNotifierProvider);
+  return transactionsAsync.maybeWhen(
+    data: (transactions) =>
+        transactions.where((t) => t.isShared && !t.isSettled).toList(),
+    orElse: () => [],
+  );
+});
+
+/// Provider for total pending reimbursements yet to be collected
+final pendingReimbursementsTotalProvider = Provider<double>((ref) {
+  final pending = ref.watch(pendingSharedExpensesProvider);
+  return FinancialCalculator.calculatePendingReimbursements(pending);
+});
+
+/// Provider for credit card funds earmarked in bank accounts from reimbursements
+final creditCardEarmarkedReserveProvider = Provider<double>((ref) {
+  final transactionsAsync = ref.watch(transactionListNotifierProvider);
+  return transactionsAsync.maybeWhen(
+    data: (transactions) =>
+        FinancialCalculator.calculateCreditCardEarmarkedReserve(transactions),
+    orElse: () => 0.0,
+  );
+});
+
+/// Provider for all shared expenses (both settled and pending)
+final allSharedExpensesProvider = Provider<List<TransactionEntity>>((ref) {
+  final transactionsAsync = ref.watch(transactionListNotifierProvider);
+  return transactionsAsync.maybeWhen(
+    data: (transactions) => transactions.where((t) => t.isShared).toList(),
+    orElse: () => [],
   );
 });

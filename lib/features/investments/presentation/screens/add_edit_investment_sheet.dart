@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
-import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/investment_entity.dart';
+import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/investments_provider.dart';
 
 class AddEditInvestmentSheet extends ConsumerStatefulWidget {
@@ -35,8 +36,8 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
   late TextEditingController _institutionController;
   late TextEditingController _notesController;
   late AssetClass _selectedAssetClass;
-  late String _selectedPaymentSource;
-  bool _logAsTransaction = false;
+  String? _selectedAccountId;
+  bool _fundFromAccount = false;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -71,7 +72,9 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
     _institutionController = TextEditingController(text: inv?.institution ?? '');
     _notesController = TextEditingController(text: inv?.notes ?? '');
     _selectedAssetClass = inv?.assetClass ?? AssetClass.equity;
-    _selectedPaymentSource = CategoryConstants.paymentSources.first;
+    if (_isEditMode) {
+      _fundFromAccount = false;
+    }
   }
 
   @override
@@ -134,14 +137,22 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
       currentPrice: price,
       institution: institution,
       notes: notes,
+      sourceAccountId: (!_isEditMode && _fundFromAccount)
+          ? _selectedAccountId
+          : widget.initialInvestment?.sourceAccountId,
       createdAt: widget.initialInvestment?.createdAt ?? now,
       updatedAt: now,
     );
 
+    final bankAccounts = ref.read(activeBankAccountsProvider);
+    final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+    final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
+
     await ref.read(investmentListNotifierProvider.notifier).saveInvestment(
           investment,
-          logAsTransaction: !_isEditMode && _logAsTransaction,
-          paymentSource: _selectedPaymentSource,
+          logAsTransaction: !_isEditMode && _fundFromAccount,
+          paymentSource: paymentSource,
+          accountId: (!_isEditMode && _fundFromAccount) ? _selectedAccountId : null,
         );
 
     if (mounted) {
@@ -197,6 +208,13 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final bankAccounts = ref.watch(activeBankAccountsProvider);
+    final defaultAcc = ref.watch(defaultBankAccountProvider);
+
+    if (_selectedAccountId == null && bankAccounts.isNotEmpty) {
+      _selectedAccountId = defaultAcc?.id ?? bankAccounts.first.id;
+    }
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -473,33 +491,59 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                   ),
                   const SizedBox(height: 16),
 
-                  // Optional Ledger Expense Sync (for new investments)
+                  // Deep Account Linking: ON/OFF Toggle (for new investments)
                   if (!_isEditMode) ...[
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Log as Expense in Daily Ledger', style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: const Text('Deducts invested amount from active month net balance'),
-                      value: _logAsTransaction,
-                      activeColor: AppColors.primaryEmerald,
-                      onChanged: (val) => setState(() => _logAsTransaction = val ?? false),
-                    ),
-                    if (_logAsTransaction) ...[
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedPaymentSource,
-                        decoration: const InputDecoration(
-                          labelText: 'Payment Account',
-                          prefixIcon: Icon(Icons.account_balance_wallet_rounded),
+                    Material(
+                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: financialColors.cardBorder),
                         ),
-                        items: CategoryConstants.paymentSources.map((s) {
-                          return DropdownMenuItem(value: s, child: Text(s));
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedPaymentSource = val);
-                        },
+                        child: Column(
+                          children: [
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Fund from Bank/Cash Account', style: TextStyle(fontWeight: FontWeight.w700)),
+                              subtitle: Text(
+                                _fundFromAccount
+                                    ? 'Deducts invested amount from bank balance and records expense in daily ledger'
+                                    : 'Track portfolio only (No bank balance deduction)',
+                                style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                              ),
+                              value: _fundFromAccount,
+                              activeThumbColor: AppColors.primaryEmerald,
+                              onChanged: (val) => setState(() => _fundFromAccount = val),
+                            ),
+                            if (_fundFromAccount && bankAccounts.isNotEmpty) ...[
+                              const Divider(height: 16),
+                              DropdownButtonFormField<String>(
+                                initialValue: _selectedAccountId,
+                                decoration: const InputDecoration(
+                                  labelText: 'Funding Account',
+                                  prefixIcon: Icon(Icons.account_balance_rounded),
+                                ),
+                                items: bankAccounts.map((acc) {
+                                  return DropdownMenuItem(
+                                    value: acc.id,
+                                    child: Text(
+                                      '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _selectedAccountId = val);
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ],
-                    const SizedBox(height: 10),
+                    ),
+                    const SizedBox(height: 16),
                   ],
 
                   // Optional Notes

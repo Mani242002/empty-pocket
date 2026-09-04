@@ -10,6 +10,7 @@ import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../screens/add_edit_transaction_sheet.dart';
+import '../screens/transaction_detail_sheet.dart';
 import '../state/transactions_provider.dart';
 import '../widgets/transaction_list_item.dart';
 
@@ -381,7 +382,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                 padding: const EdgeInsets.only(bottom: 8),
                                 child: TransactionListItem(
                                   transaction: tx,
-                                  onTap: () => AddEditTransactionSheet.show(
+                                  onTap: () => TransactionDetailSheet.show(
                                     context,
                                     transaction: tx,
                                   ),

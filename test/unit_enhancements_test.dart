@@ -28,9 +28,9 @@ void main() {
     });
 
     test('Detects Shopping and Entertainment', () {
-      expect(CategoryMatcher.detectCategory('Amazon Prime purchase'), 'Shopping');
-      expect(CategoryMatcher.detectCategory('Netflix monthly subscription'), 'Entertainment');
-      expect(CategoryMatcher.detectCategory('Spotify Family plan'), 'Entertainment');
+      expect(CategoryMatcher.detectCategory('Amazon retail shopping'), 'Shopping');
+      expect(CategoryMatcher.detectCategory('BookMyShow movie ticket'), 'Entertainment');
+      expect(CategoryMatcher.detectCategory('PVR Cinema ticket'), 'Entertainment');
     });
 
     test('Detects Bills & Utilities and Medical', () {

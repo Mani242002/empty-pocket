@@ -37,8 +37,11 @@ class SavingsGoalEntity {
   final DateTime targetDate;
   final bool isEmergencyFund;
   final GoalStatus status;
+  final String? linkedAccountId;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  static const Object _sentinel = Object();
 
   const SavingsGoalEntity({
     required this.id,
@@ -49,6 +52,7 @@ class SavingsGoalEntity {
     required this.targetDate,
     this.isEmergencyFund = false,
     this.status = GoalStatus.active,
+    this.linkedAccountId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -62,6 +66,7 @@ class SavingsGoalEntity {
     DateTime? targetDate,
     bool? isEmergencyFund,
     GoalStatus? status,
+    Object? linkedAccountId = _sentinel,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -74,6 +79,9 @@ class SavingsGoalEntity {
       targetDate: targetDate ?? this.targetDate,
       isEmergencyFund: isEmergencyFund ?? this.isEmergencyFund,
       status: status ?? this.status,
+      linkedAccountId: identical(linkedAccountId, _sentinel)
+          ? this.linkedAccountId
+          : (linkedAccountId as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -89,6 +97,7 @@ class SavingsGoalEntity {
       'target_date': targetDate.millisecondsSinceEpoch,
       'is_emergency_fund': isEmergencyFund ? 1 : 0,
       'status': status.name,
+      'linked_account_id': linkedAccountId,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
@@ -104,6 +113,7 @@ class SavingsGoalEntity {
       targetDate: DateTime.fromMillisecondsSinceEpoch(map['target_date'] as int),
       isEmergencyFund: (map['is_emergency_fund'] as int) == 1,
       status: GoalStatus.fromString(map['status'] as String),
+      linkedAccountId: map['linked_account_id'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
     );
@@ -119,7 +129,8 @@ class SavingsGoalEntity {
           targetAmount == other.targetAmount &&
           currentAmount == other.currentAmount &&
           category == other.category &&
-          status == other.status;
+          status == other.status &&
+          linkedAccountId == other.linkedAccountId;
 
   @override
   int get hashCode => Object.hash(
@@ -129,6 +140,7 @@ class SavingsGoalEntity {
         currentAmount,
         category,
         status,
+        linkedAccountId,
       );
 }
 
@@ -139,6 +151,7 @@ class GoalContributionEntity {
   final double amount;
   final DateTime date;
   final String? notes;
+  final String? sourceAccountId;
   final DateTime createdAt;
 
   const GoalContributionEntity({
@@ -147,6 +160,7 @@ class GoalContributionEntity {
     required this.amount,
     required this.date,
     this.notes,
+    this.sourceAccountId,
     required this.createdAt,
   });
 
@@ -157,6 +171,7 @@ class GoalContributionEntity {
       'amount': amount,
       'date': date.millisecondsSinceEpoch,
       'notes': notes,
+      'source_account_id': sourceAccountId,
       'created_at': createdAt.millisecondsSinceEpoch,
     };
   }
@@ -168,6 +183,7 @@ class GoalContributionEntity {
       amount: (map['amount'] as num).toDouble(),
       date: DateTime.fromMillisecondsSinceEpoch(map['date'] as int),
       notes: map['notes'] as String?,
+      sourceAccountId: map['source_account_id'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
     );
   }

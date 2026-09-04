@@ -6,6 +6,7 @@ import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/debt_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/debt_repository.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 
 class DebtListNotifier extends AsyncNotifier<List<DebtEntity>> {
@@ -41,6 +42,7 @@ class DebtListNotifier extends AsyncNotifier<List<DebtEntity>> {
     String? notes,
     bool logAsTransaction = true,
     String paymentSource = 'Bank Account',
+    String? accountId,
   }) async {
     final now = DateTime.now();
     final repository = ref.read(debtRepositoryProvider);
@@ -54,6 +56,7 @@ class DebtListNotifier extends AsyncNotifier<List<DebtEntity>> {
       interestPortion: interestPortion,
       date: now,
       notes: notes,
+      sourceAccountId: accountId,
       createdAt: now,
     );
     await repository.addPayment(payment);
@@ -70,8 +73,11 @@ class DebtListNotifier extends AsyncNotifier<List<DebtEntity>> {
     );
     await saveDebt(updatedDebt);
 
-    // 3. Optionally record transaction in ledger
+    // 3. Optionally record transaction in ledger & adjust bank balance
     if (logAsTransaction) {
+      if (accountId != null) {
+        await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(accountId, -amount);
+      }
       final tx = TransactionEntity(
         id: const Uuid().v4(),
         title: 'EMI: ${debt.title}',
@@ -80,6 +86,8 @@ class DebtListNotifier extends AsyncNotifier<List<DebtEntity>> {
         category: 'Debt & Loan Repayment',
         date: now,
         paymentSource: paymentSource,
+        accountId: accountId,
+        linkedEntityId: debt.id,
         notes: notes ?? 'Debt repayment for "${debt.title}"',
         createdAt: now,
         updatedAt: now,

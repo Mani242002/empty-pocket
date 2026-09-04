@@ -93,6 +93,7 @@ class InvestmentEntity {
   final double? currentPrice;
   final String? institution; // e.g. Zerodha, Groww, SBI, ICICI
   final String? notes;
+  final String? sourceAccountId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -107,6 +108,7 @@ class InvestmentEntity {
     this.currentPrice,
     this.institution,
     this.notes,
+    this.sourceAccountId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -124,6 +126,7 @@ class InvestmentEntity {
     Object? currentPrice = _sentinel,
     Object? institution = _sentinel,
     Object? notes = _sentinel,
+    Object? sourceAccountId = _sentinel,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -138,6 +141,7 @@ class InvestmentEntity {
       currentPrice: identical(currentPrice, _sentinel) ? this.currentPrice : (currentPrice as double?),
       institution: identical(institution, _sentinel) ? this.institution : (institution as String?),
       notes: identical(notes, _sentinel) ? this.notes : (notes as String?),
+      sourceAccountId: identical(sourceAccountId, _sentinel) ? this.sourceAccountId : (sourceAccountId as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -155,6 +159,7 @@ class InvestmentEntity {
       'current_price': currentPrice,
       'institution': institution,
       'notes': notes,
+      'source_account_id': sourceAccountId,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
@@ -172,6 +177,7 @@ class InvestmentEntity {
       currentPrice: (map['current_price'] as num?)?.toDouble(),
       institution: map['institution'] as String?,
       notes: map['notes'] as String?,
+      sourceAccountId: map['source_account_id'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
     );

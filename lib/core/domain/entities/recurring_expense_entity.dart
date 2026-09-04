@@ -40,11 +40,15 @@ class RecurringExpenseEntity {
   final String category;
   final RecurringFrequency frequency;
   final String paymentSource;
+  final String? accountId;
+  final String? creditCardId;
   final DateTime startDate;
   final DateTime nextDueDate;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  static const Object _sentinel = Object();
 
   const RecurringExpenseEntity({
     required this.id,
@@ -53,6 +57,8 @@ class RecurringExpenseEntity {
     required this.category,
     required this.frequency,
     required this.paymentSource,
+    this.accountId,
+    this.creditCardId,
     required this.startDate,
     required this.nextDueDate,
     this.isActive = true,
@@ -67,6 +73,8 @@ class RecurringExpenseEntity {
     String? category,
     RecurringFrequency? frequency,
     String? paymentSource,
+    Object? accountId = _sentinel,
+    Object? creditCardId = _sentinel,
     DateTime? startDate,
     DateTime? nextDueDate,
     bool? isActive,
@@ -80,6 +88,8 @@ class RecurringExpenseEntity {
       category: category ?? this.category,
       frequency: frequency ?? this.frequency,
       paymentSource: paymentSource ?? this.paymentSource,
+      accountId: identical(accountId, _sentinel) ? this.accountId : (accountId as String?),
+      creditCardId: identical(creditCardId, _sentinel) ? this.creditCardId : (creditCardId as String?),
       startDate: startDate ?? this.startDate,
       nextDueDate: nextDueDate ?? this.nextDueDate,
       isActive: isActive ?? this.isActive,
@@ -96,6 +106,8 @@ class RecurringExpenseEntity {
       'category': category,
       'frequency': frequency.name,
       'payment_source': paymentSource,
+      'account_id': accountId,
+      'credit_card_id': creditCardId,
       'start_date': startDate.millisecondsSinceEpoch,
       'next_due_date': nextDueDate.millisecondsSinceEpoch,
       'is_active': isActive ? 1 : 0,
@@ -112,6 +124,8 @@ class RecurringExpenseEntity {
       category: map['category'] as String,
       frequency: RecurringFrequency.fromString(map['frequency'] as String),
       paymentSource: map['payment_source'] as String? ?? 'Bank Account',
+      accountId: map['account_id'] as String?,
+      creditCardId: map['credit_card_id'] as String?,
       startDate: DateTime.fromMillisecondsSinceEpoch(map['start_date'] as int),
       nextDueDate: DateTime.fromMillisecondsSinceEpoch(map['next_due_date'] as int),
       isActive: (map['is_active'] as int) == 1,
@@ -138,6 +152,8 @@ class RecurringExpenseEntity {
           amount == other.amount &&
           category == other.category &&
           frequency == other.frequency &&
+          accountId == other.accountId &&
+          creditCardId == other.creditCardId &&
           startDate == other.startDate &&
           nextDueDate == other.nextDueDate &&
           isActive == other.isActive;
@@ -149,6 +165,8 @@ class RecurringExpenseEntity {
         amount,
         category,
         frequency,
+        accountId,
+        creditCardId,
         startDate,
         nextDueDate,
         isActive,

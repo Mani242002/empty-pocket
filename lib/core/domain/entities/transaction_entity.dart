@@ -43,6 +43,13 @@ class TransactionEntity {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  final bool isShared; // Whether this transaction was shared/split with others
+  final double? myShareAmount; // User's personal share (e.g. ₹1,000 of ₹4,000)
+  final double reimbursedAmount; // Total amount collected back from friends so far
+  final bool isSettled; // Whether all friends' shares have been fully reimbursed
+  final String? sharedWith; // Roommates/friends involved (e.g. "Rahul, Amit")
+  final String? linkedEntityId; // Traceable link to savings goal, debt, or investment
+
   const TransactionEntity({
     required this.id,
     required this.title,
@@ -55,9 +62,27 @@ class TransactionEntity {
     this.toAccountId,
     this.creditCardId,
     this.notes,
+    this.isShared = false,
+    this.myShareAmount,
+    this.reimbursedAmount = 0.0,
+    this.isSettled = false,
+    this.sharedWith,
+    this.linkedEntityId,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  /// Total portion of the transaction that was paid on behalf of friends/roommates
+  double get friendsShare =>
+      isShared ? (amount - (myShareAmount ?? amount)).clamp(0.0, double.infinity) : 0.0;
+
+  /// Remaining reimbursement yet to be collected back from friends
+  double get pendingReimbursement =>
+      isShared ? (friendsShare - reimbursedAmount).clamp(0.0, double.infinity) : 0.0;
+
+  /// The user's true personal expenditure for this transaction
+  double get netPersonalAmount =>
+      isShared ? (myShareAmount ?? (amount - reimbursedAmount)) : amount;
 
   static const Object _sentinel = Object();
 
@@ -73,6 +98,12 @@ class TransactionEntity {
     Object? toAccountId = _sentinel,
     Object? creditCardId = _sentinel,
     Object? notes = _sentinel,
+    bool? isShared,
+    Object? myShareAmount = _sentinel,
+    double? reimbursedAmount,
+    bool? isSettled,
+    Object? sharedWith = _sentinel,
+    Object? linkedEntityId = _sentinel,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -88,6 +119,12 @@ class TransactionEntity {
       toAccountId: identical(toAccountId, _sentinel) ? this.toAccountId : (toAccountId as String?),
       creditCardId: identical(creditCardId, _sentinel) ? this.creditCardId : (creditCardId as String?),
       notes: identical(notes, _sentinel) ? this.notes : (notes as String?),
+      isShared: isShared ?? this.isShared,
+      myShareAmount: identical(myShareAmount, _sentinel) ? this.myShareAmount : (myShareAmount as double?),
+      reimbursedAmount: reimbursedAmount ?? this.reimbursedAmount,
+      isSettled: isSettled ?? this.isSettled,
+      sharedWith: identical(sharedWith, _sentinel) ? this.sharedWith : (sharedWith as String?),
+      linkedEntityId: identical(linkedEntityId, _sentinel) ? this.linkedEntityId : (linkedEntityId as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -106,6 +143,12 @@ class TransactionEntity {
       'to_account_id': toAccountId,
       'credit_card_id': creditCardId,
       'notes': notes,
+      'is_shared': isShared ? 1 : 0,
+      'my_share_amount': myShareAmount,
+      'reimbursed_amount': reimbursedAmount,
+      'is_settled': isSettled ? 1 : 0,
+      'shared_with': sharedWith,
+      'linked_entity_id': linkedEntityId,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
@@ -124,6 +167,12 @@ class TransactionEntity {
       toAccountId: map['to_account_id'] as String?,
       creditCardId: map['credit_card_id'] as String?,
       notes: map['notes'] as String?,
+      isShared: (map['is_shared'] as int? ?? 0) == 1,
+      myShareAmount: (map['my_share_amount'] as num?)?.toDouble(),
+      reimbursedAmount: (map['reimbursed_amount'] as num?)?.toDouble() ?? 0.0,
+      isSettled: (map['is_settled'] as int? ?? 0) == 1,
+      sharedWith: map['shared_with'] as String?,
+      linkedEntityId: map['linked_entity_id'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
     );
@@ -144,7 +193,13 @@ class TransactionEntity {
           accountId == other.accountId &&
           toAccountId == other.toAccountId &&
           creditCardId == other.creditCardId &&
-          notes == other.notes;
+          notes == other.notes &&
+          isShared == other.isShared &&
+          myShareAmount == other.myShareAmount &&
+          reimbursedAmount == other.reimbursedAmount &&
+          isSettled == other.isSettled &&
+          sharedWith == other.sharedWith &&
+          linkedEntityId == other.linkedEntityId;
 
   @override
   int get hashCode => Object.hash(
@@ -159,5 +214,11 @@ class TransactionEntity {
         toAccountId,
         creditCardId,
         notes,
+        isShared,
+        myShareAmount,
+        reimbursedAmount,
+        isSettled,
+        sharedWith,
+        linkedEntityId,
       );
 }

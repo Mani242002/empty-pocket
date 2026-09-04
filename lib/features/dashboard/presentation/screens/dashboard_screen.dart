@@ -10,7 +10,7 @@ import '../../../debts/presentation/state/debts_provider.dart';
 import '../../../investments/presentation/state/investments_provider.dart';
 import '../../../net_worth/presentation/state/net_worth_provider.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
-import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
+import '../../../transactions/presentation/screens/transaction_detail_sheet.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../widgets/dashboard_accounts_card.dart';
 import '../widgets/dashboard_balance_card.dart';
@@ -22,6 +22,7 @@ import '../widgets/dashboard_monthly_comparison_banner.dart';
 import '../widgets/dashboard_quick_actions.dart';
 import '../widgets/dashboard_recent_activity.dart';
 import '../widgets/dashboard_savings_card.dart';
+import '../widgets/pending_shared_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   final VoidCallback? onViewAllTransactions;
@@ -109,6 +110,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: DashboardQuickActions(),
               ),
 
+              // Pending Shared Reimbursements Card
+              const SliverToBoxAdapter(
+                child: DashboardPendingSharedCard(),
+              ),
+
               // Accounts & Cards Overview Card
               SliverToBoxAdapter(
                 child: DashboardAccountsCard(
@@ -164,7 +170,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               else
                 DashboardRecentActivityList(
                   recentTransactions: recentTransactions,
-                  onTapTransaction: (tx) => AddEditTransactionSheet.show(
+                  onTapTransaction: (tx) => TransactionDetailSheet.show(
                     context,
                     transaction: tx,
                   ),

@@ -145,21 +145,63 @@ abstract class FinancialCalculator {
   /// Note: Transfer transactions ([TransactionType.transfer]) are intentionally
   /// excluded from income/expense calculations as they represent internal account
   /// fund movements rather than external cash flow events.
-  static double calculateTotalIncome(List<TransactionEntity> transactions) {
+  ///
+  /// Shared expense reimbursements ([category == 'Shared Expense Reimbursement'])
+  /// are excluded by default so that friend repayments do not falsely inflate earned income.
+  static double calculateTotalIncome(
+    List<TransactionEntity> transactions, {
+    bool excludeReimbursements = true,
+  }) {
     final total = transactions
-        .where((t) => t.type == TransactionType.income)
+        .where((t) =>
+            t.type == TransactionType.income &&
+            (!excludeReimbursements || t.category != 'Shared Expense Reimbursement'))
         .fold(0.0, (sum, t) => sum + t.amount);
     return roundMoney(total);
   }
 
   /// Calculate total expense from list of transactions.
   ///
-  /// Note: Transfer transactions ([TransactionType.transfer]) are intentionally
-  /// excluded from expense totals as they do not constitute net expenditure.
-  static double calculateTotalExpense(List<TransactionEntity> transactions) {
+  /// When [netPersonalOnly] is true (default), shared expenses contribute only the user's
+  /// personal portion ([t.netPersonalAmount]) rather than the gross bill amount, preventing
+  /// budget and spending inflation for money that was paid on behalf of others.
+  static double calculateTotalExpense(
+    List<TransactionEntity> transactions, {
+    bool netPersonalOnly = true,
+  }) {
     final total = transactions
         .where((t) => t.type == TransactionType.expense)
+        .fold(0.0, (sum, t) => sum + (netPersonalOnly ? t.netPersonalAmount : t.amount));
+    return roundMoney(total);
+  }
+
+  /// Calculate gross out-of-pocket expense before any reimbursements
+  static double calculateGrossExpense(List<TransactionEntity> transactions) {
+    return calculateTotalExpense(transactions, netPersonalOnly: false);
+  }
+
+  /// Calculate total reimbursement funds received back from friends/roommates
+  static double calculateTotalReimbursements(List<TransactionEntity> transactions) {
+    final total = transactions
+        .where((t) => t.type == TransactionType.income && t.category == 'Shared Expense Reimbursement')
         .fold(0.0, (sum, t) => sum + t.amount);
+    return roundMoney(total);
+  }
+
+  /// Calculate total pending reimbursements yet to be collected across all active shared expenses
+  static double calculatePendingReimbursements(List<TransactionEntity> transactions) {
+    final total = transactions
+        .where((t) => t.isShared && !t.isSettled)
+        .fold(0.0, (sum, t) => sum + t.pendingReimbursement);
+    return roundMoney(total);
+  }
+
+  /// Calculate credit card funds earmarked in bank accounts from roommate reimbursements.
+  /// These are reimbursement funds collected for expenses originally paid via credit card.
+  static double calculateCreditCardEarmarkedReserve(List<TransactionEntity> transactions) {
+    final total = transactions
+        .where((t) => t.isShared && t.creditCardId != null && t.reimbursedAmount > 0)
+        .fold(0.0, (sum, t) => sum + t.reimbursedAmount);
     return roundMoney(total);
   }
 
@@ -261,7 +303,10 @@ abstract class FinancialCalculator {
     List<TransactionEntity> transactions,
   ) {
     final expenses = transactions.where((t) => t.type == TransactionType.expense).toList();
-    final totalExpense = expenses.fold(0.0, (sum, t) => sum + t.amount);
+    final totalExpense = expenses.fold(
+      0.0,
+      (sum, t) => sum + (t.isShared ? t.netPersonalAmount : t.amount),
+    );
 
     if (totalExpense == 0) return [];
 
@@ -272,8 +317,11 @@ abstract class FinancialCalculator {
 
     final List<CategorySpendingSummary> summary = [];
     groupedByCategory.forEach((category, items) {
-      final catAmount = items.fold(0.0, (sum, t) => sum + t.amount);
-      final percentage = (catAmount / totalExpense) * 100;
+      final catAmount = items.fold(
+        0.0,
+        (sum, t) => sum + (t.isShared ? t.netPersonalAmount : t.amount),
+      );
+      final percentage = totalExpense > 0 ? (catAmount / totalExpense) * 100 : 0.0;
       summary.add(
         CategorySpendingSummary(
           category: category,
@@ -300,7 +348,10 @@ abstract class FinancialCalculator {
           t.category.toLowerCase() == budget.category.toLowerCase();
     });
 
-    final spent = categoryExpenses.fold(0.0, (sum, t) => sum + t.amount);
+    final spent = categoryExpenses.fold(
+      0.0,
+      (sum, t) => sum + (t.isShared ? t.netPersonalAmount : t.amount),
+    );
     final limit = budget.limitAmount;
     final remaining = max(0.0, limit - spent);
     final overspent = max(0.0, spent - limit);

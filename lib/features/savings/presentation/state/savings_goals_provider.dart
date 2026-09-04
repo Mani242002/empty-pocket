@@ -5,6 +5,7 @@ import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/savings_goal_repository.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 
 class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
@@ -38,17 +39,19 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
     String? notes,
     bool logAsTransaction = true,
     String paymentSource = 'Bank Account',
+    String? accountId,
   }) async {
-    final now = DateTime.now();
     final repository = ref.read(savingsGoalRepositoryProvider);
+    final now = DateTime.now();
 
-    // 1. Record contribution history
+    // 1. Create contribution record
     final contribution = GoalContributionEntity(
       id: const Uuid().v4(),
       goalId: goal.id,
       amount: amount,
       date: now,
       notes: notes,
+      sourceAccountId: accountId,
       createdAt: now,
     );
     await repository.addContribution(contribution);
@@ -63,8 +66,11 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
     );
     await saveGoal(updatedGoal);
 
-    // 3. Optionally record transaction in offline ledger
+    // 3. Optionally record transaction in offline ledger & adjust account balance
     if (logAsTransaction) {
+      if (accountId != null) {
+        await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(accountId, -amount);
+      }
       final tx = TransactionEntity(
         id: const Uuid().v4(),
         title: 'Goal: ${goal.title}',
@@ -73,11 +79,65 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
         category: 'Savings & Investments',
         date: now,
         paymentSource: paymentSource,
+        accountId: accountId,
+        linkedEntityId: goal.id,
         notes: notes ?? 'Savings contribution towards "${goal.title}"',
         createdAt: now,
         updatedAt: now,
       );
       await ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
+    }
+  }
+
+  Future<void> createGoalWithInitialDeposit({
+    required SavingsGoalEntity goal,
+    required double initialAmount,
+    bool deductFromAccount = true,
+    String? accountId,
+    String paymentSource = 'Bank Account',
+  }) async {
+    final updatedGoal = initialAmount > 0
+        ? goal.copyWith(
+            currentAmount: goal.currentAmount + initialAmount,
+            status: (goal.currentAmount + initialAmount) >= goal.targetAmount
+                ? GoalStatus.completed
+                : goal.status,
+          )
+        : goal;
+    await saveGoal(updatedGoal);
+
+    if (initialAmount > 0) {
+      final now = DateTime.now();
+      final repository = ref.read(savingsGoalRepositoryProvider);
+      final contribution = GoalContributionEntity(
+        id: const Uuid().v4(),
+        goalId: goal.id,
+        amount: initialAmount,
+        date: now,
+        notes: 'Initial savings deposit for "${goal.title}"',
+        sourceAccountId: deductFromAccount ? accountId : null,
+        createdAt: now,
+      );
+      await repository.addContribution(contribution);
+
+      if (deductFromAccount && accountId != null) {
+        await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(accountId, -initialAmount);
+        final tx = TransactionEntity(
+          id: const Uuid().v4(),
+          title: 'Goal: ${goal.title}',
+          amount: initialAmount,
+          type: TransactionType.expense,
+          category: 'Savings & Investments',
+          date: now,
+          paymentSource: paymentSource,
+          accountId: accountId,
+          linkedEntityId: goal.id,
+          notes: 'Initial deposit for goal "${goal.title}"',
+          createdAt: now,
+          updatedAt: now,
+        );
+        await ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
+      }
     }
   }
 }

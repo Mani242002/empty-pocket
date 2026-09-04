@@ -7,6 +7,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/debt_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/debts_provider.dart';
 
 class AddEditDebtSheet extends ConsumerStatefulWidget {
@@ -38,6 +39,7 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
   late DebtType _selectedType;
   late DateTime _startDate;
   late int _dueDateDay;
+  String? _selectedAccountId;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -47,6 +49,8 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
   void initState() {
     super.initState();
     final debt = widget.initialDebt;
+
+    _selectedAccountId = debt?.linkedAccountId;
 
     _titleController = TextEditingController(text: debt?.title ?? '');
     _principalController = TextEditingController(
@@ -147,6 +151,7 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
       dueDateDay: _dueDateDay,
       lenderName: lender,
       status: remaining <= 0 ? DebtStatus.paidOff : DebtStatus.active,
+      linkedAccountId: _selectedAccountId,
       createdAt: widget.initialDebt?.createdAt ?? now,
       updatedAt: now,
     );
@@ -206,6 +211,13 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final bankAccounts = ref.watch(activeBankAccountsProvider);
+    final defaultAcc = ref.watch(defaultBankAccountProvider);
+
+    if (_selectedAccountId == null && bankAccounts.isNotEmpty) {
+      _selectedAccountId = defaultAcc?.id ?? bankAccounts.first.id;
+    }
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -537,7 +549,39 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                       prefixIcon: Icon(Icons.business_rounded),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 18),
+
+                  if (bankAccounts.isNotEmpty) ...[
+                    Text(
+                      'LINKED BANK ACCOUNT (FOR EMI AUTO-DEBIT)',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        color: financialColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedAccountId,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.account_balance_rounded),
+                      ),
+                      items: bankAccounts.map((acc) {
+                        return DropdownMenuItem(
+                          value: acc.id,
+                          child: Text(
+                            '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setState(() => _selectedAccountId = val);
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                  ],
+                  const SizedBox(height: 6),
 
                   // Save Action Button
                   SizedBox(

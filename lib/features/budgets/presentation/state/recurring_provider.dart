@@ -5,6 +5,7 @@ import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/recurring_expense_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/recurring_repository.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 
 class RecurringListNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> {
@@ -39,10 +40,42 @@ class RecurringListNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> 
     await saveRecurring(updated);
   }
 
-  Future<void> logPaymentAsTransaction(RecurringExpenseEntity item) async {
+  Future<void> logPaymentAsTransaction(
+    RecurringExpenseEntity item, {
+    String? accountId,
+    String? creditCardId,
+    bool deductBalance = true,
+  }) async {
     final now = DateTime.now();
 
-    // 1. Record transaction in offline ledger
+    String? resolvedAccountId = accountId ?? item.accountId;
+    String? resolvedCreditCardId = creditCardId ?? item.creditCardId;
+
+    final bankAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
+    final creditCards = ref.read(creditCardListProvider).valueOrNull ?? [];
+
+    if (resolvedAccountId == null && resolvedCreditCardId == null) {
+      final matchedAccount = bankAccounts.where((a) => a.accountName.toLowerCase() == item.paymentSource.toLowerCase()).firstOrNull;
+      if (matchedAccount != null) {
+        resolvedAccountId = matchedAccount.id;
+      } else {
+        final matchedCard = creditCards.where((c) => c.cardName.toLowerCase() == item.paymentSource.toLowerCase()).firstOrNull;
+        if (matchedCard != null) {
+          resolvedCreditCardId = matchedCard.id;
+        }
+      }
+    }
+
+    // 1. Deduct bank account balance or adjust credit card used amount if linked
+    if (deductBalance) {
+      if (resolvedAccountId != null) {
+        await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(resolvedAccountId, -item.amount);
+      } else if (resolvedCreditCardId != null) {
+        await ref.read(creditCardListProvider.notifier).adjustUsedAmount(resolvedCreditCardId, item.amount);
+      }
+    }
+
+    // 2. Record transaction in offline ledger
     final tx = TransactionEntity(
       id: const Uuid().v4(),
       title: item.title,
@@ -51,13 +84,16 @@ class RecurringListNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> 
       category: item.category,
       date: now,
       paymentSource: item.paymentSource,
+      accountId: resolvedAccountId,
+      creditCardId: resolvedCreditCardId,
+      linkedEntityId: item.id,
       notes: 'Recurring payment (${item.frequency.displayName})',
       createdAt: now,
       updatedAt: now,
     );
     await ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
 
-    // 2. Advance next due date to next cycle
+    // 3. Advance next due date to next cycle
     final nextDue = FinancialCalculator.calculateNextDueDate(item.nextDueDate, item.frequency);
     final updatedItem = item.copyWith(
       nextDueDate: nextDue,

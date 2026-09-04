@@ -7,6 +7,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/savings_goals_provider.dart';
 
 class AddEditSavingsGoalSheet extends ConsumerStatefulWidget {
@@ -48,6 +49,8 @@ class _AddEditSavingsGoalSheetState
   late String _selectedCategory;
   late DateTime _targetDate;
   late bool _isEmergencyFund;
+  String? _selectedAccountId;
+  bool _deductInitialFromAccount = true;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -71,6 +74,7 @@ class _AddEditSavingsGoalSheetState
     final goal = widget.initialGoal;
 
     _isEmergencyFund = goal?.isEmergencyFund ?? widget.isEmergencyFundDefault;
+    _selectedAccountId = goal?.linkedAccountId;
     _titleController = TextEditingController(
       text: goal?.title ?? (_isEmergencyFund ? 'Emergency Fund (6 Months)' : ''),
     );
@@ -141,11 +145,26 @@ class _AddEditSavingsGoalSheetState
       targetDate: _targetDate,
       isEmergencyFund: _isEmergencyFund,
       status: current >= target ? GoalStatus.completed : GoalStatus.active,
+      linkedAccountId: _selectedAccountId,
       createdAt: widget.initialGoal?.createdAt ?? now,
       updatedAt: now,
     );
 
-    await ref.read(savingsGoalsListNotifierProvider.notifier).saveGoal(goal);
+    if (!_isEditMode && current > 0) {
+      final bankAccounts = ref.read(activeBankAccountsProvider);
+      final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+      final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
+
+      await ref.read(savingsGoalsListNotifierProvider.notifier).createGoalWithInitialDeposit(
+            goal: goal,
+            initialAmount: current,
+            deductFromAccount: _deductInitialFromAccount,
+            accountId: _deductInitialFromAccount ? _selectedAccountId : null,
+            paymentSource: paymentSource,
+          );
+    } else {
+      await ref.read(savingsGoalsListNotifierProvider.notifier).saveGoal(goal);
+    }
 
     if (mounted) {
       Navigator.of(context).pop();
@@ -202,6 +221,13 @@ class _AddEditSavingsGoalSheetState
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final bankAccounts = ref.watch(activeBankAccountsProvider);
+    final defaultAcc = ref.watch(defaultBankAccountProvider);
+
+    if (_selectedAccountId == null && bankAccounts.isNotEmpty) {
+      _selectedAccountId = defaultAcc?.id ?? bankAccounts.first.id;
+    }
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -432,6 +458,65 @@ class _AddEditSavingsGoalSheetState
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Deep Account Linking: Primary Bank Account & Deduct Toggle
+                if (bankAccounts.isNotEmpty) ...[
+                  Text(
+                    'PRIMARY LINKED ACCOUNT',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedAccountId,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.account_balance_rounded),
+                    ),
+                    items: bankAccounts.map((acc) {
+                      return DropdownMenuItem(
+                        value: acc.id,
+                        child: Text(
+                          '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedAccountId = val);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  if (!_isEditMode) ...[
+                    Material(
+                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: financialColors.cardBorder),
+                        ),
+                        child: SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Deduct Initial Amount from Account', style: TextStyle(fontWeight: FontWeight.w700)),
+                          subtitle: Text(
+                            _deductInitialFromAccount
+                                ? 'Deducts saved portion from bank balance and records expense in daily ledger'
+                                : 'Set initial savings progress without deducting bank balance',
+                            style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                          ),
+                          value: _deductInitialFromAccount,
+                          activeThumbColor: AppColors.primaryEmerald,
+                          onChanged: (val) => setState(() => _deductInitialFromAccount = val),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ],
 
                 // Emergency Fund Switch Tile
                 SwitchListTile.adaptive(

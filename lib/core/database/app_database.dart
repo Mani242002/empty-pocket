@@ -17,7 +17,7 @@ import '../services/log_service.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 8;
+  static const int _databaseVersion = 9;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
@@ -107,6 +107,12 @@ class AppDatabase {
         to_account_id TEXT,
         credit_card_id TEXT,
         notes TEXT,
+        is_shared INTEGER NOT NULL DEFAULT 0,
+        my_share_amount REAL,
+        reimbursed_amount REAL NOT NULL DEFAULT 0.0,
+        is_settled INTEGER NOT NULL DEFAULT 0,
+        shared_with TEXT,
+        linked_entity_id TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -123,6 +129,9 @@ class AppDatabase {
     );
     await db.execute(
       'CREATE INDEX idx_transactions_card ON $tableTransactions(credit_card_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_transactions_shared ON $tableTransactions(is_shared, is_settled)',
     );
 
     // Budgets Table
@@ -195,6 +204,74 @@ class AppDatabase {
         await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_card ON $tableTransactions(credit_card_id)');
       } catch (e) {
         LogService.debug('AppDatabase', 'Transaction indexes migration: $e');
+      }
+    }
+    if (oldVersion < 9) {
+      try {
+        await db.execute('ALTER TABLE $tableTransactions ADD COLUMN is_shared INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'is_shared column migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableTransactions ADD COLUMN my_share_amount REAL');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'my_share_amount column migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableTransactions ADD COLUMN reimbursed_amount REAL NOT NULL DEFAULT 0.0');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'reimbursed_amount column migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableTransactions ADD COLUMN is_settled INTEGER NOT NULL DEFAULT 0');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'is_settled column migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableTransactions ADD COLUMN shared_with TEXT');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'shared_with column migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableTransactions ADD COLUMN linked_entity_id TEXT');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'linked_entity_id column migration: $e');
+      }
+      try {
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_shared ON $tableTransactions(is_shared, is_settled)');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'Shared transaction index migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableRecurring ADD COLUMN account_id TEXT');
+        await db.execute('ALTER TABLE $tableRecurring ADD COLUMN credit_card_id TEXT');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'Recurring accounts column migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableSavingsGoals ADD COLUMN linked_account_id TEXT');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'Savings goal linked_account_id migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableGoalContributions ADD COLUMN source_account_id TEXT');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'Goal contribution source_account_id migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableDebts ADD COLUMN linked_account_id TEXT');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'Debts linked_account_id migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableDebtPayments ADD COLUMN source_account_id TEXT');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'Debt payments source_account_id migration: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE $tableInvestments ADD COLUMN source_account_id TEXT');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'Investments source_account_id migration: $e');
       }
     }
   }
@@ -303,6 +380,8 @@ class AppDatabase {
         category TEXT NOT NULL,
         frequency TEXT NOT NULL,
         payment_source TEXT NOT NULL,
+        account_id TEXT,
+        credit_card_id TEXT,
         start_date INTEGER NOT NULL,
         next_due_date INTEGER NOT NULL,
         is_active INTEGER NOT NULL,
@@ -327,6 +406,7 @@ class AppDatabase {
         target_date INTEGER NOT NULL,
         is_emergency_fund INTEGER NOT NULL,
         status TEXT NOT NULL,
+        linked_account_id TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -339,6 +419,7 @@ class AppDatabase {
         amount REAL NOT NULL,
         date INTEGER NOT NULL,
         notes TEXT,
+        source_account_id TEXT,
         created_at INTEGER NOT NULL,
         FOREIGN KEY (goal_id) REFERENCES $tableSavingsGoals(id) ON DELETE CASCADE
       )
@@ -364,6 +445,7 @@ class AppDatabase {
         due_date_day INTEGER NOT NULL,
         lender_name TEXT,
         status TEXT NOT NULL,
+        linked_account_id TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -378,6 +460,7 @@ class AppDatabase {
         interest_portion REAL NOT NULL,
         date INTEGER NOT NULL,
         notes TEXT,
+        source_account_id TEXT,
         created_at INTEGER NOT NULL,
         FOREIGN KEY (debt_id) REFERENCES $tableDebts(id) ON DELETE CASCADE
       )
@@ -401,6 +484,7 @@ class AppDatabase {
         current_price REAL,
         institution TEXT,
         notes TEXT,
+        source_account_id TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -476,6 +560,28 @@ class AppDatabase {
       orderBy: 'date DESC, created_at DESC',
       limit: limit,
       offset: offset,
+    );
+
+    return maps.map((map) => TransactionEntity.fromMap(map)).toList();
+  }
+
+  Future<List<TransactionEntity>> getPendingSharedExpenses() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableTransactions,
+      where: 'is_shared = 1 AND is_settled = 0',
+      orderBy: 'date DESC, created_at DESC',
+    );
+
+    return maps.map((map) => TransactionEntity.fromMap(map)).toList();
+  }
+
+  Future<List<TransactionEntity>> getAllSharedExpenses() async {
+    final database = await this.database;
+    final List<Map<String, dynamic>> maps = await database.query(
+      tableTransactions,
+      where: 'is_shared = 1',
+      orderBy: 'date DESC, created_at DESC',
     );
 
     return maps.map((map) => TransactionEntity.fromMap(map)).toList();

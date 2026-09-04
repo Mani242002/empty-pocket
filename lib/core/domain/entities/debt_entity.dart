@@ -95,6 +95,7 @@ class DebtEntity {
   final int dueDateDay; // Day of the month (1-31)
   final String? lenderName;
   final DebtStatus status;
+  final String? linkedAccountId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -111,6 +112,7 @@ class DebtEntity {
     this.dueDateDay = 5,
     this.lenderName,
     this.status = DebtStatus.active,
+    this.linkedAccountId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -130,6 +132,7 @@ class DebtEntity {
     int? dueDateDay,
     Object? lenderName = _sentinel,
     DebtStatus? status,
+    Object? linkedAccountId = _sentinel,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -146,6 +149,7 @@ class DebtEntity {
       dueDateDay: dueDateDay ?? this.dueDateDay,
       lenderName: identical(lenderName, _sentinel) ? this.lenderName : (lenderName as String?),
       status: status ?? this.status,
+      linkedAccountId: identical(linkedAccountId, _sentinel) ? this.linkedAccountId : (linkedAccountId as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -165,6 +169,7 @@ class DebtEntity {
       'due_date_day': dueDateDay,
       'lender_name': lenderName,
       'status': status.name,
+      'linked_account_id': linkedAccountId,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
@@ -178,12 +183,13 @@ class DebtEntity {
       principalAmount: (map['principal_amount'] as num).toDouble(),
       remainingAmount: (map['remaining_amount'] as num).toDouble(),
       interestRate: (map['interest_rate'] as num?)?.toDouble() ?? 0.0,
-      tenureMonths: (map['tenure_months'] as num?)?.toInt() ?? 12,
+      tenureMonths: (map['tenure_months'] as int?) ?? 12,
       monthlyEmi: (map['monthly_emi'] as num).toDouble(),
       startDate: DateTime.fromMillisecondsSinceEpoch(map['start_date'] as int),
-      dueDateDay: (map['due_date_day'] as num?)?.toInt() ?? 5,
+      dueDateDay: (map['due_date_day'] as int?) ?? 5,
       lenderName: map['lender_name'] as String?,
       status: DebtStatus.fromString(map['status'] as String),
+      linkedAccountId: map['linked_account_id'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
     );
@@ -198,7 +204,8 @@ class DebtEntity {
           title == other.title &&
           principalAmount == other.principalAmount &&
           remainingAmount == other.remainingAmount &&
-          status == other.status;
+          status == other.status &&
+          linkedAccountId == other.linkedAccountId;
 
   @override
   int get hashCode => Object.hash(
@@ -207,6 +214,7 @@ class DebtEntity {
         principalAmount,
         remainingAmount,
         status,
+        linkedAccountId,
       );
 }
 
@@ -219,6 +227,7 @@ class DebtPaymentEntity {
   final double interestPortion;
   final DateTime date;
   final String? notes;
+  final String? sourceAccountId;
   final DateTime createdAt;
 
   const DebtPaymentEntity({
@@ -229,6 +238,7 @@ class DebtPaymentEntity {
     this.interestPortion = 0.0,
     required this.date,
     this.notes,
+    this.sourceAccountId,
     required this.createdAt,
   });
 
@@ -241,6 +251,7 @@ class DebtPaymentEntity {
       'interest_portion': interestPortion,
       'date': date.millisecondsSinceEpoch,
       'notes': notes,
+      'source_account_id': sourceAccountId,
       'created_at': createdAt.millisecondsSinceEpoch,
     };
   }
@@ -254,6 +265,7 @@ class DebtPaymentEntity {
       interestPortion: (map['interest_portion'] as num?)?.toDouble() ?? 0.0,
       date: DateTime.fromMillisecondsSinceEpoch(map['date'] as int),
       notes: map['notes'] as String?,
+      sourceAccountId: map['source_account_id'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
     );
   }

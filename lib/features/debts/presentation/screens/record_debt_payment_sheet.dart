@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
-import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/debt_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/debts_provider.dart';
 
 class RecordDebtPaymentSheet extends ConsumerStatefulWidget {
@@ -31,8 +31,8 @@ class _RecordDebtPaymentSheetState
     extends ConsumerState<RecordDebtPaymentSheet> {
   late TextEditingController _amountController;
   late TextEditingController _notesController;
-  late String _selectedPaymentSource;
-  bool _logAsTransaction = true;
+  String? _selectedAccountId;
+  bool _deductAndLog = true;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -46,7 +46,6 @@ class _RecordDebtPaymentSheetState
         : '';
     _amountController = TextEditingController(text: defaultAmount);
     _notesController = TextEditingController();
-    _selectedPaymentSource = CategoryConstants.paymentSources.first;
   }
 
   @override
@@ -70,12 +69,17 @@ class _RecordDebtPaymentSheetState
       return;
     }
 
+    final bankAccounts = ref.read(activeBankAccountsProvider);
+    final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+    final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
+
     await ref.read(debtListNotifierProvider.notifier).recordPayment(
           debt: widget.debt,
           amount: amount,
           notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-          logAsTransaction: _logAsTransaction,
-          paymentSource: _selectedPaymentSource,
+          logAsTransaction: _deductAndLog,
+          paymentSource: paymentSource,
+          accountId: _deductAndLog ? _selectedAccountId : null,
         );
 
     if (mounted) {
@@ -96,6 +100,17 @@ class _RecordDebtPaymentSheetState
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final bankAccounts = ref.watch(activeBankAccountsProvider);
+    final defaultAcc = ref.watch(defaultBankAccountProvider);
+
+    if (_selectedAccountId == null && bankAccounts.isNotEmpty) {
+      final hasLinked = widget.debt.linkedAccountId != null &&
+          bankAccounts.any((a) => a.id == widget.debt.linkedAccountId);
+      _selectedAccountId = hasLinked
+          ? widget.debt.linkedAccountId
+          : (defaultAcc?.id ?? bankAccounts.first.id);
+    }
 
     final debt = widget.debt;
     final remaining = debt.remainingAmount;
@@ -320,40 +335,58 @@ class _RecordDebtPaymentSheetState
                   ),
                   const SizedBox(height: 18),
 
-                  // Payment Source
-                  Text(
-                    'PAYMENT ACCOUNT',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1,
-                      color: financialColors.textMuted,
+                  // Deep Account Linking: ON/OFF Toggle
+                  Material(
+                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: financialColors.cardBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Deduct from Account', style: TextStyle(fontWeight: FontWeight.w700)),
+                            subtitle: Text(
+                              _deductAndLog
+                                  ? 'Deducts EMI payment from bank balance and records expense in daily ledger'
+                                  : 'Only update debt remaining amount (No bank balance deduction)',
+                              style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                            ),
+                            value: _deductAndLog,
+                            activeThumbColor: AppColors.primaryEmerald,
+                            onChanged: (val) => setState(() => _deductAndLog = val),
+                          ),
+                          if (_deductAndLog && bankAccounts.isNotEmpty) ...[
+                            const Divider(height: 16),
+                            DropdownButtonFormField<String>(
+                              initialValue: _selectedAccountId,
+                              decoration: const InputDecoration(
+                                labelText: 'Payment Account',
+                                prefixIcon: Icon(Icons.account_balance_rounded),
+                              ),
+                              items: bankAccounts.map((acc) {
+                                return DropdownMenuItem(
+                                  value: acc.id,
+                                  child: Text(
+                                    '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) setState(() => _selectedAccountId = val);
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedPaymentSource,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.account_balance_wallet_rounded),
-                    ),
-                    items: CategoryConstants.paymentSources.map((s) {
-                      return DropdownMenuItem(value: s, child: Text(s));
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedPaymentSource = val);
-                    },
                   ),
                   const SizedBox(height: 16),
-
-                  // Log as transaction checkbox
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Log as Expense in Daily Ledger', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Deducts from net balance and records debt repayment expense'),
-                    value: _logAsTransaction,
-                    activeColor: AppColors.primaryEmerald,
-                    onChanged: (val) => setState(() => _logAsTransaction = val ?? true),
-                  ),
-                  const SizedBox(height: 10),
 
                   // Optional Notes
                   Text(

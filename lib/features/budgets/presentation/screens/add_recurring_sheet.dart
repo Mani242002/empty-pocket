@@ -8,6 +8,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/recurring_expense_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/recurring_provider.dart';
 
 class AddRecurringSheet extends ConsumerStatefulWidget {
@@ -103,6 +104,22 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
     final title = _titleController.text.trim();
     final now = DateTime.now();
 
+    final bankAccounts = ref.read(activeBankAccountsProvider);
+    final creditCards = ref.read(activeCreditCardsProvider);
+
+    String? accountId;
+    String? creditCardId;
+
+    final matchedBank = bankAccounts.where((a) => a.accountName.toLowerCase() == _selectedPaymentSource.toLowerCase()).firstOrNull;
+    if (matchedBank != null) {
+      accountId = matchedBank.id;
+    } else {
+      final matchedCard = creditCards.where((c) => c.cardName.toLowerCase() == _selectedPaymentSource.toLowerCase()).firstOrNull;
+      if (matchedCard != null) {
+        creditCardId = matchedCard.id;
+      }
+    }
+
     final item = RecurringExpenseEntity(
       id: widget.initialRecurring?.id ?? const Uuid().v4(),
       title: title,
@@ -110,6 +127,8 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
       category: _selectedCategory,
       frequency: _selectedFrequency,
       paymentSource: _selectedPaymentSource,
+      accountId: accountId ?? widget.initialRecurring?.accountId,
+      creditCardId: creditCardId ?? widget.initialRecurring?.creditCardId,
       startDate: widget.initialRecurring?.startDate ?? now,
       nextDueDate: _nextDueDate,
       isActive: _isActive,
@@ -175,6 +194,19 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
     final categories = CategoryConstants.expenseCategories;
+
+    final bankAccounts = ref.watch(activeBankAccountsProvider);
+    final creditCards = ref.watch(activeCreditCardsProvider);
+
+    final availableSources = <String>[
+      ...bankAccounts.map((a) => a.accountName),
+      ...creditCards.map((c) => c.cardName),
+      'Cash',
+      'UPI / Wallet',
+    ];
+    if (!availableSources.contains(_selectedPaymentSource)) {
+      availableSources.insert(0, _selectedPaymentSource);
+    }
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -445,13 +477,14 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
                               initialValue: _selectedPaymentSource,
+                              isExpanded: true,
                               decoration: const InputDecoration(
                                 prefixIcon: Icon(Icons.account_balance_wallet_rounded, size: 18),
                               ),
-                              items: CategoryConstants.paymentSources.map((s) {
+                              items: availableSources.map((s) {
                                 return DropdownMenuItem(
                                   value: s,
-                                  child: Text(s, style: const TextStyle(fontSize: 12)),
+                                  child: Text(s, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
                                 );
                               }).toList(),
                               onChanged: (val) {
