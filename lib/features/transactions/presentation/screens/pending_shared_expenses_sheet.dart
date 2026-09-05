@@ -270,6 +270,7 @@ class _PendingSharedExpensesSheetState
                     DropdownButtonFormField<String>(
                       initialValue: _selectedTransaction?.id,
                       isExpanded: true,
+                      isDense: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.receipt_long_rounded),
                       ),
@@ -278,6 +279,7 @@ class _PendingSharedExpensesSheetState
                           value: tx.id,
                           child: Text(
                             '${tx.title} (${CurrencyFormatter.format(tx.pendingReimbursement)} pending)',
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                           ),
@@ -312,11 +314,15 @@ class _PendingSharedExpensesSheetState
                             Row(
                               children: [
                                 _buildSummaryItem(context, 'Total Bill', CurrencyFormatter.format(_selectedTransaction!.amount)),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 12),
                                 _buildSummaryItem(context, 'Your Share', CurrencyFormatter.format(_selectedTransaction!.myShareAmount ?? _selectedTransaction!.amount)),
-                                const SizedBox(width: 6),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
                                 _buildSummaryItem(context, 'Friends\' Share', CurrencyFormatter.format(_selectedTransaction!.friendsShare)),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 12),
                                 _buildSummaryItem(context, 'Pending', CurrencyFormatter.format(_selectedTransaction!.pendingReimbursement), isHighlight: true),
                               ],
                             ),
@@ -408,6 +414,7 @@ class _PendingSharedExpensesSheetState
                       DropdownButtonFormField<String>(
                         initialValue: _selectedAccountId,
                         isExpanded: true,
+                        isDense: true,
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.account_balance_rounded),
                         ),
@@ -416,6 +423,7 @@ class _PendingSharedExpensesSheetState
                             value: acc.id,
                             child: Text(
                               '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                             ),

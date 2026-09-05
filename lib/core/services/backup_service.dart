@@ -126,7 +126,15 @@ class BackupService {
     CreditCardRepository? creditCardRepo,
     AiChatRepository? aiChatRepo,
   }) async {
-    // 1. Wipe existing records to prevent conflicts
+    final isSqlite = transactionRepo is SqliteTransactionRepository;
+
+    if (isSqlite) {
+      // Perform atomic wipe + restore inside a single ACID SQLite transaction
+      await AppDatabase.instance.atomicRestoreBackup(backup);
+      return;
+    }
+
+    // 1. Wipe existing records to prevent conflicts (in-memory mock repos)
     await wipeAllData(
       transactionRepo: transactionRepo,
       budgetRepo: budgetRepo,
@@ -138,8 +146,6 @@ class BackupService {
       creditCardRepo: creditCardRepo,
       aiChatRepo: aiChatRepo,
     );
-
-    final isSqlite = transactionRepo is SqliteTransactionRepository;
 
     // 2. Restore Bank Accounts
     if (isSqlite && backup.bankAccounts.isNotEmpty) {

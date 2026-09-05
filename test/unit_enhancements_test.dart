@@ -75,6 +75,12 @@ void main() {
       expect(MathExpressionParser.tryEvaluate(''), isNull);
       expect(MathExpressionParser.tryEvaluate('-500'), isNull); // negative amounts rejected
     });
+
+    test('Properly ignores and parses formatted currency commas in expressions', () {
+      expect(MathExpressionParser.tryEvaluate('1,500 + 250'), 1750.0);
+      expect(MathExpressionParser.tryEvaluate('10,000 * 2'), 20000.0);
+      expect(MathExpressionParser.tryEvaluate('1,25,000 - 25,000'), 100000.0);
+    });
   });
 
   group('FinancialCalculator Daily Safe to Spend Tests', () {

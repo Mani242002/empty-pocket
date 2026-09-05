@@ -487,19 +487,26 @@ class _AddEditSavingsGoalSheetState
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String?>(
                     initialValue: _selectedAccountId,
+                    isExpanded: true,
+                    isDense: true,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.account_balance_rounded),
                     ),
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('None (Standalone Goal)'),
+                        child: Text(
+                          'None (Standalone Goal)',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       ...bankAccounts.map((acc) {
                         return DropdownMenuItem<String?>(
                           value: acc.id,
                           child: Text(
                             '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         );

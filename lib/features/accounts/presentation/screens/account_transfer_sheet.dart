@@ -319,11 +319,14 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                                     child: DropdownButton<String>(
                                       value: _fromAccountId,
                                       isExpanded: true,
+                                      isDense: true,
                                       items: accounts.map((acc) {
                                         return DropdownMenuItem(
                                           value: acc.id,
                                           child: Text(
                                             '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                                           ),
                                         );
@@ -365,11 +368,14 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                                     child: DropdownButton<String>(
                                       value: _toAccountId,
                                       isExpanded: true,
+                                      isDense: true,
                                       items: accounts.map((acc) {
                                         return DropdownMenuItem(
                                           value: acc.id,
                                           child: Text(
                                             '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                                           ),
                                         );

@@ -191,6 +191,19 @@ abstract class AppTheme {
         thickness: 1,
         space: 1,
       ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          backgroundColor: const WidgetStatePropertyAll(AppColors.lightSurface),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppColors.lightBorder),
+            ),
+          ),
+          elevation: const WidgetStatePropertyAll(4),
+        ),
+      ),
     );
   }
 
@@ -293,6 +306,19 @@ abstract class AppTheme {
         color: AppColors.darkBorder,
         thickness: 1,
         space: 1,
+      ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          backgroundColor: const WidgetStatePropertyAll(AppColors.darkSurface),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppColors.darkBorder),
+            ),
+          ),
+          elevation: const WidgetStatePropertyAll(4),
+        ),
       ),
     );
   }

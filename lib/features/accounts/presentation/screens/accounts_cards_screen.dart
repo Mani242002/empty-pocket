@@ -179,7 +179,10 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-                          label: const Text('Transfer Funds'),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Transfer Funds'),
+                          ),
                           onPressed: () => AccountTransferSheet.show(context),
                         ),
                       ),
@@ -192,7 +195,10 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('Add Account'),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Add Account'),
+                          ),
                           onPressed: () => AddEditBankAccountSheet.show(context),
                         ),
                       ),
@@ -555,7 +561,10 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           icon: const Icon(Icons.credit_score_rounded, size: 18),
-                          label: const Text('Pay Card Bill'),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Pay Card Bill'),
+                          ),
                           onPressed: () => PayCreditCardSheet.show(context),
                         ),
                       ),
@@ -563,12 +572,15 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                       Expanded(
                         child: FilledButton.icon(
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF6366F1),
+                            backgroundColor: AppColors.investment,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('Add Card'),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Add Card'),
+                          ),
                           onPressed: () => AddEditCreditCardSheet.show(context),
                         ),
                       ),

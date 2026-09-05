@@ -364,6 +364,8 @@ class _RecordDebtPaymentSheetState
                             const Divider(height: 16),
                             DropdownButtonFormField<String>(
                               initialValue: _selectedAccountId,
+                              isExpanded: true,
+                              isDense: true,
                               decoration: const InputDecoration(
                                 labelText: 'Payment Account',
                                 prefixIcon: Icon(Icons.account_balance_rounded),
@@ -373,6 +375,7 @@ class _RecordDebtPaymentSheetState
                                   value: acc.id,
                                   child: Text(
                                     '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                                    maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 );

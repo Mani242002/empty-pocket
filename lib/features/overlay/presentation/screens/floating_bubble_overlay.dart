@@ -588,22 +588,28 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryEmerald.withAlpha(40),
-                          shape: BoxShape.circle,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryEmerald.withAlpha(40),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.flash_on_rounded, color: AppColors.primaryEmerald, size: 16),
                         ),
-                        child: const Icon(Icons.flash_on_rounded, color: AppColors.primaryEmerald, size: 16),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Quick Transaction',
-                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        const Flexible(
+                          child: Text(
+                            'Quick Transaction',
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
@@ -936,6 +942,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                         child: DropdownButton<String>(
                           value: _selectedSharedExpenseToSettle!.id,
                           isExpanded: true,
+                          isDense: true,
                           dropdownColor: const Color(0xFF1B2430),
                           items: _pendingSharedExpenses.map((tx) {
                             return DropdownMenuItem(
@@ -943,6 +950,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                               child: Text(
                                 '${tx.title} (₹${tx.pendingReimbursement.toStringAsFixed(0)} pending)',
                                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             );
@@ -1005,6 +1013,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                     child: DropdownButton<PaymentMode>(
                       value: _selectedPaymentMode,
                       isExpanded: true,
+                      isDense: true,
                       dropdownColor: const Color(0xFF1B2430),
                       items: PaymentMode.values.map((mode) {
                         return DropdownMenuItem<PaymentMode>(
@@ -1013,7 +1022,14 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                             children: [
                               Icon(mode.icon, size: 16, color: AppColors.primaryEmerald),
                               const SizedBox(width: 8),
-                              Text(mode.displayName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                              Expanded(
+                                child: Text(
+                                  mode.displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                                ),
+                              ),
                             ],
                           ),
                         );
@@ -1110,6 +1126,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           DropdownButton<String>(
             value: initial,
             isExpanded: true,
+            isDense: true,
             dropdownColor: const Color(0xFF1B2430),
             items: _bankAccounts.map((acc) {
               return DropdownMenuItem(
@@ -1117,6 +1134,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 child: Text(
                   '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               );
@@ -1144,6 +1162,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           DropdownButton<String>(
             value: initial,
             isExpanded: true,
+            isDense: true,
             dropdownColor: const Color(0xFF1B2430),
             items: _creditCards.map((card) {
               return DropdownMenuItem(
@@ -1151,6 +1170,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 child: Text(
                   '💳 ${card.cardName} (${card.bankName}) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               );
@@ -1183,6 +1203,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 child: Text(
                   '🏦 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               )),
@@ -1191,6 +1212,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 child: Text(
                   '💳 ${card.cardName} (RuPay UPI) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               )),
@@ -1203,6 +1225,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           DropdownButton<String>(
             value: initialVal,
             isExpanded: true,
+            isDense: true,
             dropdownColor: const Color(0xFF1B2430),
             items: items,
             onChanged: (val) {

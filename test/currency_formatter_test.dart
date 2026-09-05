@@ -39,5 +39,14 @@ void main() {
       expect(CurrencyFormatter.formatCompact(-250000), '-₹2.50 L');
       expect(CurrencyFormatter.formatCompact(-15000000), '-₹1.50 Cr');
     });
+
+    test('safely handles NaN and Infinite amounts without throwing', () {
+      expect(CurrencyFormatter.format(double.nan), '₹0.00');
+      expect(CurrencyFormatter.format(double.infinity), '₹0.00');
+      expect(CurrencyFormatter.format(double.negativeInfinity), '₹0.00');
+      expect(CurrencyFormatter.formatCompact(double.nan), '₹0');
+      expect(CurrencyFormatter.formatCompact(double.infinity), '₹0');
+      expect(CurrencyFormatter.formatCompact(double.negativeInfinity), '₹0');
+    });
   });
 }

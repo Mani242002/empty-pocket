@@ -348,16 +348,23 @@ class TransactionDetailSheet extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.people_alt_rounded, color: AppColors.primaryEmerald, size: 20),
-                              SizedBox(width: 8),
-                              Text(
-                                'Shared / Split Expense',
-                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                              ),
-                            ],
+                          const Expanded(
+                            child: Row(
+                              children: [
+                                Icon(Icons.people_alt_rounded, color: AppColors.primaryEmerald, size: 20),
+                                SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'Shared / Split Expense',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
@@ -367,7 +374,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              transaction.isSettled ? 'FULLY SETTLED' : 'PENDING REIMBURSEMENT',
+                              transaction.isSettled ? 'FULLY SETTLED' : 'PENDING',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
@@ -381,11 +388,15 @@ class TransactionDetailSheet extends ConsumerWidget {
                       Row(
                         children: [
                           _buildMiniStat(context, 'Total Bill', CurrencyFormatter.format(transaction.amount)),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 12),
                           _buildMiniStat(context, 'My Share', CurrencyFormatter.format(transaction.myShareAmount ?? transaction.amount)),
-                          const SizedBox(width: 6),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
                           _buildMiniStat(context, 'Friends\' Share', CurrencyFormatter.format(transaction.friendsShare)),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 12),
                           _buildMiniStat(context, 'Collected', CurrencyFormatter.format(transaction.reimbursedAmount)),
                         ],
                       ),
@@ -408,9 +419,12 @@ class TransactionDetailSheet extends ConsumerWidget {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             icon: const Icon(Icons.handshake_rounded, size: 18),
-                            label: Text(
-                              'Record Reimbursement (${CurrencyFormatter.format(transaction.pendingReimbursement)} pending)',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                            label: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Record Reimbursement (${CurrencyFormatter.format(transaction.pendingReimbursement)} pending)',
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                              ),
                             ),
                             onPressed: () {
                               Navigator.pop(context);

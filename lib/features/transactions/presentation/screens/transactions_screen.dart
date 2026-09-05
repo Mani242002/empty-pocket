@@ -55,6 +55,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       date: now,
       createdAt: now,
       updatedAt: now,
+      reimbursedAmount: tx.isShared ? 0.0 : tx.reimbursedAmount,
+      isSettled: tx.isShared ? false : tx.isSettled,
     );
 
     // Apply balance impact for cloned transaction
@@ -77,6 +79,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         await ref
             .read(bankAccountListProvider.notifier)
             .adjustAccountBalance(cloned.accountId!, -cloned.amount);
+      }
+    } else if (cloned.type == TransactionType.transfer) {
+      if (cloned.accountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(cloned.accountId!, -cloned.amount);
+      }
+      if (cloned.toAccountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(cloned.toAccountId!, cloned.amount);
       }
     }
 

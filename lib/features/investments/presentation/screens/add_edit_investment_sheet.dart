@@ -305,6 +305,8 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                   const SizedBox(height: 8),
                   DropdownButtonFormField<AssetClass>(
                     initialValue: _selectedAssetClass,
+                    isExpanded: true,
+                    isDense: true,
                     decoration: InputDecoration(
                       prefixIcon: Icon(_selectedAssetClass.icon, color: _selectedAssetClass.color),
                     ),
@@ -322,7 +324,13 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(c.displayName),
+                            Flexible(
+                              child: Text(
+                                c.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -521,6 +529,8 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                               const Divider(height: 16),
                               DropdownButtonFormField<String>(
                                 initialValue: _selectedAccountId,
+                                isExpanded: true,
+                                isDense: true,
                                 decoration: const InputDecoration(
                                   labelText: 'Funding Account',
                                   prefixIcon: Icon(Icons.account_balance_rounded),
@@ -530,6 +540,7 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                                     value: acc.id,
                                     child: Text(
                                       '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                                      maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   );

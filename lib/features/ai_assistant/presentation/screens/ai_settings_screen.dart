@@ -295,6 +295,8 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
             // Model Selection Dropdown
             DropdownButtonFormField<String>(
               initialValue: selectedModel,
+              isExpanded: true,
+              isDense: true,
               decoration: const InputDecoration(
                 labelText: 'Select AI Model',
                 prefixIcon: Icon(Icons.memory_rounded),
@@ -302,7 +304,12 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               items: modelOptions.map((opt) {
                 return DropdownMenuItem(
                   value: opt.id,
-                  child: Text(opt.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  child: Text(
+                    opt.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 );
               }).toList(),
               onChanged: onModelChanged,

@@ -263,12 +263,12 @@ class _AddEditCreditCardSheetState
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1).withAlpha(isDark ? 40 : 25),
+                                color: AppColors.investment.withAlpha(isDark ? 40 : 25),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
                                 Icons.credit_card_rounded,
-                                color: Color(0xFF6366F1),
+                                color: AppColors.investment,
                                 size: 20,
                               ),
                             ),
@@ -431,13 +431,20 @@ class _AddEditCreditCardSheetState
                               const SizedBox(height: 8),
                               DropdownButtonFormField<CardNetwork>(
                                 initialValue: _selectedNetwork,
+                                isExpanded: true,
+                                isDense: true,
                                 decoration: const InputDecoration(
                                   prefixIcon: Icon(Icons.payment_rounded, size: 18),
                                 ),
                                 items: CardNetwork.values.map((net) {
                                   return DropdownMenuItem(
                                     value: net,
-                                    child: Text(net.displayName, style: const TextStyle(fontSize: 13)),
+                                    child: Text(
+                                      net.displayName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
                                   );
                                 }).toList(),
                                 onChanged: (val) {
@@ -544,7 +551,7 @@ class _AddEditCreditCardSheetState
                             fontWeight: FontWeight.w700,
                             color: ratio <= 30
                                 ? financialColors.income
-                                : (ratio <= 50 ? const Color(0xFFF59E0B) : financialColors.expense),
+                                : (ratio <= 50 ? financialColors.warning : financialColors.expense),
                           ),
                         ),
                       ],
@@ -577,6 +584,8 @@ class _AddEditCreditCardSheetState
                         Expanded(
                           child: DropdownButtonFormField<int>(
                             initialValue: _selectedStatementDay,
+                            isExpanded: true,
+                            isDense: true,
                             decoration: const InputDecoration(
                               labelText: 'Statement Day',
                               prefixIcon: Icon(Icons.receipt_long_rounded, size: 18),
@@ -584,7 +593,12 @@ class _AddEditCreditCardSheetState
                             items: List.generate(31, (i) => i + 1).map((day) {
                               return DropdownMenuItem(
                                 value: day,
-                                child: Text('Day $day of month', style: const TextStyle(fontSize: 13)),
+                                child: Text(
+                                  'Day $day',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
                               );
                             }).toList(),
                             onChanged: (val) {
@@ -597,6 +611,8 @@ class _AddEditCreditCardSheetState
                         Expanded(
                           child: DropdownButtonFormField<int>(
                             initialValue: _selectedGracePeriod,
+                            isExpanded: true,
+                            isDense: true,
                             decoration: const InputDecoration(
                               labelText: 'Grace Period',
                               prefixIcon: Icon(Icons.timelapse_rounded, size: 18),
@@ -604,7 +620,12 @@ class _AddEditCreditCardSheetState
                             items: [15, 18, 20, 22, 25, 28, 30].map((days) {
                               return DropdownMenuItem(
                                 value: days,
-                                child: Text('$days Days to Pay', style: const TextStyle(fontSize: 13)),
+                                child: Text(
+                                  '$days Days',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
                               );
                             }).toList(),
                             onChanged: (val) {
@@ -622,7 +643,7 @@ class _AddEditCreditCardSheetState
                     width: double.infinity,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1),
+                        backgroundColor: AppColors.investment,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       onPressed: _save,

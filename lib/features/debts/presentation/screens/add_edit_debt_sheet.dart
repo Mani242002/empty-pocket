@@ -308,13 +308,19 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<DebtType>(
                     initialValue: _selectedType,
+                    isExpanded: true,
+                    isDense: true,
                     decoration: InputDecoration(
                       prefixIcon: Icon(_selectedType.icon),
                     ),
                     items: DebtType.values.map((t) {
                       return DropdownMenuItem(
                         value: t,
-                        child: Text(t.displayName),
+                        child: Text(
+                          t.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
                     onChanged: (val) {
@@ -514,10 +520,16 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                               const SizedBox(height: 8),
                               DropdownButtonFormField<int>(
                                 initialValue: _dueDateDay,
+                                isExpanded: true,
+                                isDense: true,
                                 items: List.generate(31, (i) => i + 1).map((day) {
                                   return DropdownMenuItem(
                                     value: day,
-                                    child: Text('Day $day'),
+                                    child: Text(
+                                      'Day $day',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   );
                                 }).toList(),
                                 onChanged: (val) {
@@ -563,6 +575,8 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedAccountId,
+                      isExpanded: true,
+                      isDense: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.account_balance_rounded),
                       ),
@@ -571,6 +585,7 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                           value: acc.id,
                           child: Text(
                             '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         );

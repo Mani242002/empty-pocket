@@ -7,6 +7,9 @@ class CurrencyFormatter {
     String symbol = '₹',
     bool showDecimals = true,
   }) {
+    if (amount.isNaN || amount.isInfinite) {
+      return '$symbol${showDecimals ? "0.00" : "0"}';
+    }
     final sign = amount < 0 ? '-' : '';
     final absAmount = amount.abs();
     final pattern = showDecimals ? '$symbol#,##,##0.00' : '$symbol#,##,##0';
@@ -22,6 +25,9 @@ class CurrencyFormatter {
     double amount, {
     String symbol = '₹',
   }) {
+    if (amount.isNaN || amount.isInfinite) {
+      return '${symbol}0';
+    }
     final sign = amount < 0 ? '-' : '';
     final absAmount = amount.abs();
     if (absAmount >= 10000000) {

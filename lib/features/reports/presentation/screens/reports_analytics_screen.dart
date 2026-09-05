@@ -70,8 +70,8 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: isDark
-                      ? [const Color(0xFF064E3B), const Color(0xFF131B26)]
-                      : [const Color(0xFFECFDF5), const Color(0xFFFFFFFF)],
+                      ? [AppColors.primaryEmerald.withAlpha(50), AppColors.darkSurface]
+                      : [AppColors.primaryEmerald.withAlpha(20), Colors.white],
                 ),
                 border: Border.all(
                   color: AppColors.primaryEmerald.withAlpha(isDark ? 70 : 40),
@@ -840,9 +840,13 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                           children: [
                             const Text('Pending Collection', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.warning)),
                             const SizedBox(height: 2),
-                            Text(
-                              CurrencyFormatter.format(impact.pendingReimbursement),
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.warning),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                CurrencyFormatter.format(impact.pendingReimbursement),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.warning),
+                              ),
                             ),
                           ],
                         ),
@@ -861,9 +865,13 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
                           children: [
                             const Text('Settled / Recovered', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.income)),
                             const SizedBox(height: 2),
-                            Text(
-                              CurrencyFormatter.format(impact.settledReimbursement),
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.income),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                CurrencyFormatter.format(impact.settledReimbursement),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.income),
+                              ),
                             ),
                           ],
                         ),

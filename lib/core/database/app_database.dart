@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 import '../domain/entities/ai_assistant_entity.dart';
+import '../domain/entities/backup_entity.dart';
 import '../domain/entities/bank_account_entity.dart';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/credit_card_entity.dart';
@@ -86,10 +87,29 @@ class AppDatabase {
       onConfigure: (db) async {
         // Enforce SQLite Foreign Key constraints
         await db.execute('PRAGMA foreign_keys = ON');
+        // Enable WAL mode and normal synchronous mode for fast disk I/O and non-blocking concurrent reads
+        await db.execute('PRAGMA journal_mode = WAL');
+        await db.execute('PRAGMA synchronous = NORMAL');
+      },
+      onOpen: (db) async {
+        await _ensureIndexes(db);
       },
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+  }
+
+  static Future<void> _ensureIndexes(Database db) async {
+    try {
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_date ON $tableTransactions(date DESC)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_type ON $tableTransactions(type)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_account ON $tableTransactions(account_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_card ON $tableTransactions(credit_card_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_shared ON $tableTransactions(is_shared, is_settled)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_category ON $tableTransactions(category)');
+    } catch (e, stack) {
+      LogService.error('AppDatabase', 'Failed to ensure indexes on open', e, stack);
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -132,6 +152,9 @@ class AppDatabase {
     );
     await db.execute(
       'CREATE INDEX idx_transactions_shared ON $tableTransactions(is_shared, is_settled)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_transactions_category ON $tableTransactions(category)',
     );
 
     // Budgets Table
@@ -1272,15 +1295,75 @@ class AppDatabase {
       await txn.delete(tableTransactions);
       await txn.delete(tableBudgets);
       await txn.delete(tableRecurring);
-      await txn.delete(tableSavingsGoals);
       await txn.delete(tableGoalContributions);
-      await txn.delete(tableDebts);
+      await txn.delete(tableSavingsGoals);
       await txn.delete(tableDebtPayments);
+      await txn.delete(tableDebts);
       await txn.delete(tableInvestments);
       await txn.delete(tableChatMessages);
       await txn.delete(tableChatSessions);
-      await txn.delete(tableBankAccounts);
       await txn.delete(tableCreditCards);
+      await txn.delete(tableBankAccounts);
+    });
+  }
+
+  /// Atomically wipe and restore database from a backup in a single ACID transaction.
+  /// If any record insertion fails or causes a constraint violation, the entire transaction
+  /// rolls back automatically, preserving the user's existing data safely.
+  Future<void> atomicRestoreBackup(FullDatabaseBackup backup) async {
+    final client = await database;
+    await client.transaction((txn) async {
+      // 1. Wipe all existing tables (children before parents to prevent foreign key errors)
+      await txn.delete(tableTransactions);
+      await txn.delete(tableBudgets);
+      await txn.delete(tableRecurring);
+      await txn.delete(tableGoalContributions);
+      await txn.delete(tableSavingsGoals);
+      await txn.delete(tableDebtPayments);
+      await txn.delete(tableDebts);
+      await txn.delete(tableInvestments);
+      await txn.delete(tableChatMessages);
+      await txn.delete(tableChatSessions);
+      await txn.delete(tableCreditCards);
+      await txn.delete(tableBankAccounts);
+
+      // 2. Insert new records in safe dependency order
+      for (final a in backup.bankAccounts) {
+        await txn.insert(tableBankAccounts, a.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final c in backup.creditCards) {
+        await txn.insert(tableCreditCards, c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final t in backup.transactions) {
+        await txn.insert(tableTransactions, t.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final b in backup.budgets) {
+        await txn.insert(tableBudgets, b.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final g in backup.savingsGoals) {
+        await txn.insert(tableSavingsGoals, g.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final c in backup.savingsContributions) {
+        await txn.insert(tableGoalContributions, c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final d in backup.debts) {
+        await txn.insert(tableDebts, d.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final p in backup.debtPayments) {
+        await txn.insert(tableDebtPayments, p.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final i in backup.investments) {
+        await txn.insert(tableInvestments, i.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final r in backup.recurringExpenses) {
+        await txn.insert(tableRecurring, r.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final s in backup.chatSessions) {
+        await txn.insert(tableChatSessions, s.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final m in backup.chatMessages) {
+        await txn.insert(tableChatMessages, m.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
     });
   }
 

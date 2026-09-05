@@ -207,12 +207,12 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withAlpha(isDark ? 40 : 25),
+                          color: AppColors.investment.withAlpha(isDark ? 40 : 25),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
                           Icons.credit_score_rounded,
-                          color: Color(0xFF6366F1),
+                          color: AppColors.investment,
                           size: 22,
                         ),
                       ),
@@ -243,6 +243,8 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: _cardId,
+                    isExpanded: true,
+                    isDense: true,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.credit_card_rounded, size: 20),
                     ),
@@ -251,6 +253,8 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                         value: c.id,
                         child: Text(
                           '${c.cardName} (${c.bankName}) • Due: ${CurrencyFormatter.format(c.usedAmount)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                         ),
                       );
@@ -281,6 +285,8 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: _fromAccountId,
+                    isExpanded: true,
+                    isDense: true,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.account_balance_rounded, size: 20),
                     ),
@@ -289,6 +295,8 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                         value: a.id,
                         child: Text(
                           '${a.accountName} [${a.usedFor}] • Balance: ${CurrencyFormatter.format(a.currentBalance)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                         ),
                       );

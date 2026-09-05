@@ -200,14 +200,19 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'TOTAL BUDGETED ALLOWANCE',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.1,
-                        color: financialColors.textMuted,
+                    Expanded(
+                      child: Text(
+                        'TOTAL BUDGETED ALLOWANCE',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                          color: financialColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     _buildHealthBadge(context, overallSummary.health),
                   ],
                 ),
@@ -573,8 +578,8 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: isDark
-                      ? [const Color(0xFF064E3B), const Color(0xFF131B26)]
-                      : [const Color(0xFFECFDF5), const Color(0xFFFFFFFF)],
+                      ? [AppColors.primaryEmerald.withAlpha(50), AppColors.darkSurface]
+                      : [AppColors.primaryEmerald.withAlpha(20), Colors.white],
                 ),
                 border: Border.all(
                   color: isDark ? AppColors.income.withAlpha(60) : AppColors.income.withAlpha(40),
@@ -588,14 +593,19 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'TOTAL SAVED ACROSS GOALS',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
-                          color: financialColors.textMuted,
+                      Expanded(
+                        child: Text(
+                          'TOTAL SAVED ACROSS GOALS',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                            color: financialColors.textMuted,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -1053,16 +1063,22 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Subscriptions & Fixed Bills (${items.length})',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  Expanded(
+                    child: Text(
+                      'Subscriptions & Fixed Bills (${items.length})',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  if (items.isNotEmpty)
+                  if (items.isNotEmpty) ...[
+                    const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: () => AddRecurringSheet.show(context),
                       icon: const Icon(Icons.add, size: 16),
                       label: const Text('Add'),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -1301,31 +1317,43 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Switch.adaptive(
-                          value: item.isActive,
-                          activeTrackColor: AppColors.primaryEmerald,
-                          onChanged: (_) {
-                            ref.read(recurringListNotifierProvider.notifier).toggleActive(item.id);
-                          },
-                        ),
-                        Text(
-                          item.isActive ? 'Active' : 'Paused',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: item.isActive ? null : financialColors.textMuted,
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Switch.adaptive(
+                            value: item.isActive,
+                            activeTrackColor: AppColors.primaryEmerald,
+                            onChanged: (_) {
+                              ref.read(recurringListNotifierProvider.notifier).toggleActive(item.id);
+                            },
                           ),
-                        ),
-                      ],
-                    ),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        visualDensity: VisualDensity.compact,
+                          Flexible(
+                            child: Text(
+                              item.isActive ? 'Active' : 'Paused',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: item.isActive ? null : financialColors.textMuted,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                      label: const Text('Log Payment'),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                        label: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Log Payment'),
+                        ),
                       onPressed: () async {
                         await ref
                             .read(recurringListNotifierProvider.notifier)
@@ -1340,8 +1368,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                         }
                       },
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
               ],
             ),
           ),
@@ -1671,7 +1700,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1693,7 +1722,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1715,19 +1744,30 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                         ],
                       ),
                     ),
-                    if (!isSettled) ...[
-                      const SizedBox(width: 8),
-                      FilledButton.tonal(
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: () => PendingSharedExpensesSheet.show(context, preselectedTransaction: tx),
-                        child: const Text('Payback', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                      ),
-                    ],
                   ],
                 ),
+                if (!isSettled) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.handshake_rounded, size: 16),
+                      onPressed: () => PendingSharedExpensesSheet.show(context, preselectedTransaction: tx),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Record Payback (${CurrencyFormatter.format(tx.pendingReimbursement)})',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

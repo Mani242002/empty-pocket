@@ -3,7 +3,7 @@ class MathExpressionParser {
   /// Evaluates an expression string such as "150 + 50 * 2" or "1200 / 3"
   /// Returns evaluated double, or null if expression is invalid or cannot be parsed.
   static double? tryEvaluate(String input) {
-    final clean = input.replaceAll(' ', '').trim();
+    final clean = input.replaceAll(' ', '').replaceAll(',', '').trim();
     if (clean.isEmpty) return null;
 
     // Direct single number
