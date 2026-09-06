@@ -2335,6 +2335,9 @@ class _SettlePersonBottomSheet extends ConsumerStatefulWidget {
 class _SettlePersonBottomSheetState extends ConsumerState<_SettlePersonBottomSheet> {
   late TextEditingController _amountController;
   late TextEditingController _notesController;
+  late TextEditingController _offsetController;
+  bool _enableOffset = false;
+  String _offsetCategory = 'Food & Dining';
   String? _selectedAccountId;
   bool _isSaving = false;
 
@@ -2345,38 +2348,47 @@ class _SettlePersonBottomSheetState extends ConsumerState<_SettlePersonBottomShe
     _amountController = TextEditingController(
       text: amt == amt.roundToDouble() ? amt.toInt().toString() : amt.toStringAsFixed(2),
     );
+    _offsetController = TextEditingController();
     _notesController = TextEditingController(text: 'Reimbursement from ${widget.personName}');
   }
 
   @override
   void dispose() {
     _amountController.dispose();
+    _offsetController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final amount = double.tryParse(_amountController.text.trim());
-    if (amount == null || amount <= 0) {
+    if (amount == null || amount < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid received amount.')),
       );
       return;
     }
 
-    if (_selectedAccountId == null) {
+    final offsetAmt = _enableOffset ? double.tryParse(_offsetController.text.trim()) : null;
+
+    if (_selectedAccountId == null && amount > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a destination account.')),
       );
       return;
     }
 
+    final bankAccounts = ref.read(activeBankAccountsProvider);
+    final chosenAccount = _selectedAccountId ?? (bankAccounts.isNotEmpty ? bankAccounts.first.id : '');
+
     setState(() => _isSaving = true);
     try {
       await ref.read(transactionListNotifierProvider.notifier).settlePersonReimbursements(
             personName: widget.personName,
-            destinationAccountId: _selectedAccountId!,
+            destinationAccountId: chosenAccount,
             customAmount: amount,
+            offsetExpenseAmount: offsetAmt,
+            offsetExpenseCategory: _enableOffset ? _offsetCategory : null,
             notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
           );
 
@@ -2423,104 +2435,238 @@ class _SettlePersonBottomSheetState extends ConsumerState<_SettlePersonBottomShe
         top: 16,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: financialColors.cardBorder,
-                borderRadius: BorderRadius.circular(2),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: financialColors.cardBorder,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.primaryEmerald.withAlpha(35),
-                child: Text(
-                  widget.personName.isNotEmpty ? widget.personName[0].toUpperCase() : '?',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryEmerald),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primaryEmerald.withAlpha(35),
+                  child: Text(
+                    widget.personName.isNotEmpty ? widget.personName[0].toUpperCase() : '?',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryEmerald),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Settle with ${widget.personName}',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Total owed across all bills: ${CurrencyFormatter.format(widget.totalPending)}',
+                        style: theme.textTheme.bodySmall?.copyWith(color: financialColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Offset Card
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _enableOffset ? AppColors.primaryEmerald.withAlpha(90) : financialColors.cardBorder,
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Settle with ${widget.personName}',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Deduct Share I Owed (Offset)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: _enableOffset ? AppColors.primaryEmerald : null,
+                              ),
+                            ),
+                            Text(
+                              'Offset against an earlier expense paid by ${widget.personName}',
+                              style: TextStyle(fontSize: 11, color: financialColors.textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: _enableOffset,
+                        onChanged: (val) {
+                          setState(() {
+                            _enableOffset = val;
+                            if (!val) {
+                              _offsetController.clear();
+                              final amt = widget.totalPending;
+                              _amountController.text = amt == amt.roundToDouble()
+                                  ? amt.toInt().toString()
+                                  : amt.toStringAsFixed(2);
+                            }
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  if (_enableOffset) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'I OWED (₹)',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: financialColors.textMuted),
+                              ),
+                              const SizedBox(height: 4),
+                              TextFormField(
+                                controller: _offsetController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  hintText: 'e.g. 250',
+                                  isDense: true,
+                                  prefixText: '₹ ',
+                                ),
+                                onChanged: (val) {
+                                  final offset = double.tryParse(val.trim()) ?? 0.0;
+                                  final net = (widget.totalPending - offset).clamp(0.0, double.infinity);
+                                  _amountController.text = net == net.roundToDouble()
+                                      ? net.toInt().toString()
+                                      : net.toStringAsFixed(2);
+                                  setState(() {});
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 6,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'EXPENSE CATEGORY',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: financialColors.textMuted),
+                              ),
+                              const SizedBox(height: 4),
+                              DropdownButtonFormField<String>(
+                                initialValue: _offsetCategory,
+                                isExpanded: true,
+                                isDense: true,
+                                decoration: const InputDecoration(isDense: true),
+                                items: CategoryConstants.expenseCategories.map((c) {
+                                  return DropdownMenuItem(
+                                    value: c.name,
+                                    child: Text(
+                                      c.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _offsetCategory = val);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 8),
                     Text(
-                      'Total owed across all bills: ${CurrencyFormatter.format(widget.totalPending)}',
-                      style: theme.textTheme.bodySmall?.copyWith(color: financialColors.textMuted),
+                      'Net Received: ₹${widget.totalPending.toStringAsFixed(0)} - ₹${(double.tryParse(_offsetController.text.trim()) ?? 0.0).toStringAsFixed(0)} = ₹${_amountController.text}',
+                      style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: financialColors.textMuted),
                     ),
                   ],
-                ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'AMOUNT RECEIVED',
-            style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.1, color: financialColors.textMuted),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: financialColors.income),
-            decoration: const InputDecoration(prefixText: '₹ '),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'DEPOSIT INTO ACCOUNT',
-            style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.1, color: financialColors.textMuted),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedAccountId,
-            isExpanded: true,
-            isDense: true,
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.account_balance_rounded)),
-            items: bankAccounts.map((acc) {
-              return DropdownMenuItem(
-                value: acc.id,
-                child: Text(
-                  '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              );
-            }).toList(),
-            onChanged: (val) {
-              if (val != null) setState(() => _selectedAccountId = val);
-            },
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'NOTES (OPTIONAL)',
-            style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.1, color: financialColors.textMuted),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _notesController,
-            decoration: const InputDecoration(hintText: 'e.g. Paid back via UPI'),
-          ),
-          const SizedBox(height: 24),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'NET AMOUNT RECEIVED',
+              style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.1, color: financialColors.textMuted),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: financialColors.income),
+              decoration: const InputDecoration(prefixText: '₹ '),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'DEPOSIT INTO ACCOUNT',
+              style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.1, color: financialColors.textMuted),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedAccountId,
+              isExpanded: true,
+              isDense: true,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.account_balance_rounded)),
+              items: bankAccounts.map((acc) {
+                return DropdownMenuItem(
+                  value: acc.id,
+                  child: Text(
+                    '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedAccountId = val);
+              },
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'NOTES (OPTIONAL)',
+              style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1.1, color: financialColors.textMuted),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(hintText: 'e.g. Paid back via UPI'),
+            ),
+            const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
@@ -2545,6 +2691,8 @@ class _SettlePersonBottomSheetState extends ConsumerState<_SettlePersonBottomShe
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
 }
+}
+

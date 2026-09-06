@@ -37,7 +37,13 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               Icon(Icons.file_download_outlined, color: AppColors.primaryEmerald),
               SizedBox(width: 8),
-              Text('Full Database Backup'),
+              Expanded(
+                child: Text(
+                  'Full Database Backup',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
           content: Column(
@@ -65,6 +71,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+          actionsOverflowButtonSpacing: 8,
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -108,7 +115,13 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               Icon(Icons.table_chart_outlined, color: AppColors.primaryEmerald),
               SizedBox(width: 8),
-              Text('Transactions CSV Export'),
+              Expanded(
+                child: Text(
+                  'Transactions CSV Export',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
           content: Column(
@@ -136,6 +149,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+          actionsOverflowButtonSpacing: 8,
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -223,9 +237,13 @@ class SettingsScreen extends ConsumerWidget {
                   child: const Text('Cancel'),
                 ),
                 const SizedBox(width: 8),
-                FilledButton.icon(
-                  icon: const Icon(Icons.restore_rounded, size: 16),
-                  label: const Text('Restore Database'),
+                Flexible(
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.restore_rounded, size: 16),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Restore Database'),
+                    ),
                   onPressed: () async {
                     final text = textController.text.trim();
                     if (text.isEmpty) return;
@@ -254,8 +272,9 @@ class SettingsScreen extends ConsumerWidget {
                     }
                   },
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
           ],
         ),
       ),
@@ -272,7 +291,13 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             Icon(Icons.warning_amber_rounded, color: AppColors.expense),
             SizedBox(width: 8),
-            Text('Factory Reset All Data'),
+            Expanded(
+              child: Text(
+                'Factory Reset All Data',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -298,6 +323,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ],
         ),
+        actionsOverflowButtonSpacing: 8,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),

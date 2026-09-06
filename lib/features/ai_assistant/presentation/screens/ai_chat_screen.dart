@@ -96,7 +96,13 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           children: [
             Icon(Icons.delete_outline_rounded, color: AppColors.expense),
             SizedBox(width: 8),
-            Text('Delete Conversation?'),
+            Expanded(
+              child: Text(
+                'Delete Conversation?',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         content: Text('Delete "${session.title}"? This cannot be undone.'),
@@ -126,7 +132,13 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           children: [
             Icon(Icons.delete_forever_rounded, color: AppColors.expense),
             SizedBox(width: 8),
-            Text('Clear All Chat History?'),
+            Expanded(
+              child: Text(
+                'Clear All Chat History?',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         content: const Text(

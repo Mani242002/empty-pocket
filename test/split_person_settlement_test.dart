@@ -378,5 +378,66 @@ void main() {
       expect(settlementTx.amount, 500.0);
       expect(settlementTx.title, contains('All'));
     });
+
+    test('settlePersonReimbursements with offset records net bank deposit and logs offset expense', () async {
+      final tx1 = TransactionEntity(
+        id: 'tx_offset_1',
+        title: 'Dinner at Olive Garden',
+        amount: 500.0,
+        type: TransactionType.expense,
+        category: 'Food & Dining',
+        date: now,
+        accountId: 'acc1',
+        paymentSource: 'HDFC Savings',
+        isShared: true,
+        myShareAmount: 200.0,
+        reimbursedAmount: 0.0,
+        isSettled: false,
+        sharedWith: SplitHelper.encodeShares([
+          SplitPersonShare(personName: 'Raji', amount: 300.0),
+        ]),
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await txRepo.addTransaction(tx1);
+      await container.read(transactionListNotifierProvider.future);
+      await container.read(bankAccountListProvider.future);
+
+      // Raji owes 300, but user owed Raji 250 for previous outing.
+      // Net cash received: 50. Offset expense: 250 (Food & Dining).
+      await container.read(transactionListNotifierProvider.notifier).settlePersonReimbursements(
+        personName: 'Raji',
+        destinationAccountId: 'acc1',
+        customAmount: 50.0,
+        offsetExpenseAmount: 250.0,
+        offsetExpenseCategory: 'Food & Dining',
+        notes: 'Net settlement after offset',
+      );
+
+      // 1. Bank account balance increased by ONLY net received 50.0 (1000 + 50 = 1050)
+      final accounts = await bankRepo.getAllAccounts();
+      final updatedAcc = accounts.firstWhere((a) => a.id == 'acc1');
+      expect(updatedAcc.currentBalance, 1050.0);
+
+      // 2. Original split is 100% settled
+      final allUpdated = await txRepo.getAllTransactions();
+      final updatedTx1 = allUpdated.firstWhere((t) => t.id == 'tx_offset_1');
+      expect(updatedTx1.isSettled, isTrue);
+
+      // 3. Reimbursement income transaction was generated for 50.0
+      final reimbursement = allUpdated.firstWhere(
+        (t) => t.category == 'Shared Expense Reimbursement' && t.amount == 50.0,
+      );
+      expect(reimbursement.title, contains('Raji'));
+
+      // 4. Offset expense transaction was generated for 250.0 under Food & Dining
+      final offsetExpense = allUpdated.firstWhere(
+        (t) => t.type == TransactionType.expense && t.amount == 250.0 && t.title.contains('Offset'),
+      );
+      expect(offsetExpense.category, 'Food & Dining');
+      expect(offsetExpense.accountId, isNull); // no phantom double-deduction from bank
+    });
   });
 }
+

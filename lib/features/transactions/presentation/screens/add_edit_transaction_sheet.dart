@@ -2009,11 +2009,18 @@ class _AddEditTransactionSheetState
           final financialColors = ctx.financialColors;
 
           return AlertDialog(
-            title: Row(
+            title: const Row(
               children: [
-                const Icon(Icons.people_alt_rounded, color: AppColors.primaryEmerald),
-                const SizedBox(width: 10),
-                const Text('Saved Roommates & Friends', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Icon(Icons.people_alt_rounded, color: AppColors.primaryEmerald),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Saved Roommates & Friends',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             content: SizedBox(

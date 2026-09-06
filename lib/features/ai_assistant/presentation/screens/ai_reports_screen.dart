@@ -49,7 +49,13 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
           children: [
             Icon(Icons.delete_outline_rounded, color: AppColors.expense),
             SizedBox(width: 8),
-            Text('Clear All Generated Reports?'),
+            Expanded(
+              child: Text(
+                'Clear All Generated Reports?',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         content: const Text(

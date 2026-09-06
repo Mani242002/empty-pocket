@@ -341,6 +341,8 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     required String personName,
     required String destinationAccountId,
     double? customAmount,
+    double? offsetExpenseAmount,
+    String? offsetExpenseCategory,
     String? notes,
   }) async {
     final previous = state.valueOrNull ?? [];
@@ -422,11 +424,35 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       updatedAt: now,
     );
 
+    TransactionEntity? offsetTx;
+    if (offsetExpenseAmount != null && offsetExpenseAmount > 0) {
+      offsetTx = TransactionEntity(
+        id: const Uuid().v4(),
+        title: 'Share owed to $personName (Offset)',
+        amount: offsetExpenseAmount,
+        type: TransactionType.expense,
+        category: offsetExpenseCategory ?? 'Food & Dining',
+        date: now,
+        paymentSource: destAcc.accountName,
+        accountId: null, // Zero cash impact since net was credited
+        notes: 'Offset share deducted against reimbursement by $personName',
+        createdAt: now,
+        updatedAt: now,
+      );
+    }
+
     final updatedMap = {for (final u in updatedOriginals) u.id: u};
     final optimistic = previous
         .map((t) => updatedMap[t.id] ?? t)
         .toList();
-    state = AsyncValue.data([settlementTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)));
+
+    final newTransactions = [
+      settlementTx,
+      ?offsetTx,
+      ...optimistic,
+    ]..sort((a, b) => b.date.compareTo(a.date));
+
+    state = AsyncValue.data(newTransactions);
 
     try {
       final repository = ref.read(transactionRepositoryProvider);
@@ -434,10 +460,15 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
         await repository.updateTransaction(u);
       }
       await repository.addTransaction(settlementTx);
+      if (offsetTx != null) {
+        await repository.addTransaction(offsetTx);
+      }
 
-      await ref
-          .read(bankAccountListProvider.notifier)
-          .adjustAccountBalance(destAcc.id, finalAmount);
+      if (finalAmount > 0) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(destAcc.id, finalAmount);
+      }
     } catch (e, stack) {
       state = AsyncValue.data(previous);
       state = AsyncValue.error(e, stack);

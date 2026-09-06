@@ -155,7 +155,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
           children: [
             Icon(Icons.delete_outline_rounded, color: AppColors.expense),
             SizedBox(width: 8),
-            Text('Clear AI History & Reports?'),
+            Expanded(
+              child: Text(
+                'Clear AI History & Reports?',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         content: const Text(
