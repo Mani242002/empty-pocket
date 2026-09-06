@@ -8,6 +8,7 @@ import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../../core/utilities/split_helper.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/transactions_provider.dart';
 import 'add_edit_transaction_sheet.dart';
@@ -146,6 +147,7 @@ class TransactionDetailSheet extends ConsumerWidget {
 
     final bankAccounts = ref.watch(activeBankAccountsProvider);
     final creditCards = ref.watch(activeCreditCardsProvider);
+    final parsedShares = SplitHelper.parseShares(transaction.sharedWith);
 
     String accountDisplay = transaction.paymentSource;
     if (transaction.accountId != null) {
@@ -400,7 +402,62 @@ class TransactionDetailSheet extends ConsumerWidget {
                           _buildMiniStat(context, 'Collected', CurrencyFormatter.format(transaction.reimbursedAmount)),
                         ],
                       ),
-                      if (transaction.sharedWith != null && transaction.sharedWith!.isNotEmpty) ...[
+                      if (parsedShares.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'ROOMMATE SHARES',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                            color: financialColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: parsedShares.map((share) {
+                            final settled = share.isSettled;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: (settled ? financialColors.income : financialColors.warning).withAlpha(isDark ? 35 : 20),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: (settled ? financialColors.income : financialColors.warning).withAlpha(50),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    share.personName,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    CurrencyFormatter.format(share.amount),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: settled ? financialColors.income : financialColors.warning,
+                                    ),
+                                  ),
+                                  if (settled) ...[
+                                    const SizedBox(width: 3),
+                                    Icon(Icons.check, size: 12, color: financialColors.income),
+                                  ],
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ] else if (transaction.sharedWith != null && transaction.sharedWith!.isNotEmpty) ...[
                         const SizedBox(height: 10),
                         Text(
                           'Shared with: ${transaction.sharedWith}',
@@ -494,21 +551,28 @@ class TransactionDetailSheet extends ConsumerWidget {
       children: [
         Icon(icon, size: 18, color: financialColors.textMuted),
         const SizedBox(width: 12),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: financialColors.textMuted,
-            fontWeight: FontWeight.w600,
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: financialColors.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        const Spacer(),
-        Flexible(
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 3,
           child: Text(
             value,
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.right,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),

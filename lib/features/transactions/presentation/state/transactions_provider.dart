@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/transaction_repository.dart';
+import '../../../../core/utilities/split_helper.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 
 /// Monthly Financial Summary model
@@ -251,6 +252,198 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       rethrow;
     }
   }
+
+  /// Settle all pending shared expenses at once in a single bulk operation
+  Future<void> settleAllPendingSharedExpenses({
+    required String destinationAccountId,
+    String? notes,
+  }) async {
+    final previous = state.valueOrNull ?? [];
+    final pendingSplits = previous
+        .where((t) => t.isShared && !t.isSettled && t.pendingReimbursement > 0)
+        .toList();
+    if (pendingSplits.isEmpty) return;
+
+    double totalReimbursed = 0.0;
+    final List<TransactionEntity> updatedOriginals = [];
+    final now = DateTime.now();
+
+    for (final orig in pendingSplits) {
+      final pending = orig.pendingReimbursement;
+      totalReimbursed += pending;
+
+      // Mark individual shares as settled if structured JSON
+      String? updatedSharedWith = orig.sharedWith;
+      final shares = SplitHelper.parseShares(orig.sharedWith);
+      if (shares.isNotEmpty) {
+        final updatedShares = shares
+            .map((s) => s.copyWith(reimbursedAmount: s.amount, isSettled: true))
+            .toList();
+        updatedSharedWith = SplitHelper.encodeShares(updatedShares);
+      }
+
+      final updatedOrig = orig.copyWith(
+        reimbursedAmount: orig.friendsShare,
+        isSettled: true,
+        sharedWith: updatedSharedWith,
+        updatedAt: now,
+      );
+      updatedOriginals.add(updatedOrig);
+    }
+
+    if (totalReimbursed <= 0) return;
+
+    final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
+    final destAcc = destAccounts.firstWhere(
+      (a) => a.id == destinationAccountId,
+      orElse: () => destAccounts.first,
+    );
+
+    final settlementTx = TransactionEntity(
+      id: const Uuid().v4(),
+      title: 'Reimbursement: Cleared All Pending (${pendingSplits.length} expenses)',
+      amount: totalReimbursed,
+      type: TransactionType.income,
+      category: 'Shared Expense Reimbursement',
+      date: now,
+      paymentSource: destAcc.accountName,
+      accountId: destAcc.id,
+      notes: notes ?? 'Cleared all ${pendingSplits.length} pending shared expenses payback',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final updatedMap = {for (final u in updatedOriginals) u.id: u};
+    final optimistic = previous
+        .map((t) => updatedMap[t.id] ?? t)
+        .toList();
+    state = AsyncValue.data([settlementTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)));
+
+    try {
+      final repository = ref.read(transactionRepositoryProvider);
+      for (final u in updatedOriginals) {
+        await repository.updateTransaction(u);
+      }
+      await repository.addTransaction(settlementTx);
+
+      await ref
+          .read(bankAccountListProvider.notifier)
+          .adjustAccountBalance(destAcc.id, totalReimbursed);
+    } catch (e, stack) {
+      state = AsyncValue.data(previous);
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+
+  /// Settle all pending reimbursements of a specific person across all different expenses
+  Future<void> settlePersonReimbursements({
+    required String personName,
+    required String destinationAccountId,
+    double? customAmount,
+    String? notes,
+  }) async {
+    final previous = state.valueOrNull ?? [];
+    final cleanName = personName.trim().toLowerCase();
+    final now = DateTime.now();
+
+    final List<TransactionEntity> matchingExpenses = [];
+    final List<TransactionEntity> updatedOriginals = [];
+    double totalCollected = 0.0;
+
+    for (final tx in previous) {
+      if (!tx.isShared || tx.isSettled || tx.pendingReimbursement <= 0) continue;
+
+      final shares = SplitHelper.parseShares(tx.sharedWith);
+      if (shares.isNotEmpty) {
+        bool hasPersonShare = false;
+        double personPending = 0.0;
+        final updatedShares = shares.map((s) {
+          if (s.personName.trim().toLowerCase() == cleanName && s.pendingAmount > 0) {
+            hasPersonShare = true;
+            personPending += s.pendingAmount;
+            return s.copyWith(reimbursedAmount: s.amount, isSettled: true);
+          }
+          return s;
+        }).toList();
+
+        if (hasPersonShare && personPending > 0) {
+          matchingExpenses.add(tx);
+          totalCollected += personPending;
+
+          final newReimbursed = (tx.reimbursedAmount + personPending).clamp(0.0, tx.friendsShare);
+          final fullySettled = newReimbursed >= tx.friendsShare ||
+              updatedShares.every((s) => s.isSettled);
+
+          final updatedTx = tx.copyWith(
+            reimbursedAmount: newReimbursed,
+            isSettled: fullySettled,
+            sharedWith: SplitHelper.encodeShares(updatedShares),
+            updatedAt: now,
+          );
+          updatedOriginals.add(updatedTx);
+        }
+      } else if (tx.sharedWith != null &&
+          tx.sharedWith!.trim().toLowerCase().contains(cleanName)) {
+        // Fallback for non-JSON sharedWith containing person's name
+        matchingExpenses.add(tx);
+        final pending = tx.pendingReimbursement;
+        totalCollected += pending;
+
+        final updatedTx = tx.copyWith(
+          reimbursedAmount: tx.friendsShare,
+          isSettled: true,
+          updatedAt: now,
+        );
+        updatedOriginals.add(updatedTx);
+      }
+    }
+
+    if (totalCollected <= 0 || updatedOriginals.isEmpty) return;
+    final finalAmount = customAmount ?? totalCollected;
+
+    final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
+    final destAcc = destAccounts.firstWhere(
+      (a) => a.id == destinationAccountId,
+      orElse: () => destAccounts.first,
+    );
+
+    final settlementTx = TransactionEntity(
+      id: const Uuid().v4(),
+      title: 'Reimbursement: $personName (${matchingExpenses.length} expenses)',
+      amount: finalAmount,
+      type: TransactionType.income,
+      category: 'Shared Expense Reimbursement',
+      date: now,
+      paymentSource: destAcc.accountName,
+      accountId: destAcc.id,
+      notes: notes ?? 'Full reimbursement collected from $personName across ${matchingExpenses.length} shared bills',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final updatedMap = {for (final u in updatedOriginals) u.id: u};
+    final optimistic = previous
+        .map((t) => updatedMap[t.id] ?? t)
+        .toList();
+    state = AsyncValue.data([settlementTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)));
+
+    try {
+      final repository = ref.read(transactionRepositoryProvider);
+      for (final u in updatedOriginals) {
+        await repository.updateTransaction(u);
+      }
+      await repository.addTransaction(settlementTx);
+
+      await ref
+          .read(bankAccountListProvider.notifier)
+          .adjustAccountBalance(destAcc.id, finalAmount);
+    } catch (e, stack) {
+      state = AsyncValue.data(previous);
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
 }
 
 final transactionListNotifierProvider =
@@ -361,4 +554,10 @@ final allSharedExpensesProvider = Provider<List<TransactionEntity>>((ref) {
     data: (transactions) => transactions.where((t) => t.isShared).toList(),
     orElse: () => [],
   );
+});
+
+/// Provider for all pending shared expenses grouped by person
+final pendingByPersonSummaryProvider = Provider<List<PersonPendingSummary>>((ref) {
+  final pendingTransactions = ref.watch(pendingSharedExpensesProvider);
+  return SplitHelper.groupPendingByPerson(pendingTransactions);
 });

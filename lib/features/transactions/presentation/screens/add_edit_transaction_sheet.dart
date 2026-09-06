@@ -8,13 +8,30 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
+import '../../../../core/domain/entities/split_person_share.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
+import '../../../../core/services/saved_friends_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/category_matcher.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../../core/utilities/math_expression_parser.dart';
+import '../../../../core/utilities/split_helper.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/transactions_provider.dart';
+
+class _PersonSplitEntry {
+  final TextEditingController nameController;
+  final TextEditingController amountController;
+
+  _PersonSplitEntry({String name = '', String amount = ''})
+      : nameController = TextEditingController(text: name),
+        amountController = TextEditingController(text: amount);
+
+  void dispose() {
+    nameController.dispose();
+    amountController.dispose();
+  }
+}
 
 class AddEditTransactionSheet extends ConsumerStatefulWidget {
   final TransactionEntity? initialTransaction;
@@ -58,6 +75,7 @@ class _AddEditTransactionSheetState
   bool _isShared = false;
   late TextEditingController _myShareController;
   late TextEditingController _sharedWithController;
+  List<_PersonSplitEntry> _personSplits = [];
 
   // Income Expense Share / Reimbursement tracking
   bool _isIncomeReimbursement = false;
@@ -109,6 +127,17 @@ class _AddEditTransactionSheetState
     );
     _sharedWithController = TextEditingController(text: tx?.sharedWith ?? '');
 
+    // Parse structured per-person shares if present
+    final parsedShares = SplitHelper.parseShares(tx?.sharedWith);
+    if (parsedShares.isNotEmpty) {
+      _personSplits = parsedShares.map((s) {
+        final amtStr = s.amount == s.amount.roundToDouble()
+            ? s.amount.toInt().toString()
+            : s.amount.toStringAsFixed(2);
+        return _PersonSplitEntry(name: s.personName, amount: amtStr);
+      }).toList();
+    }
+
     if (tx != null) {
       _selectedPaymentMode = PaymentMode.fromString(tx.paymentSource);
       if (tx.creditCardId != null && _selectedPaymentMode != PaymentMode.upiWallet) {
@@ -131,6 +160,9 @@ class _AddEditTransactionSheetState
     _notesController.dispose();
     _myShareController.dispose();
     _sharedWithController.dispose();
+    for (final p in _personSplits) {
+      p.dispose();
+    }
     super.dispose();
   }
 
@@ -419,8 +451,37 @@ class _AddEditTransactionSheetState
         myShare = (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
             ? parsedShare
             : (amount / 2);
-        final rawNames = _sharedWithController.text.trim();
-        sharedWith = rawNames.isNotEmpty ? rawNames : null;
+
+        final existingParsed = SplitHelper.parseShares(prevTx.sharedWith);
+        final validShares = _personSplits
+            .where((p) => p.nameController.text.trim().isNotEmpty)
+            .map((p) {
+              final name = p.nameController.text.trim();
+              final amt = double.tryParse(p.amountController.text.trim()) ?? 0.0;
+              final existing = existingParsed
+                  .where((e) => e.personName.trim().toLowerCase() == name.toLowerCase())
+                  .firstOrNull;
+              final reimbursed = existing != null ? existing.reimbursedAmount : 0.0;
+              final isSettled = existing != null ? (existing.isSettled || (reimbursed >= amt && amt > 0)) : false;
+              return SplitPersonShare(
+                personName: name,
+                amount: amt,
+                reimbursedAmount: reimbursed,
+                isSettled: isSettled,
+              );
+            })
+            .where((s) => s.amount > 0)
+            .toList();
+
+        if (validShares.isNotEmpty) {
+          sharedWith = SplitHelper.encodeShares(validShares);
+          for (final s in validShares) {
+            ref.read(savedFriendsProvider.notifier).addFriend(s.personName);
+          }
+        } else {
+          final rawNames = _sharedWithController.text.trim();
+          sharedWith = rawNames.isNotEmpty ? rawNames : null;
+        }
       }
 
       final updated = prevTx.copyWith(
@@ -542,8 +603,26 @@ class _AddEditTransactionSheetState
         myShare = (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
             ? parsedShare
             : (amount / 2);
-        final rawNames = _sharedWithController.text.trim();
-        sharedWith = rawNames.isNotEmpty ? rawNames : null;
+
+        final validShares = _personSplits
+            .where((p) => p.nameController.text.trim().isNotEmpty)
+            .map((p) {
+              final name = p.nameController.text.trim();
+              final amt = double.tryParse(p.amountController.text.trim()) ?? 0.0;
+              return SplitPersonShare(personName: name, amount: amt);
+            })
+            .where((s) => s.amount > 0)
+            .toList();
+
+        if (validShares.isNotEmpty) {
+          sharedWith = SplitHelper.encodeShares(validShares);
+          for (final s in validShares) {
+            ref.read(savedFriendsProvider.notifier).addFriend(s.personName);
+          }
+        } else {
+          final rawNames = _sharedWithController.text.trim();
+          sharedWith = rawNames.isNotEmpty ? rawNames : null;
+        }
       }
 
       final newTx = TransactionEntity(
@@ -1659,20 +1738,190 @@ class _AddEditTransactionSheetState
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              'SHARED WITH (ROOMMATES / FRIENDS)',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.1,
-                color: financialColors.textMuted,
-              ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'WHO OWES YOU? (ROOMMATES / FRIENDS)',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.manage_accounts_outlined, size: 16),
+                  label: const Text('Saved Friends', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  onPressed: () => _showManageFriendsDialog(context),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
+            // Quick-add chips from saved friends
+            Consumer(
+              builder: (ctx, ref, _) {
+                final savedFriends = ref.watch(savedFriendsProvider);
+                if (savedFriends.isEmpty) return const SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 8),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: savedFriends.map((friend) {
+                        final isAlreadyAdded = _personSplits.any(
+                          (p) => p.nameController.text.trim().toLowerCase() == friend.toLowerCase(),
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ActionChip(
+                            avatar: Icon(
+                              isAlreadyAdded ? Icons.check_rounded : Icons.add_rounded,
+                              size: 14,
+                              color: isAlreadyAdded ? AppColors.primaryEmerald : financialColors.textMuted,
+                            ),
+                            label: Text(friend),
+                            labelStyle: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isAlreadyAdded ? AppColors.primaryEmerald : null,
+                            ),
+                            backgroundColor: isAlreadyAdded
+                                ? AppColors.primaryEmerald.withAlpha(25)
+                                : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                            onPressed: isAlreadyAdded ? null : () => _addPersonSplit(friend),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
+            // Individual person split rows
+            if (_personSplits.isNotEmpty) ...[
+              ...List.generate(_personSplits.length, (idx) {
+                final entry = _personSplits[idx];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 5,
+                        child: TextFormField(
+                          controller: entry.nameController,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            hintText: 'Friend name',
+                            prefixIcon: Icon(Icons.person_outline_rounded, size: 18),
+                            prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 0),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 4,
+                        child: TextFormField(
+                          controller: entry.amountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                          ],
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            hintText: 'Share amount',
+                            prefixText: '₹ ',
+                            prefixStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.remove_circle_outline_rounded, size: 20, color: financialColors.expense),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          setState(() {
+                            final removed = _personSplits.removeAt(idx);
+                            removed.dispose();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.person_add_rounded, size: 16),
+                  label: const Text('Add Person', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  onPressed: () => _addPersonSplit(),
+                ),
+                if (_personSplits.length > 1) ...[
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.balance_rounded, size: 16),
+                    label: const Text('Split Evenly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    onPressed: _splitEvenlyAmongFriends,
+                  ),
+                ],
+              ],
+            ),
+            // Unassigned split balance warning if amounts do not sum to friendsShare
+            Builder(
+              builder: (_) {
+                double totalAssigned = 0;
+                for (final p in _personSplits) {
+                  totalAssigned += double.tryParse(p.amountController.text.trim()) ?? 0;
+                }
+                final diff = friendsShare - totalAssigned;
+                if (_personSplits.isNotEmpty && diff.abs() > 0.01) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      diff > 0
+                          ? 'Remaining to allocate to friends: ${CurrencyFormatter.format(diff)}'
+                          : 'Over-allocated to friends by: ${CurrencyFormatter.format(-diff)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: financialColors.warning,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _sharedWithController,
               decoration: const InputDecoration(
-                hintText: 'e.g. Rahul, Aman, Flat 302',
-                prefixIcon: Icon(Icons.person_pin_outlined, size: 20),
+                hintText: 'Additional split notes (optional)',
+                isDense: true,
+                prefixIcon: Icon(Icons.note_alt_outlined, size: 18),
+                prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 0),
               ),
             ),
             const SizedBox(height: 14),
@@ -1704,6 +1953,162 @@ class _AddEditTransactionSheetState
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _addPersonSplit([String name = '']) {
+    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+    final myShare = double.tryParse(_myShareController.text.trim()) ?? (amount / 2);
+    final friendsShare = (amount - myShare).clamp(0.0, amount);
+
+    double assigned = 0;
+    for (final p in _personSplits) {
+      assigned += double.tryParse(p.amountController.text.trim()) ?? 0;
+    }
+    final remaining = (friendsShare - assigned).clamp(0.0, friendsShare);
+    final defaultAmt = remaining > 0 ? remaining : (friendsShare / (_personSplits.length + 1));
+    final defaultAmtStr = defaultAmt > 0
+        ? (defaultAmt == defaultAmt.roundToDouble()
+            ? defaultAmt.toInt().toString()
+            : defaultAmt.toStringAsFixed(0))
+        : '';
+
+    setState(() {
+      _personSplits.add(
+        _PersonSplitEntry(name: name, amount: defaultAmtStr),
+      );
+    });
+  }
+
+  void _splitEvenlyAmongFriends() {
+    if (_personSplits.isEmpty) return;
+    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+    final myShare = double.tryParse(_myShareController.text.trim()) ?? (amount / 2);
+    final friendsShare = (amount - myShare).clamp(0.0, amount);
+
+    final perPerson = friendsShare / _personSplits.length;
+    final perPersonStr = perPerson == perPerson.roundToDouble()
+        ? perPerson.toInt().toString()
+        : perPerson.toStringAsFixed(0);
+
+    setState(() {
+      for (final p in _personSplits) {
+        p.amountController.text = perPersonStr;
+      }
+    });
+  }
+
+  void _showManageFriendsDialog(BuildContext context) {
+    final textCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => Consumer(
+        builder: (ctx, ref, _) {
+          final friends = ref.watch(savedFriendsProvider);
+          final financialColors = ctx.financialColors;
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.people_alt_rounded, color: AppColors.primaryEmerald),
+                const SizedBox(width: 10),
+                const Text('Saved Roommates & Friends', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: textCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'Enter friend / roommate name',
+                            isDense: true,
+                            prefixIcon: Icon(Icons.person_add_alt_1_rounded, size: 18),
+                          ),
+                          onSubmitted: (val) {
+                            final name = val.trim();
+                            if (name.isNotEmpty) {
+                              ref.read(savedFriendsProvider.notifier).addFriend(name);
+                              textCtrl.clear();
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        onPressed: () {
+                          final name = textCtrl.text.trim();
+                          if (name.isNotEmpty) {
+                            ref.read(savedFriendsProvider.notifier).addFriend(name);
+                            textCtrl.clear();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (friends.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Text(
+                        'No saved friends yet. Enter names above or save a split expense to remember friends.',
+                        style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 250),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: friends.length,
+                        separatorBuilder: (_, _) => const Divider(height: 8),
+                        itemBuilder: (ctx, idx) {
+                          final f = friends[idx];
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              radius: 14,
+                              backgroundColor: AppColors.primaryEmerald.withAlpha(40),
+                              child: Text(
+                                f.isNotEmpty ? f[0].toUpperCase() : '?',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryEmerald,
+                                ),
+                              ),
+                            ),
+                            title: Text(f, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                              onPressed: () {
+                                ref.read(savedFriendsProvider.notifier).removeFriend(f);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Done'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -75,12 +75,16 @@ class DashboardPendingSharedCard extends ConsumerWidget {
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         '${pendingList.length} shared bills awaiting payback',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: financialColors.textMuted,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
