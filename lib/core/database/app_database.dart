@@ -57,7 +57,8 @@ class AppDatabase {
     }
 
     if (_initRetryCount >= _maxRetries) {
-      throw Exception('Database initialization failed after $_maxRetries attempts. Storage may be unavailable or corrupted.');
+      LogService.warning('AppDatabase', 'Max retries reached ($_maxRetries), resetting counter to attempt fresh recovery');
+      _initRetryCount = 0;
     }
 
     final completer = Completer<Database>();
@@ -77,6 +78,11 @@ class AppDatabase {
     }
   }
 
+  /// Reset initialization retry count to unblock reconnection attempts
+  void resetInitRetryCount() {
+    _initRetryCount = 0;
+  }
+
   Future<Database> _initDatabase() async {
     final databasesPath = await getDatabasesPath();
     final path = join(databasesPath, _databaseName);
@@ -85,11 +91,27 @@ class AppDatabase {
       path,
       version: _databaseVersion,
       onConfigure: (db) async {
-        // Enforce SQLite Foreign Key constraints
-        await db.execute('PRAGMA foreign_keys = ON');
-        // Enable WAL mode and normal synchronous mode for fast disk I/O and non-blocking concurrent reads
-        await db.execute('PRAGMA journal_mode = WAL');
-        await db.execute('PRAGMA synchronous = NORMAL');
+        try {
+          // Enforce SQLite Foreign Key constraints
+          await db.execute('PRAGMA foreign_keys = ON');
+        } catch (e, st) {
+          LogService.warning('AppDatabase', 'Failed to enable foreign_keys pragma: $e', e, st);
+        }
+        try {
+          // Enable WAL mode for fast disk I/O and non-blocking concurrent reads.
+          // In Android sqflite, PRAGMAs that return a result set (such as journal_mode)
+          // throw an exception when run via db.execute() because Android SQLiteDatabase.execSQL()
+          // forbids queries that return a result. db.rawQuery() must be used instead.
+          await db.rawQuery('PRAGMA journal_mode = WAL');
+        } catch (e, st) {
+          LogService.warning('AppDatabase', 'Failed to set journal_mode pragma: $e', e, st);
+        }
+        try {
+          // Set synchronous mode to NORMAL for optimal performance and safety in WAL mode
+          await db.execute('PRAGMA synchronous = NORMAL');
+        } catch (e, st) {
+          LogService.warning('AppDatabase', 'Failed to set synchronous pragma: $e', e, st);
+        }
       },
       onOpen: (db) async {
         await _ensureIndexes(db);
@@ -1373,6 +1395,7 @@ class AppDatabase {
       await currentDb.close();
       db = null;
       _dbCompleter = null;
+      _initRetryCount = 0;
     }
   }
 }
