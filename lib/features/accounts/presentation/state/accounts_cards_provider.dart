@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/calculation/financial_calculator.dart';
@@ -120,7 +119,7 @@ class CreditCardListNotifier extends AsyncNotifier<List<CreditCardEntity>> {
     final repository = ref.read(creditCardRepositoryProvider);
     final card = await repository.getCardById(id);
     if (card != null) {
-      final newUsed = max(0.0, card.usedAmount + delta);
+      final newUsed = card.usedAmount + delta;
       final updated = card.copyWith(
         usedAmount: newUsed,
         updatedAt: DateTime.now(),

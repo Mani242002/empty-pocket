@@ -5,6 +5,7 @@ import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/transaction_repository.dart';
 import '../../../../core/utilities/split_helper.dart';
+import '../../../../core/utilities/loan_share_helper.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 
 /// Monthly Financial Summary model
@@ -113,16 +114,32 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     try {
       final repository = ref.read(transactionRepositoryProvider);
       if (prevTx != null) {
-        // If this was a reimbursement settlement, roll back the original transaction's reimbursedAmount and isSettled status
-        if (prevTx.category == 'Shared Expense Reimbursement' && prevTx.linkedEntityId != null) {
+        // If this was a reimbursement or loan repayment settlement, roll back the original transaction
+        if ((prevTx.category == 'Shared Expense Reimbursement' ||
+                prevTx.category == 'Loan Repayment Received') &&
+            prevTx.linkedEntityId != null) {
           final origMatches = previous.where((t) => t.id == prevTx.linkedEntityId).toList();
           if (origMatches.isNotEmpty) {
             final orig = origMatches.first;
-            final rolledBackReimbursed = (orig.reimbursedAmount - prevTx.amount).clamp(0.0, double.infinity);
-            final rolledBackSettled = rolledBackReimbursed >= orig.friendsShare && orig.friendsShare > 0;
+            final loan = LoanShareHelper.parseLoan(orig.sharedWith);
+            final rolledBackReimbursed =
+                (orig.reimbursedAmount - prevTx.amount).clamp(0.0, double.infinity);
+
+            LoanShareData? updatedLoan;
+            bool rolledBackSettled;
+            if (loan != null) {
+              final newRepaid = (loan.repaidAmount - prevTx.amount).clamp(0.0, double.infinity);
+              final isRepaid = newRepaid >= loan.totalExpected && loan.totalExpected > 0;
+              updatedLoan = loan.copyWith(repaidAmount: newRepaid, isRepaid: isRepaid);
+              rolledBackSettled = isRepaid;
+            } else {
+              rolledBackSettled = rolledBackReimbursed >= orig.friendsShare && orig.friendsShare > 0;
+            }
+
             final updatedOrig = orig.copyWith(
               reimbursedAmount: rolledBackReimbursed,
               isSettled: rolledBackSettled,
+              sharedWith: updatedLoan != null ? LoanShareHelper.encodeLoan(updatedLoan) : orig.sharedWith,
               updatedAt: DateTime.now(),
             );
             await repository.updateTransaction(updatedOrig);
@@ -246,6 +263,82 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       await ref
           .read(bankAccountListProvider.notifier)
           .adjustAccountBalance(destAcc.id, amountReceived);
+    } catch (e, stack) {
+      state = AsyncValue.data(previous);
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+
+  /// Record repayment received for money lent to a friend or relative
+  Future<void> recordLoanRepayment({
+    required String originalTransactionId,
+    required double amountRepaid,
+    required String destinationAccountId,
+    DateTime? repaymentDate,
+    String? notes,
+  }) async {
+    final previous = state.valueOrNull ?? [];
+    final targetList = previous.where((t) => t.id == originalTransactionId).toList();
+    if (targetList.isEmpty) return;
+
+    final original = targetList.first;
+    final loan = LoanShareHelper.parseLoan(original.sharedWith);
+    final totalExpected = loan?.totalExpected ?? original.amount;
+    final newRepaid = original.reimbursedAmount + amountRepaid;
+    final isFullySettled = newRepaid >= totalExpected;
+
+    LoanShareData? updatedLoan;
+    if (loan != null) {
+      updatedLoan = loan.copyWith(
+        repaidAmount: newRepaid,
+        isRepaid: isFullySettled,
+      );
+    }
+
+    final updatedOriginal = original.copyWith(
+      reimbursedAmount: newRepaid,
+      isSettled: isFullySettled,
+      sharedWith: updatedLoan != null ? LoanShareHelper.encodeLoan(updatedLoan) : original.sharedWith,
+      updatedAt: DateTime.now(),
+    );
+
+    final now = repaymentDate ?? DateTime.now();
+    final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
+    final destAcc = destAccounts.where((a) => a.id == destinationAccountId).firstOrNull;
+    final paymentSource = destAcc != null ? destAcc.accountName : 'Cash';
+    final borrowerName = loan?.borrowerName ?? 'Friend';
+
+    final repaymentTx = TransactionEntity(
+      id: const Uuid().v4(),
+      title: 'Repayment: $borrowerName',
+      amount: amountRepaid,
+      type: TransactionType.income,
+      category: 'Loan Repayment Received',
+      date: now,
+      paymentSource: paymentSource,
+      accountId: destAcc?.id,
+      linkedEntityId: original.id,
+      notes: notes ?? 'Loan repayment received from $borrowerName for "${original.title}"',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final optimistic = previous
+        .map((t) => t.id == originalTransactionId ? updatedOriginal : t)
+        .toList();
+    state = AsyncValue.data([repaymentTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)));
+
+    try {
+      final repository = ref.read(transactionRepositoryProvider);
+      await repository.updateTransaction(updatedOriginal);
+      await repository.addTransaction(repaymentTx);
+
+      if (destAcc != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(destAcc.id, amountRepaid);
+      }
     } catch (e, stack) {
       state = AsyncValue.data(previous);
       state = AsyncValue.error(e, stack);

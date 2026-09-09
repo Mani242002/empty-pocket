@@ -6,6 +6,7 @@ import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../../core/utilities/loan_share_helper.dart';
 
 class TransactionListItem extends StatelessWidget {
   final TransactionEntity transaction;
@@ -166,6 +167,10 @@ class TransactionListItem extends StatelessWidget {
                       Builder(
                         builder: (context) {
                           final hasSource = transaction.paymentSource.trim().isNotEmpty;
+                          final loan = transaction.category == 'Money Lent / Helping Friend'
+                              ? LoanShareHelper.parseLoan(transaction.sharedWith)
+                              : null;
+
                           return Row(
                             children: [
                               Flexible(
@@ -216,7 +221,16 @@ class TransactionListItem extends StatelessWidget {
                                   ),
                                 ),
                               ],
-                              if (transaction.isShared) ...[
+                              if (transaction.category == 'Money Lent / Helping Friend') ...[
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.handshake_rounded,
+                                  size: 13,
+                                  color: (loan?.isRepaid ?? transaction.isSettled)
+                                      ? financialColors.income
+                                      : financialColors.warning,
+                                ),
+                              ] else if (transaction.isShared) ...[
                                 const SizedBox(width: 4),
                                 Icon(
                                   Icons.group_outlined,
@@ -234,17 +248,55 @@ class TransactionListItem extends StatelessWidget {
                 const SizedBox(width: 8),
                 // Amount
                 Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      '$amountPrefix${CurrencyFormatter.format(transaction.amount)}',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: amountColor,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
+                  child: Builder(
+                    builder: (context) {
+                      final loan = transaction.category == 'Money Lent / Helping Friend'
+                          ? LoanShareHelper.parseLoan(transaction.sharedWith)
+                          : null;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              '$amountPrefix${CurrencyFormatter.format(transaction.amount)}',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: amountColor,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                          ),
+                          if (loan != null && loan.expectedInterest > 0)
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    size: 10,
+                                    color: AppColors.primaryEmerald,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '+${CurrencyFormatter.format(loan.expectedInterest)}',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primaryEmerald,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],

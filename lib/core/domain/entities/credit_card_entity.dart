@@ -50,6 +50,17 @@ enum CreditUtilizationHealth {
     }
   }
 
+  String get shortDisplayName {
+    switch (this) {
+      case CreditUtilizationHealth.optimal:
+        return 'Optimal';
+      case CreditUtilizationHealth.moderate:
+        return 'Moderate';
+      case CreditUtilizationHealth.highRisk:
+        return 'High Risk';
+    }
+  }
+
   Color get color {
     switch (this) {
       case CreditUtilizationHealth.optimal:
@@ -92,10 +103,17 @@ class CreditCardEntity {
     required this.updatedAt,
   });
 
+  /// The active outstanding dues owed on the card (clamped to 0)
+  double get currentDues => max(0.0, usedAmount);
+
+  /// Excess advance balance or cashback received when dues are zero
+  double get excessCredit => usedAmount < 0 ? usedAmount.abs() : 0.0;
+
+  /// Available spending limit (expands beyond creditLimit when excess credit is present)
   double get availableLimit => max(0.0, creditLimit - usedAmount);
 
   double get utilizationRatio =>
-      creditLimit > 0 ? (usedAmount / creditLimit) * 100 : 0.0;
+      creditLimit > 0 ? (max(0.0, usedAmount) / creditLimit) * 100 : 0.0;
 
   CreditUtilizationHealth get utilizationHealth {
     if (utilizationRatio <= 30.0) return CreditUtilizationHealth.optimal;

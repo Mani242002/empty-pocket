@@ -140,6 +140,13 @@ abstract class CategoryConstants {
       color: Color(0xFF64748B),
     ),
     CategoryItem(
+      id: 'friend_loan',
+      name: 'Money Lent / Helping Friend',
+      type: TransactionType.expense,
+      icon: Icons.handshake_rounded,
+      color: Color(0xFF14B8A6),
+    ),
+    CategoryItem(
       id: 'other_expense',
       name: 'Miscellaneous',
       type: TransactionType.expense,
@@ -191,6 +198,13 @@ abstract class CategoryConstants {
       type: TransactionType.income,
       icon: Icons.handshake_rounded,
       color: Color(0xFF3B82F6),
+    ),
+    CategoryItem(
+      id: 'loan_repayment',
+      name: 'Loan Repayment Received',
+      type: TransactionType.income,
+      icon: Icons.assignment_turned_in_rounded,
+      color: Color(0xFF10B981),
     ),
     CategoryItem(
       id: 'refunds',

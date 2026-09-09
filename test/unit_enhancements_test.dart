@@ -39,6 +39,13 @@ void main() {
       expect(CategoryMatcher.detectCategory('Apollo pharmacy medicine'), 'Health & Medical');
     });
 
+    test('Detects Money Lent and Loan Repayment Received', () {
+      expect(CategoryMatcher.detectCategory('Money lent to friend Ramesh'), 'Money Lent / Helping Friend');
+      expect(CategoryMatcher.detectCategory('Personal loan given for emergency'), 'Money Lent / Helping Friend');
+      expect(CategoryMatcher.detectCategory('Loan repayment received from Ramesh'), 'Loan Repayment Received');
+      expect(CategoryMatcher.detectCategory('Friend repaid the money'), 'Loan Repayment Received');
+    });
+
     test('Returns null for unrecognized or empty keywords', () {
       expect(CategoryMatcher.detectCategory(''), isNull);
       expect(CategoryMatcher.detectCategory('   '), isNull);

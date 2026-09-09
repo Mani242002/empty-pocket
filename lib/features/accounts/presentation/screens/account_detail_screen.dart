@@ -118,49 +118,64 @@ class AccountDetailScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Account Activity (${filteredTransactions.length})',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    if (isCard)
-                      FilledButton.tonalIcon(
-                        style: FilledButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Account Activity (${filteredTransactions.length})',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        icon: const Icon(Icons.credit_score_rounded, size: 16),
-                        label: const Text('Pay Bill'),
-                        onPressed: () => PayCreditCardSheet.show(context, card: liveCard),
-                      )
-                    else
-                      Wrap(
-                        spacing: 8,
-                        children: [
+                        if (isCard)
                           FilledButton.tonalIcon(
                             style: FilledButton.styleFrom(
                               visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
                             ),
-                            icon: const Icon(Icons.pie_chart_rounded, size: 16),
-                            label: const Text('Smart Split'),
-                            onPressed: () => SmartInflowDistributionSheet.show(context, account: liveAccount!),
+                            icon: const Icon(Icons.credit_score_rounded, size: 16),
+                            label: const Text('Pay Bill'),
+                            onPressed: () => PayCreditCardSheet.show(context, card: liveCard),
                           ),
-                          FilledButton.tonalIcon(
-                            style: FilledButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                      ],
+                    ),
+                    if (!isCard) ...[
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            FilledButton.tonalIcon(
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                              icon: const Icon(Icons.pie_chart_rounded, size: 16),
+                              label: const Text('Smart Split'),
+                              onPressed: () => SmartInflowDistributionSheet.show(context, account: liveAccount!),
                             ),
-                            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-                            label: const Text('Transfer'),
-                            onPressed: () => AccountTransferSheet.show(context, fromAccount: liveAccount),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            FilledButton.tonalIcon(
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                              icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                              label: const Text('Transfer'),
+                              onPressed: () => AccountTransferSheet.show(context, fromAccount: liveAccount),
+                            ),
+                          ],
+                        ),
                       ),
+                    ],
                   ],
                 ),
               ),
@@ -330,119 +345,307 @@ class AccountDetailScreen extends ConsumerWidget {
   ) {
     final theme = Theme.of(context);
     final ratio = card.utilizationRatio;
+    final hasExcess = card.excessCredit > 0;
+
+    List<Color> gradientColors;
+    Color accentGlow;
+    switch (card.cardTheme) {
+      case 'emerald':
+        gradientColors = [const Color(0xFF064E3B), const Color(0xFF047857), const Color(0xFF0F172A)];
+        accentGlow = const Color(0xFF10B981);
+        break;
+      case 'midnightBlue':
+        gradientColors = [const Color(0xFF1E3A8A), const Color(0xFF1E40AF), const Color(0xFF0F172A)];
+        accentGlow = const Color(0xFF38BDF8);
+        break;
+      case 'royalPurple':
+        gradientColors = [const Color(0xFF581C87), const Color(0xFF6B21A8), const Color(0xFF1E1B4B)];
+        accentGlow = const Color(0xFFA855F7);
+        break;
+      case 'roseGold':
+        gradientColors = [const Color(0xFF831843), const Color(0xFF9D174D), const Color(0xFF500724)];
+        accentGlow = const Color(0xFFFB7185);
+        break;
+      case 'obsidian':
+      default:
+        gradientColors = [const Color(0xFF1E293B), const Color(0xFF0F172A), const Color(0xFF020617)];
+        accentGlow = const Color(0xFF6366F1);
+    }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF1E293B),
-            const Color(0xFF0F172A),
-            const Color(0xFF020617),
-          ],
+          colors: gradientColors,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF6366F1).withAlpha(80), width: 1.5),
+        border: Border.all(
+          color: Colors.white.withAlpha(isDark ? 40 : 60),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accentGlow.withAlpha(isDark ? 45 : 30),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withAlpha(isDark ? 80 : 40),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Row 1: Bank Name, Contactless icon, and Network Name
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                card.bankName.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              Text(
-                card.cardNetwork.displayName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'CURRENT DUES / OUTSTANDING',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white.withAlpha(160),
-                      letterSpacing: 1.1,
+                  Container(
+                    width: 32,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFD4AF37), Color(0xFFFFDF73), Color(0xFFAA771C)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
                     ),
+                    child: const Icon(Icons.developer_board_rounded, size: 14, color: Colors.black54),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(width: 10),
                   Text(
-                    CurrencyFormatter.format(card.usedAmount),
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
+                    card.bankName.toUpperCase(),
+                    style: const TextStyle(
                       color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: card.utilizationHealth.color.withAlpha(50),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: card.utilizationHealth.color.withAlpha(100)),
-                ),
-                child: Text(
-                  '${ratio.toStringAsFixed(0)}% Used • ${card.utilizationHealth.displayName}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: card.utilizationHealth.color,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.contactless_rounded, color: Colors.white70, size: 18),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(30),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Text(
+                      card.cardNetwork.displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
+          const SizedBox(height: 18),
+
+          // Row 2: Outstanding Dues & Utilization/Excess Badge
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CURRENT DUES / OUTSTANDING',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white.withAlpha(170),
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        CurrencyFormatter.format(card.currentDues),
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (hasExcess)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withAlpha(45),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF10B981).withAlpha(140)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Excess: +${CurrencyFormatter.format(card.excessCredit)}',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: card.utilizationHealth.color.withAlpha(45),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: card.utilizationHealth.color.withAlpha(120)),
+                    ),
+                    child: Text(
+                      '${ratio.toStringAsFixed(0)}% • ${card.utilizationHealth.shortDisplayName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: card.utilizationHealth.color,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 14),
+
+          // Progress Bar
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: (ratio / 100).clamp(0.0, 1.0),
               minHeight: 6,
               backgroundColor: Colors.white12,
-              valueColor: AlwaysStoppedAnimation<Color>(card.utilizationHealth.color),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                hasExcess ? const Color(0xFF10B981) : card.utilizationHealth.color,
+              ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+
+          // Row 3: Available Limit & Due Date metrics (Spacious 2-column layout)
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Available: ${CurrencyFormatter.format(card.availableLimit)} / ${CurrencyFormatter.format(card.creditLimit)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withAlpha(200),
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AVAILABLE LIMIT',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white.withAlpha(160),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        CurrencyFormatter.format(card.availableLimit),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      'Total Limit: ${CurrencyFormatter.format(card.creditLimit)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withAlpha(140),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                'Due in ${card.daysUntilDue()} days',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFF59E0B),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'PAYMENT DUE',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white.withAlpha(160),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        card.currentDues <= 0
+                            ? 'No Dues'
+                            : (card.daysUntilDue() == 0 ? 'Due Today' : 'In ${card.daysUntilDue()} days'),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: card.currentDues <= 0
+                              ? const Color(0xFF10B981)
+                              : (card.daysUntilDue() <= 3 ? const Color(0xFFEF4444) : const Color(0xFFF59E0B)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      'Bill Day: ${card.statementDateDay}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withAlpha(140),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
             ],

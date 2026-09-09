@@ -147,7 +147,8 @@ abstract class FinancialCalculator {
   /// fund movements rather than external cash flow events.
   ///
   /// Shared expense reimbursements ([category == 'Shared Expense Reimbursement'])
-  /// are excluded by default so that friend repayments do not falsely inflate earned income.
+  /// Shared expense reimbursements and loan repayments are excluded by default
+  /// so that friend repayments do not falsely inflate earned income.
   static double calculateTotalIncome(
     List<TransactionEntity> transactions, {
     bool excludeReimbursements = true,
@@ -155,7 +156,9 @@ abstract class FinancialCalculator {
     final total = transactions
         .where((t) =>
             t.type == TransactionType.income &&
-            (!excludeReimbursements || t.category != 'Shared Expense Reimbursement'))
+            (!excludeReimbursements ||
+                (t.category != 'Shared Expense Reimbursement' &&
+                    t.category != 'Loan Repayment Received')))
         .fold(0.0, (sum, t) => sum + t.amount);
     return roundMoney(total);
   }
@@ -163,15 +166,20 @@ abstract class FinancialCalculator {
   /// Calculate total expense from list of transactions.
   ///
   /// When [netPersonalOnly] is true (default), shared expenses contribute only the user's
-  /// personal portion ([t.netPersonalAmount]) rather than the gross bill amount, preventing
-  /// budget and spending inflation for money that was paid on behalf of others.
+  /// personal portion ([t.netPersonalAmount]) rather than the gross bill amount, and
+  /// money lent to friends/family (receivable) is excluded from consumption.
   static double calculateTotalExpense(
     List<TransactionEntity> transactions, {
     bool netPersonalOnly = true,
   }) {
     final total = transactions
         .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (sum, t) => sum + (netPersonalOnly ? t.netPersonalAmount : t.amount));
+        .fold(0.0, (sum, t) {
+      if (netPersonalOnly && t.category == 'Money Lent / Helping Friend') {
+        return sum;
+      }
+      return sum + (netPersonalOnly ? t.netPersonalAmount : t.amount);
+    });
     return roundMoney(total);
   }
 
@@ -1193,8 +1201,8 @@ abstract class FinancialCalculator {
     if (activeCards.isEmpty) return CombinedCreditSummary.empty;
 
     final totalLimit = activeCards.fold(0.0, (sum, c) => sum + c.creditLimit);
-    final totalUsed = activeCards.fold(0.0, (sum, c) => sum + c.usedAmount);
-    final totalAvailable = max(0.0, totalLimit - totalUsed);
+    final totalUsed = activeCards.fold(0.0, (sum, c) => sum + c.currentDues);
+    final totalAvailable = activeCards.fold(0.0, (sum, c) => sum + c.availableLimit);
     final overallRatio = totalLimit > 0 ? (totalUsed / totalLimit) * 100 : 0.0;
 
     CreditUtilizationHealth health;

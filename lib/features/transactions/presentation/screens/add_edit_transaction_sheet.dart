@@ -14,6 +14,7 @@ import '../../../../core/services/saved_friends_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/category_matcher.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../../core/utilities/loan_share_helper.dart';
 import '../../../../core/utilities/math_expression_parser.dart';
 import '../../../../core/utilities/split_helper.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
@@ -81,6 +82,12 @@ class _AddEditTransactionSheetState
   bool _isIncomeReimbursement = false;
   TransactionEntity? _selectedSharedExpenseToSettle;
 
+  // Money Lent to Friends / Relatives
+  late TextEditingController _borrowerNameController;
+  late TextEditingController _loanInterestController;
+  DateTime? _expectedReturnDate;
+  bool _isInterestPercentage = false;
+
   late String _selectedCategory;
   late PaymentMode _selectedPaymentMode;
   String? _selectedAccountId;
@@ -138,14 +145,32 @@ class _AddEditTransactionSheetState
       }).toList();
     }
 
+    // Parse structured personal loan / money lent if present
+    final parsedLoan = LoanShareHelper.parseLoan(tx?.sharedWith);
+    _borrowerNameController = TextEditingController(text: parsedLoan?.borrowerName ?? '');
+    _loanInterestController = TextEditingController(
+      text: parsedLoan != null && parsedLoan.expectedInterest > 0
+          ? (parsedLoan.interestRate != null
+              ? (parsedLoan.interestRate == parsedLoan.interestRate!.roundToDouble()
+                  ? parsedLoan.interestRate!.toInt().toString()
+                  : parsedLoan.interestRate.toString())
+              : (parsedLoan.expectedInterest == parsedLoan.expectedInterest.roundToDouble()
+                  ? parsedLoan.expectedInterest.toInt().toString()
+                  : parsedLoan.expectedInterest.toString()))
+          : '',
+    );
+    _isInterestPercentage = parsedLoan?.interestRate != null;
+    _expectedReturnDate = parsedLoan?.expectedReturnDate;
+
     if (tx != null) {
       _selectedPaymentMode = PaymentMode.fromString(tx.paymentSource);
-      if (tx.creditCardId != null && _selectedPaymentMode != PaymentMode.upiWallet) {
+      if (tx.accountId != null) {
+        if (_selectedPaymentMode != PaymentMode.upiWallet &&
+            _selectedPaymentMode != PaymentMode.cash) {
+          _selectedPaymentMode = PaymentMode.bankAccount;
+        }
+      } else if (tx.creditCardId != null && _selectedPaymentMode != PaymentMode.upiWallet) {
         _selectedPaymentMode = PaymentMode.creditCard;
-      } else if (tx.accountId != null &&
-          _selectedPaymentMode != PaymentMode.upiWallet &&
-          _selectedPaymentMode != PaymentMode.cash) {
-        _selectedPaymentMode = PaymentMode.bankAccount;
       }
     } else {
       _selectedPaymentMode = PaymentMode.bankAccount;
@@ -160,6 +185,8 @@ class _AddEditTransactionSheetState
     _notesController.dispose();
     _myShareController.dispose();
     _sharedWithController.dispose();
+    _borrowerNameController.dispose();
+    _loanInterestController.dispose();
     for (final p in _personSplits) {
       p.dispose();
     }
@@ -309,6 +336,15 @@ class _AddEditTransactionSheetState
     }
   }
 
+  double _calculateExpectedInterest(double principal) {
+    final raw = double.tryParse(_loanInterestController.text.trim()) ?? 0.0;
+    if (raw <= 0 || principal <= 0) return 0.0;
+    if (_isInterestPercentage) {
+      return (principal * raw) / 100.0;
+    }
+    return raw;
+  }
+
   Future<void> _pickDate() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -363,6 +399,21 @@ class _AddEditTransactionSheetState
         ),
       );
       return;
+    }
+
+    if (_selectedType == TransactionType.expense &&
+        _selectedCategory == 'Money Lent / Helping Friend') {
+      final borrower = _borrowerNameController.text.trim();
+      if (borrower.isEmpty) {
+        AppHaptics.warning();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter friend or relative\'s name for money lent.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
     }
 
     final now = DateTime.now();
@@ -443,10 +494,36 @@ class _AddEditTransactionSheetState
       }
 
       final isExpense = _selectedType == TransactionType.expense;
-      final isSharedExpense = isExpense && _isShared;
+      final isMoneyLent = isExpense && _selectedCategory == 'Money Lent / Helping Friend';
+      final isSharedExpense = isExpense && (_isShared || isMoneyLent);
       double? myShare;
       String? sharedWith;
-      if (isSharedExpense) {
+      bool isSettled = false;
+
+      if (isMoneyLent) {
+        final borrower = _borrowerNameController.text.trim();
+        final expectedInterest = _calculateExpectedInterest(amount);
+        final rate = _isInterestPercentage ? double.tryParse(_loanInterestController.text.trim()) : null;
+        final prevLoan = LoanShareHelper.parseLoan(prevTx.sharedWith);
+
+        final loanData = LoanShareData(
+          borrowerName: borrower.isNotEmpty ? borrower : 'Friend',
+          principalAmount: amount,
+          expectedInterest: expectedInterest,
+          interestRate: rate,
+          expectedReturnDate: _expectedReturnDate,
+          repaidAmount: prevLoan?.repaidAmount ?? prevTx.reimbursedAmount,
+          isRepaid: prevLoan?.isRepaid ?? prevTx.isSettled,
+          paymentSource: _selectedPaymentSource,
+        );
+
+        sharedWith = LoanShareHelper.encodeLoan(loanData);
+        myShare = 0.0;
+        isSettled = loanData.isRepaid;
+        if (borrower.isNotEmpty) {
+          ref.read(savedFriendsProvider.notifier).addFriend(borrower);
+        }
+      } else if (isSharedExpense) {
         final parsedShare = MathExpressionParser.tryEvaluate(_myShareController.text.trim());
         myShare = (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
             ? parsedShare
@@ -482,6 +559,7 @@ class _AddEditTransactionSheetState
           final rawNames = _sharedWithController.text.trim();
           sharedWith = rawNames.isNotEmpty ? rawNames : null;
         }
+        isSettled = prevTx.reimbursedAmount >= (amount - myShare);
       }
 
       final updated = prevTx.copyWith(
@@ -500,9 +578,7 @@ class _AddEditTransactionSheetState
         myShareAmount: isSharedExpense ? myShare : null,
         sharedWith: isSharedExpense ? sharedWith : null,
         reimbursedAmount: isSharedExpense ? prevTx.reimbursedAmount : 0.0,
-        isSettled: isSharedExpense
-            ? (prevTx.reimbursedAmount >= (amount - (myShare ?? 0)))
-            : false,
+        isSettled: isSettled,
         updatedAt: now,
       );
 
@@ -595,10 +671,30 @@ class _AddEditTransactionSheetState
       }
 
       final isExpense = _selectedType == TransactionType.expense;
-      final isSharedExpense = isExpense && _isShared;
+      final isMoneyLent = isExpense && _selectedCategory == 'Money Lent / Helping Friend';
+      final isSharedExpense = isExpense && (_isShared || isMoneyLent);
       double? myShare;
       String? sharedWith;
-      if (isSharedExpense) {
+      if (isMoneyLent) {
+        final borrower = _borrowerNameController.text.trim();
+        final expectedInterest = _calculateExpectedInterest(amount);
+        final rate = _isInterestPercentage ? double.tryParse(_loanInterestController.text.trim()) : null;
+
+        final loanData = LoanShareData(
+          borrowerName: borrower.isNotEmpty ? borrower : 'Friend',
+          principalAmount: amount,
+          expectedInterest: expectedInterest,
+          interestRate: rate,
+          expectedReturnDate: _expectedReturnDate,
+          paymentSource: _selectedPaymentSource,
+        );
+
+        sharedWith = LoanShareHelper.encodeLoan(loanData);
+        myShare = 0.0;
+        if (borrower.isNotEmpty) {
+          ref.read(savedFriendsProvider.notifier).addFriend(borrower);
+        }
+      } else if (isSharedExpense) {
         final parsedShare = MathExpressionParser.tryEvaluate(_myShareController.text.trim());
         myShare = (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
             ? parsedShare
@@ -720,17 +816,20 @@ class _AddEditTransactionSheetState
     final creditCards = ref.watch(activeCreditCardsProvider);
     final defaultAcc = ref.watch(defaultBankAccountProvider);
 
-    if (_selectedAccountId == null && _selectedCreditCardId == null) {
-      if (bankAccounts.isNotEmpty) {
-        final matched = AccountPurposeTags.matchAccountForCategory(
-          _selectedCategory,
-          bankAccounts,
-          defaultAccount: defaultAcc,
-        );
-        final def = matched ?? (defaultAcc ?? bankAccounts.first);
-        _selectedAccountId = def.id;
-        _selectedPaymentSource = def.accountName;
-        _autoSelectedReason = '${def.accountName} (${def.usedFor})';
+    if (_selectedPaymentMode == PaymentMode.bankAccount ||
+        (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null)) {
+      if (_selectedAccountId == null && _selectedCreditCardId == null) {
+        if (bankAccounts.isNotEmpty) {
+          final matched = AccountPurposeTags.matchAccountForCategory(
+            _selectedCategory,
+            bankAccounts,
+            defaultAccount: defaultAcc,
+          );
+          final def = matched ?? (defaultAcc ?? bankAccounts.first);
+          _selectedAccountId = def.id;
+          _selectedPaymentSource = def.accountName;
+          _autoSelectedReason = '${def.accountName} (${def.usedFor})';
+        }
       }
     }
 
@@ -961,7 +1060,10 @@ class _AddEditTransactionSheetState
                               ...CategoryConstants.incomeCategories.map((c) => c.name.toLowerCase()),
                             };
 
-                            if (currentTitle.isEmpty ||
+                            if (item.name == 'Money Lent / Helping Friend') {
+                              final borrower = _borrowerNameController.text.trim();
+                              _titleController.text = borrower.isNotEmpty ? 'Money Lent to $borrower' : 'Money Lent to Friend';
+                            } else if (currentTitle.isEmpty ||
                                 currentTitle.toLowerCase() == oldCategory.toLowerCase() ||
                                 allCategoryNames.contains(currentTitle.toLowerCase())) {
                               _titleController.text = item.name;
@@ -1100,7 +1202,10 @@ class _AddEditTransactionSheetState
                       ],
                     ),
                   ),
-                if (!isIncome) _buildSharedExpenseSection(theme, financialColors, isDark),
+                if (!isIncome && _selectedCategory == 'Money Lent / Helping Friend')
+                  _buildMoneyLentSection(theme, financialColors, isDark)
+                else if (!isIncome)
+                  _buildSharedExpenseSection(theme, financialColors, isDark),
                 if (isIncome) _buildIncomeReimbursementSection(theme, financialColors, isDark, creditCards),
                 const SizedBox(height: 20),
 
@@ -1147,6 +1252,16 @@ class _AddEditTransactionSheetState
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
+                      if (_isEditMode && widget.initialTransaction != null) ...[
+                        _buildDateShortcutChip(
+                          'Original (${DateFormat('dd MMM').format(widget.initialTransaction!.date)})',
+                          widget.initialTransaction!.date,
+                          theme,
+                          isDark,
+                          financialColors,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       _buildDateShortcutChip('Today', DateTime.now(), theme, isDark, financialColors),
                       const SizedBox(width: 8),
                       _buildDateShortcutChip(
@@ -1952,6 +2067,407 @@ class _AddEditTransactionSheetState
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMoneyLentSection(ThemeData theme, AppFinancialColors financialColors, bool isDark) {
+    final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
+    final expectedInterest = _calculateExpectedInterest(amount);
+    final totalExpected = amount + expectedInterest;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryEmerald,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryEmerald.withAlpha(38),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.handshake_rounded,
+                  size: 20,
+                  color: AppColors.primaryEmerald,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Money Lent / Personal Help',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      'Assisting a friend, colleague, or relative',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 11,
+                        color: financialColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryEmerald.withAlpha(25),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Zero Net Expense',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryEmerald,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+
+          // Mandatory Friend / Relative Name
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'FRIEND / RELATIVE NAME *',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                  color: financialColors.textMuted,
+                ),
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.manage_accounts_outlined, size: 16),
+                label: const Text('Saved Friends', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                onPressed: () => _showManageFriendsDialog(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // Quick-select chips from saved friends
+          Consumer(
+            builder: (ctx, ref, _) {
+              final savedFriends = ref.watch(savedFriendsProvider);
+              if (savedFriends.isEmpty) return const SizedBox.shrink();
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: savedFriends.map((friend) {
+                      final isSelected = _borrowerNameController.text.trim().toLowerCase() == friend.toLowerCase();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ActionChip(
+                          avatar: Icon(
+                            isSelected ? Icons.check_rounded : Icons.person_outline_rounded,
+                            size: 14,
+                            color: isSelected ? AppColors.primaryEmerald : financialColors.textMuted,
+                          ),
+                          label: Text(friend),
+                          labelStyle: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected ? AppColors.primaryEmerald : null,
+                          ),
+                          backgroundColor: isSelected
+                              ? AppColors.primaryEmerald.withAlpha(25)
+                              : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              _borrowerNameController.text = friend;
+                              if (_titleController.text.isEmpty ||
+                                  _titleController.text.startsWith('Money Lent')) {
+                                _titleController.text = 'Money Lent to $friend';
+                              }
+                            });
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+            },
+          ),
+          TextFormField(
+            controller: _borrowerNameController,
+            decoration: const InputDecoration(
+              hintText: 'e.g. Rahul Sharma, Uncle Suresh',
+              prefixIcon: Icon(Icons.person_rounded, size: 18),
+              isDense: true,
+            ),
+            onChanged: (val) {
+              setState(() {
+                if (_titleController.text.isEmpty || _titleController.text.startsWith('Money Lent')) {
+                  _titleController.text = val.trim().isEmpty ? 'Money Lent to Friend' : 'Money Lent to ${val.trim()}';
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Expected Return Date (Optional)
+          Text(
+            'EXPECTED RETURN DATE (OPTIONAL)',
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+              color: financialColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _expectedReturnDate ?? DateTime.now().add(const Duration(days: 30)),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2040),
+              );
+              if (picked != null) {
+                setState(() => _expectedReturnDate = picked);
+              }
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: financialColors.cardBorder),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_available_rounded,
+                    size: 18,
+                    color: _expectedReturnDate != null ? AppColors.primaryEmerald : financialColors.textMuted,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _expectedReturnDate != null
+                          ? 'Return by: ${DateFormat('dd MMMM yyyy').format(_expectedReturnDate!)}'
+                          : 'No fixed deadline (Flexible payback)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: _expectedReturnDate != null ? FontWeight.w700 : FontWeight.w500,
+                        color: _expectedReturnDate != null
+                            ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+                            : financialColors.textMuted,
+                      ),
+                    ),
+                  ),
+                  if (_expectedReturnDate != null)
+                    GestureDetector(
+                      onTap: () => setState(() => _expectedReturnDate = null),
+                      child: const Icon(Icons.close_rounded, size: 18, color: Colors.grey),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Expected Interest / Additional Return (Optional)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'EXPECTED INTEREST (OPTIONAL)',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                  color: financialColors.textMuted,
+                ),
+              ),
+              // Pill switch between % and ₹
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: financialColors.cardBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        if (!_isInterestPercentage) {
+                          setState(() => _isInterestPercentage = true);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _isInterestPercentage ? AppColors.primaryEmerald : Colors.transparent,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Text(
+                          '% Rate',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: _isInterestPercentage ? Colors.white : financialColors.textMuted,
+                          ),
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        if (_isInterestPercentage) {
+                          setState(() => _isInterestPercentage = false);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: !_isInterestPercentage ? AppColors.primaryEmerald : Colors.transparent,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Text(
+                          '₹ Flat',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: !_isInterestPercentage ? Colors.white : financialColors.textMuted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _loanInterestController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+            ],
+            decoration: InputDecoration(
+              hintText: _isInterestPercentage ? 'e.g. 5 (means 5% interest)' : 'e.g. 500 (extra flat return)',
+              prefixIcon: Icon(
+                _isInterestPercentage ? Icons.percent_rounded : Icons.currency_rupee_rounded,
+                size: 18,
+              ),
+              isDense: true,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+
+          // Dynamic Live Loan Summary Card
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primaryEmerald.withAlpha(isDark ? 28 : 20),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.primaryEmerald.withAlpha(80)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Principal Amount:',
+                      style: TextStyle(fontSize: 12, color: financialColors.textMuted, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      CurrencyFormatter.format(amount),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.add_circle_outline_rounded, size: 14, color: AppColors.primaryEmerald),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Expected Interest:',
+                          style: TextStyle(fontSize: 12, color: financialColors.textMuted, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      expectedInterest > 0
+                          ? '+ ${CurrencyFormatter.format(expectedInterest)}'
+                          : '₹0 (Interest-free)',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryEmerald,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total to Receive Back:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      ),
+                    ),
+                    Text(
+                      CurrencyFormatter.format(totalExpected),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primaryEmerald,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

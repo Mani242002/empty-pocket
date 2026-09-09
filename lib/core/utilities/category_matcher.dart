@@ -2,6 +2,34 @@
 class CategoryMatcher {
   static const Map<String, List<String>> _keywordMap = {
     // 1. High-priority Financial Actions & Transfers
+    'Loan Repayment Received': [
+      'loan repayment received',
+      'loan repayment',
+      'loan repaid',
+      'loan returned',
+      'repaid loan',
+      'returned loan',
+      'friend loan return',
+      'friend repaid',
+      'lent money returned',
+      'lent money back',
+    ],
+    'Money Lent / Helping Friend': [
+      'helping friend',
+      'helping relative',
+      'money lent to friend',
+      'money lent to relative',
+      'money lent',
+      'lent money',
+      'lent to friend',
+      'gave loan',
+      'given loan',
+      'loan to friend',
+      'loan to relative',
+      'friend loan',
+      'personal loan given',
+      'lent cash',
+    ],
     'Shared Expense Reimbursement': [
       'shared expense reimbursement',
       'split settlement',

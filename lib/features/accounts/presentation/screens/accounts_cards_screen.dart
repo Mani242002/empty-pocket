@@ -789,7 +789,7 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              CurrencyFormatter.format(card.usedAmount),
+                              CurrencyFormatter.format(card.currentDues),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -797,6 +797,18 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                               ),
                             ),
                           ),
+                          if (card.excessCredit > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                'Advance: +${CurrencyFormatter.format(card.excessCredit)}',
+                                style: const TextStyle(
+                                  color: Color(0xFF10B981),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
