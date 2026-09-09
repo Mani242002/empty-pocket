@@ -2,6 +2,7 @@ import 'dart:convert';
 import '../domain/entities/split_person_share.dart';
 import '../domain/entities/transaction_entity.dart';
 import 'currency_formatter.dart';
+import 'loan_share_helper.dart';
 
 /// Summary of all pending reimbursements owed by a single person
 class PersonPendingSummary {
@@ -60,6 +61,31 @@ class SplitHelper {
         .join(', ');
   }
 
+  /// Returns a human-friendly display string for `sharedWith`, properly decoding both
+  /// structured person split arrays and money lent loan objects without ever exposing raw JSON.
+  static String formatSharedWithDisplay(String? sharedWith) {
+    if (sharedWith == null || sharedWith.trim().isEmpty) return '';
+
+    final loan = LoanShareHelper.parseLoan(sharedWith);
+    if (loan != null) {
+      final interestStr = loan.expectedInterest > 0
+          ? ' (+${CurrencyFormatter.format(loan.expectedInterest)} interest)'
+          : '';
+      return 'Lent to ${loan.borrowerName}$interestStr';
+    }
+
+    final shares = parseShares(sharedWith);
+    if (shares.isNotEmpty) {
+      return formatDisplay(shares);
+    }
+
+    final trimmed = sharedWith.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      return '';
+    }
+    return trimmed;
+  }
+
   /// Aggregates all pending reimbursement balances grouped by person name across transactions
   static List<PersonPendingSummary> groupPendingByPerson(
     List<TransactionEntity> transactions,
@@ -71,8 +97,27 @@ class SplitHelper {
         continue;
       }
 
-      final shares = parseShares(tx.sharedWith);
+      // 1. Check if this transaction is a Money Lent / Personal Help loan
+      final loan = LoanShareHelper.parseLoan(tx.sharedWith);
+      if (loan != null) {
+        final borrower = loan.borrowerName.trim();
+        final pending = loan.pendingAmount > 0 ? loan.pendingAmount : tx.pendingReimbursement;
+        if (borrower.isNotEmpty && pending > 0) {
+          final lookupKey = borrower.toLowerCase();
+          final acc = accumulators.putIfAbsent(
+            lookupKey,
+            () => _PersonAccumulator(personName: borrower),
+          );
+          acc.totalPending += pending;
+          if (!acc.transactions.any((t) => t.id == tx.id)) {
+            acc.transactions.add(tx);
+          }
+        }
+        continue;
+      }
 
+      // 2. Structured split shares array
+      final shares = parseShares(tx.sharedWith);
       if (shares.isNotEmpty) {
         for (final share in shares) {
           final pending = share.pendingAmount;
@@ -90,16 +135,18 @@ class SplitHelper {
           }
         }
       } else if (tx.sharedWith != null && tx.sharedWith!.trim().isNotEmpty) {
-        // Fallback for transactions with unparsed text
+        // Fallback for simple plain text friend names (strictly protect against raw JSON)
         final trimmed = tx.sharedWith!.trim();
-        final lookupKey = trimmed.toLowerCase();
-        final acc = accumulators.putIfAbsent(
-          lookupKey,
-          () => _PersonAccumulator(personName: trimmed),
-        );
-        acc.totalPending += tx.pendingReimbursement;
-        if (!acc.transactions.any((t) => t.id == tx.id)) {
-          acc.transactions.add(tx);
+        if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+          final lookupKey = trimmed.toLowerCase();
+          final acc = accumulators.putIfAbsent(
+            lookupKey,
+            () => _PersonAccumulator(personName: trimmed),
+          );
+          acc.totalPending += tx.pendingReimbursement;
+          if (!acc.transactions.any((t) => t.id == tx.id)) {
+            acc.transactions.add(tx);
+          }
         }
       }
     }

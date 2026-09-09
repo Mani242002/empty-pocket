@@ -10,6 +10,7 @@ import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../../core/utilities/loan_share_helper.dart';
 import '../../../../core/utilities/split_helper.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../savings/presentation/screens/add_contribution_sheet.dart';
@@ -1691,6 +1692,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
     final friendsShare = tx.friendsShare;
     final isSettled = tx.isSettled;
     final parsedShares = SplitHelper.parseShares(tx.sharedWith);
+    final loan = LoanShareHelper.parseLoan(tx.sharedWith);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1777,7 +1779,56 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                     ),
                   ],
                 ),
-                if (parsedShares.isNotEmpty) ...[
+                if (loan != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryEmerald.withAlpha(isDark ? 30 : 20),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.primaryEmerald.withAlpha(isDark ? 80 : 50),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.handshake_rounded, size: 15, color: AppColors.primaryEmerald),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Lent to ${loan.borrowerName}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryEmerald,
+                          ),
+                        ),
+                        if (loan.expectedInterest > 0) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            '(+${CurrencyFormatter.format(loan.expectedInterest)} interest)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            ),
+                          ),
+                        ],
+                        if (loan.expectedReturnDate != null) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            '• Due ${DateFormat('dd MMM').format(loan.expectedReturnDate!)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: financialColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ] else if (parsedShares.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 6,
@@ -1822,7 +1873,10 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                       );
                     }).toList(),
                   ),
-                ] else if (tx.sharedWith != null && tx.sharedWith!.isNotEmpty) ...[
+                ] else if (tx.sharedWith != null &&
+                    tx.sharedWith!.isNotEmpty &&
+                    !tx.sharedWith!.trim().startsWith('{') &&
+                    !tx.sharedWith!.trim().startsWith('[')) ...[
                   const SizedBox(height: 8),
                   Row(
                     children: [

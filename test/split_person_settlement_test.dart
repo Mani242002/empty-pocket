@@ -153,6 +153,39 @@ void main() {
       expect(susmitha.totalPending, 300.0); // 200 from tx1 + 100 from tx2
       expect(susmitha.expenseCount, 2);
     });
+
+    test('SplitHelper handles Money Lent loans without exposing raw JSON', () {
+      final now = DateTime.now();
+      const loanJson = '{"type":"loan","borrower":"Deeksith","principal":15000.0,"expected_interest":500.0,"is_repaid":false}';
+
+      final loanTx = TransactionEntity(
+        id: 'loan1',
+        title: 'Money Lent to Deeksith',
+        amount: 15000.0,
+        type: TransactionType.expense,
+        category: 'Money Lent / Helping Friend',
+        date: now,
+        paymentSource: 'SBI',
+        isShared: true,
+        myShareAmount: 0.0,
+        reimbursedAmount: 0.0,
+        isSettled: false,
+        sharedWith: loanJson,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      final summaries = SplitHelper.groupPendingByPerson([loanTx]);
+      expect(summaries.length, 1);
+      expect(summaries[0].personName, 'Deeksith');
+      expect(summaries[0].personName, isNot(contains('{"type"')));
+      expect(summaries[0].totalPending, 15000.0);
+      expect(summaries[0].expenseCount, 1);
+
+      final display = SplitHelper.formatSharedWithDisplay(loanJson);
+      expect(display, contains('Lent to Deeksith'));
+      expect(display, isNot(contains('{')));
+    });
   });
 
   group('SavedFriendsService Unit Tests', () {

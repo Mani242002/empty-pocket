@@ -449,6 +449,30 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     for (final tx in previous) {
       if (!tx.isShared || tx.isSettled || tx.pendingReimbursement <= 0) continue;
 
+      // 1. Check if this is a Money Lent / Personal Help loan
+      final loan = LoanShareHelper.parseLoan(tx.sharedWith);
+      if (loan != null) {
+        if (loan.borrowerName.trim().toLowerCase() == cleanName && loan.pendingAmount > 0) {
+          matchingExpenses.add(tx);
+          final pending = loan.pendingAmount > 0 ? loan.pendingAmount : tx.pendingReimbursement;
+          totalCollected += pending;
+
+          final updatedLoan = loan.copyWith(
+            repaidAmount: loan.totalExpected,
+            isRepaid: true,
+          );
+          final updatedTx = tx.copyWith(
+            reimbursedAmount: tx.friendsShare,
+            isSettled: true,
+            sharedWith: LoanShareHelper.encodeLoan(updatedLoan),
+            updatedAt: now,
+          );
+          updatedOriginals.add(updatedTx);
+        }
+        continue;
+      }
+
+      // 2. Structured split shares array
       final shares = SplitHelper.parseShares(tx.sharedWith);
       if (shares.isNotEmpty) {
         bool hasPersonShare = false;
@@ -479,8 +503,10 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           updatedOriginals.add(updatedTx);
         }
       } else if (tx.sharedWith != null &&
+          !tx.sharedWith!.trim().startsWith('{') &&
+          !tx.sharedWith!.trim().startsWith('[') &&
           tx.sharedWith!.trim().toLowerCase().contains(cleanName)) {
-        // Fallback for non-JSON sharedWith containing person's name
+        // Fallback for non-JSON plain text sharedWith containing person's name
         matchingExpenses.add(tx);
         final pending = tx.pendingReimbursement;
         totalCollected += pending;
@@ -503,16 +529,23 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       orElse: () => destAccounts.first,
     );
 
+    final bool isAllLoans = matchingExpenses.isNotEmpty &&
+        matchingExpenses.every((t) => LoanShareHelper.parseLoan(t.sharedWith) != null);
+
     final settlementTx = TransactionEntity(
       id: const Uuid().v4(),
-      title: 'Reimbursement: $personName (${matchingExpenses.length} expenses)',
+      title: isAllLoans
+          ? 'Loan Repayment: $personName'
+          : 'Reimbursement: $personName (${matchingExpenses.length} expenses)',
       amount: finalAmount,
       type: TransactionType.income,
-      category: 'Shared Expense Reimbursement',
+      category: isAllLoans ? 'Loan Repayment Received' : 'Shared Expense Reimbursement',
       date: now,
       paymentSource: destAcc.accountName,
       accountId: destAcc.id,
-      notes: notes ?? 'Full reimbursement collected from $personName across ${matchingExpenses.length} shared bills',
+      notes: notes ?? (isAllLoans
+          ? 'Repayment received from $personName for loan'
+          : 'Full reimbursement collected from $personName across ${matchingExpenses.length} shared bills'),
       createdAt: now,
       updatedAt: now,
     );

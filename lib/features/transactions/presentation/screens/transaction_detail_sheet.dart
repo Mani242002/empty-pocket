@@ -467,7 +467,10 @@ class TransactionDetailSheet extends ConsumerWidget {
                             );
                           }).toList(),
                         ),
-                      ] else if (transaction.sharedWith != null && transaction.sharedWith!.isNotEmpty) ...[
+                      ] else if (transaction.sharedWith != null &&
+                          transaction.sharedWith!.isNotEmpty &&
+                          !transaction.sharedWith!.trim().startsWith('{') &&
+                          !transaction.sharedWith!.trim().startsWith('[')) ...[
                         const SizedBox(height: 10),
                         Text(
                           'Shared with: ${transaction.sharedWith}',
