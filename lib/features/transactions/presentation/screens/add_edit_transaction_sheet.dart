@@ -2150,12 +2150,15 @@ class _AddEditTransactionSheetState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'FRIEND / RELATIVE NAME *',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                  color: financialColors.textMuted,
+              Expanded(
+                child: Text(
+                  'FRIEND / RELATIVE NAME *',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: financialColors.textMuted,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               TextButton.icon(
@@ -2299,75 +2302,102 @@ class _AddEditTransactionSheetState
           const SizedBox(height: 16),
 
           // Expected Interest / Additional Return (Optional)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'EXPECTED INTEREST (OPTIONAL)',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                  color: financialColors.textMuted,
-                ),
-              ),
-              // Pill switch between % and ₹
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: financialColors.cardBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        if (!_isInterestPercentage) {
-                          setState(() => _isInterestPercentage = true);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _isInterestPercentage ? AppColors.primaryEmerald : Colors.transparent,
-                          borderRadius: BorderRadius.circular(7),
-                        ),
-                        child: Text(
-                          '% Rate',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+          Text(
+            'EXPECTED INTEREST (OPTIONAL)',
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+              color: financialColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Full-width, responsive Segmented Tab Switch: % Rate vs ₹ Flat
+          Container(
+            height: 40,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: financialColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      if (!_isInterestPercentage) {
+                        setState(() => _isInterestPercentage = true);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(7),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _isInterestPercentage ? AppColors.primaryEmerald : Colors.transparent,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.percent_rounded,
+                            size: 15,
                             color: _isInterestPercentage ? Colors.white : financialColors.textMuted,
                           ),
-                        ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '% Rate (Interest)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _isInterestPercentage ? Colors.white : financialColors.textMuted,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () {
-                        if (_isInterestPercentage) {
-                          setState(() => _isInterestPercentage = false);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: !_isInterestPercentage ? AppColors.primaryEmerald : Colors.transparent,
-                          borderRadius: BorderRadius.circular(7),
-                        ),
-                        child: Text(
-                          '₹ Flat',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      if (_isInterestPercentage) {
+                        setState(() => _isInterestPercentage = false);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(7),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: !_isInterestPercentage ? AppColors.primaryEmerald : Colors.transparent,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.currency_rupee_rounded,
+                            size: 15,
                             color: !_isInterestPercentage ? Colors.white : financialColors.textMuted,
                           ),
-                        ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '₹ Flat (Fixed Extra)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: !_isInterestPercentage ? Colors.white : financialColors.textMuted,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           TextFormField(
@@ -2377,11 +2407,20 @@ class _AddEditTransactionSheetState
               FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
             ],
             decoration: InputDecoration(
-              hintText: _isInterestPercentage ? 'e.g. 5 (means 5% interest)' : 'e.g. 500 (extra flat return)',
+              hintText: _isInterestPercentage ? 'e.g. 5 (means 5% interest rate)' : 'e.g. 500 (extra flat return)',
               prefixIcon: Icon(
                 _isInterestPercentage ? Icons.percent_rounded : Icons.currency_rupee_rounded,
                 size: 18,
               ),
+              suffixIcon: _loanInterestController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 16),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        setState(() => _loanInterestController.clear());
+                      },
+                    )
+                  : null,
               isDense: true,
             ),
             onChanged: (_) => setState(() {}),
