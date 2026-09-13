@@ -16,16 +16,45 @@ class AppLockGate extends ConsumerStatefulWidget {
   ConsumerState<AppLockGate> createState() => _AppLockGateState();
 }
 
-class _AppLockGateState extends ConsumerState<AppLockGate> {
+class _AppLockGateState extends ConsumerState<AppLockGate>
+    with WidgetsBindingObserver {
   static bool isSessionUnlocked = false;
+  static DateTime? _pausedAt;
+  static const Duration _graceDuration = Duration(seconds: 60);
   bool _isAuthenticating = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkLockStatus();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _pausedAt = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      final isLockEnabled = ref.read(appLockProvider).valueOrNull ?? false;
+      if (isLockEnabled && isSessionUnlocked && _pausedAt != null) {
+        final timeInBackground = DateTime.now().difference(_pausedAt!);
+        if (timeInBackground > _graceDuration) {
+          setState(() {
+            isSessionUnlocked = false;
+          });
+          _checkLockStatus();
+        }
+      }
+      _pausedAt = null;
+    }
   }
 
   Future<void> _checkLockStatus() async {

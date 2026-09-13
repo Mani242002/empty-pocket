@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
 import '../../../../core/repositories/ai_chat_repository.dart';
 import '../../../../core/repositories/bank_account_repository.dart';
@@ -15,6 +16,7 @@ import '../../../../core/services/backup_service.dart';
 import '../../../../core/services/battery_optimization_service.dart';
 import '../../../../core/services/log_service.dart';
 import '../../../../core/services/overlay_service.dart';
+import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../budgets/presentation/state/budgets_provider.dart';
@@ -25,6 +27,42 @@ import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 
 final backupServiceProvider = Provider<BackupService>((ref) => BackupService());
+
+class CurrencyNotifier extends AsyncNotifier<CurrencyOption> {
+  static const String _keyCurrencyCode = 'app_currency_code';
+
+  @override
+  Future<CurrencyOption> build() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final code = prefs.getString(_keyCurrencyCode) ?? 'INR';
+      CurrencyFormatter.setCurrencyByCode(code);
+      return CurrencyFormatter.activeCurrency;
+    } catch (e) {
+      debugPrint('[CurrencyNotifier] build error: $e');
+      return CurrencyFormatter.supportedCurrencies.first;
+    }
+  }
+
+  Future<void> setCurrency(CurrencyOption option) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyCurrencyCode, option.code);
+        CurrencyFormatter.setCurrency(option);
+        return option;
+      } catch (e) {
+        debugPrint('[CurrencyNotifier] setCurrency error: $e');
+        rethrow;
+      }
+    });
+  }
+}
+
+final currencyProvider = AsyncNotifierProvider<CurrencyNotifier, CurrencyOption>(
+  CurrencyNotifier.new,
+);
 
 class AppLockNotifier extends AsyncNotifier<bool> {
   static const String _keyAppLock = 'app_lock_enabled';
@@ -207,6 +245,14 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         debugPrint('[BackupOperationsNotifier] Chat repository query error: $e');
       }
 
+      List<AiReportItem> aiReports = [];
+      try {
+        final rawReports = await AppDatabase.instance.getAllAiReports();
+        aiReports = rawReports.map((m) => AiReportItem.fromMap(m)).toList();
+      } catch (e) {
+        debugPrint('[BackupOperationsNotifier] AI reports query error: $e');
+      }
+
       final backupService = ref.read(backupServiceProvider);
       final jsonStr = backupService.exportFullDatabaseJson(
         transactions: txs,
@@ -221,6 +267,7 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         chatMessages: chatMessages,
         bankAccounts: bankAccounts,
         creditCards: creditCards,
+        aiReports: aiReports,
       );
 
       state = const AsyncValue.data('Backup exported successfully');
@@ -242,6 +289,28 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
 
       state = const AsyncValue.data('Transactions CSV exported successfully');
       return csv;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+
+  Future<int> importTransactionsFromCsv(String csvContent) async {
+    state = const AsyncValue.loading();
+    try {
+      final backupService = ref.read(backupServiceProvider);
+      final txs = backupService.parseTransactionsFromCsv(csvContent);
+      if (txs.isEmpty) {
+        throw const FormatException('No valid transactions found in the CSV file.');
+      }
+
+      final txRepo = ref.read(transactionRepositoryProvider);
+      for (final tx in txs) {
+        await txRepo.addTransaction(tx);
+      }
+
+      state = AsyncValue.data('Successfully imported ${txs.length} transactions');
+      return txs.length;
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;

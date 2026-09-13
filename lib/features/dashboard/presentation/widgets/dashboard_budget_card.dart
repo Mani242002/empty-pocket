@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/budget_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../budgets/presentation/screens/set_budget_sheet.dart';
+import '../../../budgets/presentation/state/budgets_provider.dart';
+import '../../../transactions/presentation/state/transactions_provider.dart';
 
-class DashboardBudgetCard extends StatelessWidget {
-  final OverallBudgetSummary budgetSummary;
-  final double totalExpense;
+class DashboardBudgetCard extends ConsumerWidget {
+  final OverallBudgetSummary? explicitBudgetSummary;
+  final double? explicitTotalExpense;
 
   const DashboardBudgetCard({
     super.key,
-    required this.budgetSummary,
-    required this.totalExpense,
-  });
+    OverallBudgetSummary? budgetSummary,
+    double? totalExpense,
+  })  : explicitBudgetSummary = budgetSummary,
+        explicitTotalExpense = totalExpense;
 
   Color _getBudgetHealthColor(BuildContext context, BudgetHealth health) {
     final fc = context.financialColors;
@@ -28,10 +32,13 @@ class DashboardBudgetCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final OverallBudgetSummary budgetSummary = explicitBudgetSummary ?? ref.watch(overallMonthlyBudgetSummaryProvider);
+    final double totalExpense = explicitTotalExpense ?? ref.watch(monthlyFinancialSummaryProvider).totalExpense;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),

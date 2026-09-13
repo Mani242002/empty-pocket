@@ -19,6 +19,8 @@ import '../../../../core/utilities/math_expression_parser.dart';
 import '../../../../core/utilities/split_helper.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/transactions_provider.dart';
+import '../widgets/amount_calculator_field.dart';
+import '../widgets/transaction_type_toggle.dart';
 
 class _PersonSplitEntry {
   final TextEditingController nameController;
@@ -91,6 +93,7 @@ class _AddEditTransactionSheetState
   late String _selectedCategory;
   late PaymentMode _selectedPaymentMode;
   String? _selectedAccountId;
+  String? _selectedToAccountId;
   String? _selectedCreditCardId;
   late String _selectedPaymentSource;
   String? _autoSelectedReason;
@@ -123,6 +126,7 @@ class _AddEditTransactionSheetState
     _notesController = TextEditingController(text: tx?.notes ?? '');
     _selectedPaymentSource = tx?.paymentSource ?? 'Bank Account';
     _selectedAccountId = tx?.accountId;
+    _selectedToAccountId = tx?.toAccountId;
     _selectedCreditCardId = tx?.creditCardId;
     _selectedDate = tx?.date ?? DateTime.now();
 
@@ -239,21 +243,45 @@ class _AddEditTransactionSheetState
     setState(() {
       final oldCategories = _selectedType == TransactionType.income
           ? CategoryConstants.incomeCategories
-          : CategoryConstants.expenseCategories;
-      final newCategories = newType == TransactionType.income
-          ? CategoryConstants.incomeCategories
-          : CategoryConstants.expenseCategories;
+          : (_selectedType == TransactionType.expense
+              ? CategoryConstants.expenseCategories
+              : const <CategoryItem>[]);
 
       _selectedType = newType;
-      _selectedCategory = newCategories.first.name;
 
-      final currentTitle = _titleController.text.trim();
-      final oldCategoryNames = oldCategories.map((c) => c.name.toLowerCase()).toSet();
+      if (newType == TransactionType.transfer) {
+        _selectedCategory = 'Account Transfer';
+        _selectedPaymentMode = PaymentMode.bankAccount;
+        final bankAccounts = ref.read(activeBankAccountsProvider);
+        if (_selectedAccountId == null && bankAccounts.isNotEmpty) {
+          _selectedAccountId = bankAccounts.first.id;
+          _selectedPaymentSource = bankAccounts.first.accountName;
+        }
+        if (_selectedToAccountId == null && bankAccounts.length > 1) {
+          _selectedToAccountId = bankAccounts.firstWhere(
+            (a) => a.id != _selectedAccountId,
+            orElse: () => bankAccounts.last,
+          ).id;
+        }
+        final currentTitle = _titleController.text.trim();
+        final oldCategoryNames = oldCategories.map((c) => c.name.toLowerCase()).toSet();
+        if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase()) || currentTitle == 'Expense' || currentTitle == 'Income') {
+          _titleController.text = 'Account Transfer';
+        }
+      } else {
+        final newCategories = newType == TransactionType.income
+            ? CategoryConstants.incomeCategories
+            : CategoryConstants.expenseCategories;
+        _selectedCategory = newCategories.first.name;
 
-      // If title is empty, or equals any of the previous type's category names,
-      // update to the new category name so old category titles are never carried over across tabs.
-      if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase())) {
-        _titleController.text = _selectedCategory;
+        final currentTitle = _titleController.text.trim();
+        final oldCategoryNames = oldCategories.map((c) => c.name.toLowerCase()).toSet();
+
+        // If title is empty, or equals any of the previous type's category names,
+        // update to the new category name so old category titles are never carried over across tabs.
+        if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase()) || currentTitle == 'Account Transfer') {
+          _titleController.text = _selectedCategory;
+        }
       }
     });
   }
@@ -419,6 +447,40 @@ class _AddEditTransactionSheetState
       }
     }
 
+    if (_selectedType == TransactionType.transfer) {
+      final bankAccounts = ref.read(activeBankAccountsProvider);
+      if (_selectedAccountId == null && bankAccounts.isNotEmpty) {
+        _selectedAccountId = bankAccounts.first.id;
+        _selectedPaymentSource = bankAccounts.first.accountName;
+      }
+      if (_selectedToAccountId == null && bankAccounts.length > 1) {
+        _selectedToAccountId = bankAccounts.firstWhere(
+          (a) => a.id != _selectedAccountId,
+          orElse: () => bankAccounts.last,
+        ).id;
+      }
+      if (_selectedAccountId == null || _selectedToAccountId == null) {
+        AppHaptics.warning();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select both source and destination accounts.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      if (_selectedAccountId == _selectedToAccountId) {
+        AppHaptics.warning();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Source and destination accounts must be different.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
     final now = DateTime.now();
 
     if (_isEditMode) {
@@ -489,10 +551,10 @@ class _AddEditTransactionSheetState
               .read(bankAccountListProvider.notifier)
               .adjustAccountBalance(_selectedAccountId!, -amount);
         }
-        if (prevTx.toAccountId != null) {
+        if (_selectedToAccountId != null) {
           await ref
               .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(prevTx.toAccountId!, amount);
+              .adjustAccountBalance(_selectedToAccountId!, amount);
         } else if (_selectedCreditCardId != null) {
           await ref
               .read(creditCardListProvider.notifier)
@@ -577,7 +639,7 @@ class _AddEditTransactionSheetState
         date: _selectedDate,
         paymentSource: _selectedPaymentSource,
         accountId: _selectedAccountId,
-        toAccountId: prevTx.toAccountId,
+        toAccountId: _selectedType == TransactionType.transfer ? _selectedToAccountId : null,
         creditCardId: _selectedCreditCardId,
         notes: _notesController.text.trim().isEmpty
             ? null
@@ -671,6 +733,11 @@ class _AddEditTransactionSheetState
               .read(bankAccountListProvider.notifier)
               .adjustAccountBalance(_selectedAccountId!, -amount);
         }
+        if (_selectedToAccountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(_selectedToAccountId!, amount);
+        }
         if (_selectedCreditCardId != null) {
           await ref
               .read(creditCardListProvider.notifier)
@@ -738,6 +805,7 @@ class _AddEditTransactionSheetState
         date: _selectedDate,
         paymentSource: _selectedPaymentSource,
         accountId: _selectedAccountId,
+        toAccountId: _selectedType == TransactionType.transfer ? _selectedToAccountId : null,
         creditCardId: _selectedCreditCardId,
         notes: _notesController.text.trim().isEmpty
             ? null
@@ -842,10 +910,13 @@ class _AddEditTransactionSheetState
     }
 
     final isIncome = _selectedType == TransactionType.income;
-    final activeAccentColor = isIncome ? financialColors.income : financialColors.expense;
+    final isTransfer = _selectedType == TransactionType.transfer;
+    final activeAccentColor = isTransfer
+        ? AppColors.primaryEmerald
+        : (isIncome ? financialColors.income : financialColors.expense);
     final categories = isIncome
         ? CategoryConstants.incomeCategories
-        : CategoryConstants.expenseCategories;
+        : (isTransfer ? const <CategoryItem>[] : CategoryConstants.expenseCategories);
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -903,108 +974,31 @@ class _AddEditTransactionSheetState
                 ),
                 const SizedBox(height: 16),
 
-                // Type Toggle (Expense / Income)
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildTypeSegment(
-                          title: 'Expense',
-                          icon: Icons.arrow_upward_rounded,
-                          isSelected: _selectedType == TransactionType.expense,
-                          color: financialColors.expense,
-                          onTap: () => _onTypeChanged(TransactionType.expense),
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildTypeSegment(
-                          title: 'Income',
-                          icon: Icons.arrow_downward_rounded,
-                          isSelected: _selectedType == TransactionType.income,
-                          color: financialColors.income,
-                          onTap: () => _onTypeChanged(TransactionType.income),
-                        ),
-                      ),
-                    ],
-                  ),
+                // Type Toggle (Expense / Income / Transfer)
+                TransactionTypeToggle(
+                  selectedType: _selectedType,
+                  onTypeChanged: _onTypeChanged,
                 ),
                 const SizedBox(height: 20),
 
                 // Amount Field
-                Text(
-                  'AMOUNT',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
+                AmountCalculatorField(
                   controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                  ],
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: activeAccentColor,
-                  ),
-                  decoration: InputDecoration(
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 8),
-                      child: Text(
-                        '₹',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: activeAccentColor,
-                        ),
-                      ),
-                    ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                    hintText: '0.00',
-                  ),
+                  activeAccentColor: activeAccentColor,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter amount';
                     }
-                    if (double.tryParse(value) == null) {
+                    if (double.tryParse(value) == null && MathExpressionParser.tryEvaluate(value) == null) {
                       return 'Invalid number';
                     }
                     return null;
                   },
-                ),
-                const SizedBox(height: 10),
-
-                // Quick Amount Adders
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [100, 200, 500, 1000, 2000, 5000].map((quickAdd) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ActionChip(
-                          label: Text('+₹$quickAdd'),
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                          ),
-                          onPressed: () {
-                            final current = double.tryParse(_amountController.text) ?? 0;
-                            final next = current + quickAdd;
-                            _amountController.text = next.toStringAsFixed(0);
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                  onChanged: (val) {
+                    if (_isShared || _isIncomeReimbursement) {
+                      setState(() {});
+                    }
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -1033,189 +1027,193 @@ class _AddEditTransactionSheetState
                 ),
                 const SizedBox(height: 20),
 
-                // Category Selector
-                Text(
-                  'CATEGORY',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 94,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: categories.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 10),
-                    itemBuilder: (context, index) {
-                      final item = categories[index];
-                      final isSelected = _selectedCategory == item.name;
-                      return GestureDetector(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() {
-                            final oldCategory = _selectedCategory;
-                            _selectedCategory = item.name;
-                            if (item.name == 'Shared Expense Reimbursement') {
-                              _isIncomeReimbursement = true;
-                            }
-
-                            final currentTitle = _titleController.text.trim();
-                            final allCategoryNames = {
-                              ...CategoryConstants.expenseCategories.map((c) => c.name.toLowerCase()),
-                              ...CategoryConstants.incomeCategories.map((c) => c.name.toLowerCase()),
-                            };
-
-                            if (item.name == 'Money Lent / Helping Friend') {
-                              final borrower = _borrowerNameController.text.trim();
-                              _titleController.text = borrower.isNotEmpty ? 'Money Lent to $borrower' : 'Money Lent to Friend';
-                            } else if (currentTitle.isEmpty ||
-                                currentTitle.toLowerCase() == oldCategory.toLowerCase() ||
-                                allCategoryNames.contains(currentTitle.toLowerCase())) {
-                              _titleController.text = item.name;
-                            }
-
-                            // Smart category-based account defaulting
-                            if (!_userManuallySelectedAccount &&
-                                (_selectedPaymentMode == PaymentMode.bankAccount ||
-                                (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null))) {
-                              final matched = AccountPurposeTags.matchAccountForCategory(
-                                item.name,
-                                bankAccounts,
-                                defaultAccount: defaultAcc,
-                              );
-                              if (matched != null) {
-                                _selectedAccountId = matched.id;
-                                if (_selectedPaymentMode == PaymentMode.upiWallet) {
-                                  _selectedPaymentSource = 'UPI (${matched.accountName})';
-                                } else {
-                                  _selectedPaymentSource = matched.accountName;
-                                }
-                                _autoSelectedReason = '${matched.accountName} (${matched.usedFor})';
-                              }
-                            }
-                          });
-                        },
-                        child: Container(
-                          width: 80,
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? item.color.withAlpha(isDark ? 60 : 35)
-                                : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isSelected ? item.color : financialColors.cardBorder,
-                              width: isSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(item.icon, color: isSelected ? item.color : financialColors.textMuted, size: 24),
-                              const SizedBox(height: 6),
-                              Text(
-                                item.name,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                  color: isSelected
-                                      ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
-                                      : financialColors.textMuted,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // TWO-TIER PAYMENT SELECTION
-                // Tier 1: Method (PAY FROM / DEPOSIT TO)
-                Text(
-                  isIncome ? 'DEPOSIT TO (METHOD)' : 'PAY FROM (METHOD)',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<PaymentMode>(
-                  initialValue: _selectedPaymentMode,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    prefixIcon: Icon(_selectedPaymentMode.icon, size: 20),
-                  ),
-                  items: PaymentMode.values.map((mode) {
-                    return DropdownMenuItem<PaymentMode>(
-                      value: mode,
-                      child: Text(
-                        mode.displayName,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (mode) {
-                    if (mode == null) return;
-                    HapticFeedback.selectionClick();
-                    setState(() {
-                      _selectedPaymentMode = mode;
-                      _autoSelectLinkedSource(mode, bankAccounts, creditCards);
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Tier 2: Specific Linked Source (Bank Account / Card / Stash)
-                Text(
-                  _getLinkedSourceLabel(_selectedPaymentMode),
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildLinkedSourceDropdown(context, bankAccounts, creditCards, isDark, financialColors),
-                if (_autoSelectedReason != null &&
-                    (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.bolt_rounded, size: 14, color: AppColors.primaryEmerald),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            'Smart auto-selected: $_autoSelectedReason',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryEmerald,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                if (_selectedType == TransactionType.transfer) ...[
+                  _buildTransferSection(theme, bankAccounts, isDark, financialColors),
+                ] else ...[
+                  // Category Selector
+                  Text(
+                    'CATEGORY',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
                     ),
                   ),
-                if (!isIncome && _selectedCategory == 'Money Lent / Helping Friend')
-                  _buildMoneyLentSection(theme, financialColors, isDark)
-                else if (!isIncome)
-                  _buildSharedExpenseSection(theme, financialColors, isDark),
-                if (isIncome) _buildIncomeReimbursementSection(theme, financialColors, isDark, creditCards),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 94,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: categories.length,
+                      separatorBuilder: (context, index) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        final item = categories[index];
+                        final isSelected = _selectedCategory == item.name;
+                        return GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              final oldCategory = _selectedCategory;
+                              _selectedCategory = item.name;
+                              if (item.name == 'Shared Expense Reimbursement') {
+                                _isIncomeReimbursement = true;
+                              }
+
+                              final currentTitle = _titleController.text.trim();
+                              final allCategoryNames = {
+                                ...CategoryConstants.expenseCategories.map((c) => c.name.toLowerCase()),
+                                ...CategoryConstants.incomeCategories.map((c) => c.name.toLowerCase()),
+                              };
+
+                              if (item.name == 'Money Lent / Helping Friend') {
+                                final borrower = _borrowerNameController.text.trim();
+                                _titleController.text = borrower.isNotEmpty ? 'Money Lent to $borrower' : 'Money Lent to Friend';
+                              } else if (currentTitle.isEmpty ||
+                                  currentTitle.toLowerCase() == oldCategory.toLowerCase() ||
+                                  allCategoryNames.contains(currentTitle.toLowerCase())) {
+                                _titleController.text = item.name;
+                              }
+
+                              // Smart category-based account defaulting
+                              if (!_userManuallySelectedAccount &&
+                                  (_selectedPaymentMode == PaymentMode.bankAccount ||
+                                  (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null))) {
+                                final matched = AccountPurposeTags.matchAccountForCategory(
+                                  item.name,
+                                  bankAccounts,
+                                  defaultAccount: defaultAcc,
+                                );
+                                if (matched != null) {
+                                  _selectedAccountId = matched.id;
+                                  if (_selectedPaymentMode == PaymentMode.upiWallet) {
+                                    _selectedPaymentSource = 'UPI (${matched.accountName})';
+                                  } else {
+                                    _selectedPaymentSource = matched.accountName;
+                                  }
+                                  _autoSelectedReason = '${matched.accountName} (${matched.usedFor})';
+                                }
+                              }
+                            });
+                          },
+                          child: Container(
+                            width: 80,
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? item.color.withAlpha(isDark ? 60 : 35)
+                                  : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected ? item.color : financialColors.cardBorder,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(item.icon, color: isSelected ? item.color : financialColors.textMuted, size: 24),
+                                const SizedBox(height: 6),
+                                Text(
+                                  item.name,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSelected
+                                        ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+                                        : financialColors.textMuted,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // TWO-TIER PAYMENT SELECTION
+                  // Tier 1: Method (PAY FROM / DEPOSIT TO)
+                  Text(
+                    isIncome ? 'DEPOSIT TO (METHOD)' : 'PAY FROM (METHOD)',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<PaymentMode>(
+                    initialValue: _selectedPaymentMode,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(_selectedPaymentMode.icon, size: 20),
+                    ),
+                    items: PaymentMode.values.map((mode) {
+                      return DropdownMenuItem<PaymentMode>(
+                        value: mode,
+                        child: Text(
+                          mode.displayName,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (mode) {
+                      if (mode == null) return;
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _selectedPaymentMode = mode;
+                        _autoSelectLinkedSource(mode, bankAccounts, creditCards);
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Tier 2: Specific Linked Source (Bank Account / Card / Stash)
+                  Text(
+                    _getLinkedSourceLabel(_selectedPaymentMode),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildLinkedSourceDropdown(context, bankAccounts, creditCards, isDark, financialColors),
+                  if (_autoSelectedReason != null &&
+                      (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.bolt_rounded, size: 14, color: AppColors.primaryEmerald),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Smart auto-selected: $_autoSelectedReason',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryEmerald,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (!isIncome && _selectedCategory == 'Money Lent / Helping Friend')
+                    _buildMoneyLentSection(theme, financialColors, isDark)
+                  else if (!isIncome)
+                    _buildSharedExpenseSection(theme, financialColors, isDark),
+                  if (isIncome) _buildIncomeReimbursementSection(theme, financialColors, isDark, creditCards),
+                ],
                 const SizedBox(height: 20),
 
                 // Date & Time Picker
@@ -1347,6 +1345,146 @@ class _AddEditTransactionSheetState
       case PaymentMode.cash:
         return 'SELECT CASH WALLET / STASH';
     }
+  }
+
+  Widget _buildTransferSection(
+    ThemeData theme,
+    List<BankAccountEntity> bankAccounts,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    if (bankAccounts.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: financialColors.cardBorder),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.account_balance_rounded, color: AppColors.warning),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'No active bank accounts available. Please add bank accounts to record transfers.',
+                style: TextStyle(fontSize: 13, color: financialColors.textMuted),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final fromValid = bankAccounts.any((a) => a.id == _selectedAccountId);
+    final fromVal = fromValid ? _selectedAccountId : bankAccounts.first.id;
+
+    final toValid = bankAccounts.any((a) => a.id == _selectedToAccountId);
+    final toVal = toValid
+        ? _selectedToAccountId
+        : (bankAccounts.length > 1
+            ? bankAccounts.firstWhere((a) => a.id != fromVal, orElse: () => bankAccounts.last).id
+            : null);
+
+    final isSameAccount = fromVal != null && toVal != null && fromVal == toVal;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Source Account
+        Text(
+          'TRANSFER FROM (SOURCE)',
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.1,
+            color: financialColors.textMuted,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          key: ValueKey('transfer_from_${fromVal}_$_selectedAccountId'),
+          initialValue: fromVal,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.account_balance_rounded, size: 20),
+          ),
+          items: bankAccounts.map((acc) {
+            return DropdownMenuItem<String>(
+              value: acc.id,
+              child: Text(
+                '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (val) {
+            if (val == null) return;
+            HapticFeedback.selectionClick();
+            setState(() {
+              _selectedAccountId = val;
+              final acc = bankAccounts.firstWhere((a) => a.id == val);
+              _selectedPaymentSource = acc.accountName;
+            });
+          },
+        ),
+        const SizedBox(height: 12),
+
+        // Transfer Direction Indicator
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primaryEmerald.withAlpha(isDark ? 50 : 30),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.arrow_downward_rounded,
+              size: 20,
+              color: AppColors.primaryEmerald,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Destination Account
+        Text(
+          'TRANSFER TO (DESTINATION)',
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.1,
+            color: financialColors.textMuted,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          key: ValueKey('transfer_to_${toVal}_$_selectedToAccountId'),
+          initialValue: toVal,
+          isExpanded: true,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.arrow_circle_down_rounded, size: 20),
+            errorText: isSameAccount ? 'Source and destination must be different' : null,
+          ),
+          items: bankAccounts.map((acc) {
+            return DropdownMenuItem<String>(
+              value: acc.id,
+              child: Text(
+                '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (val) {
+            if (val == null) return;
+            HapticFeedback.selectionClick();
+            setState(() {
+              _selectedToAccountId = val;
+            });
+          },
+        ),
+      ],
+    );
   }
 
   Widget _buildDateShortcutChip(
@@ -1653,61 +1791,6 @@ class _AddEditTransactionSheetState
     }
   }
 
-  Widget _buildTypeSegment({
-    required String title,
-    required IconData icon,
-    required bool isSelected,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? color : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: color.withAlpha(isDark ? 80 : 50),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected
-                  ? Colors.white
-                  : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                color: isSelected
-                    ? Colors.white
-                    : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSharedExpenseSection(ThemeData theme, AppFinancialColors financialColors, bool isDark) {
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
     final myShare = double.tryParse(_myShareController.text.trim()) ?? (amount / 2);
@@ -1806,12 +1889,12 @@ class _AddEditTransactionSheetState
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
               ],
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 prefixIcon: Padding(
-                  padding: EdgeInsets.only(left: 12, right: 8),
-                  child: Text('₹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  padding: const EdgeInsets.only(left: 12, right: 8),
+                  child: Text(CurrencyFormatter.activeCurrency.symbol, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
-                prefixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
+                prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                 hintText: 'Your personal cost portion',
               ),
               onChanged: (_) => setState(() {}),
@@ -1856,7 +1939,7 @@ class _AddEditTransactionSheetState
                   ),
                   const SizedBox(width: 6),
                   ActionChip(
-                    label: const Text('I paid 100% for them (₹0 share)'),
+                    label: Text('I paid 100% for them (${CurrencyFormatter.activeCurrency.symbol}0 share)'),
                     labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                     onPressed: () {
                       setState(() {
@@ -1966,12 +2049,12 @@ class _AddEditTransactionSheetState
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                           ],
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             hintText: 'Share amount',
-                            prefixText: '₹ ',
-                            prefixStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                            prefixStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                           onChanged: (_) => setState(() {}),
                         ),
@@ -2399,7 +2482,7 @@ class _AddEditTransactionSheetState
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            '₹ Flat (Fixed Extra)',
+                            '${CurrencyFormatter.activeCurrency.symbol} Flat (Fixed Extra)',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -2424,7 +2507,7 @@ class _AddEditTransactionSheetState
             decoration: InputDecoration(
               hintText: _isInterestPercentage ? 'e.g. 5 (means 5% interest rate)' : 'e.g. 500 (extra flat return)',
               prefixIcon: Icon(
-                _isInterestPercentage ? Icons.percent_rounded : Icons.currency_rupee_rounded,
+                _isInterestPercentage ? Icons.percent_rounded : Icons.payments_rounded,
                 size: 18,
               ),
               suffixIcon: _loanInterestController.text.isNotEmpty
@@ -2488,7 +2571,7 @@ class _AddEditTransactionSheetState
                     Text(
                       expectedInterest > 0
                           ? '+ ${CurrencyFormatter.format(expectedInterest)}'
-                          : '₹0 (Interest-free)',
+                          : '${CurrencyFormatter.activeCurrency.symbol}0 (Interest-free)',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,

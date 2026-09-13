@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../savings/presentation/screens/add_edit_savings_goal_sheet.dart';
+import '../../../savings/presentation/state/savings_goals_provider.dart';
 
-class DashboardSavingsCard extends StatelessWidget {
-  final OverallSavingsSummary savingsSummary;
+class DashboardSavingsCard extends ConsumerWidget {
+  final OverallSavingsSummary? explicitSavingsSummary;
 
   const DashboardSavingsCard({
     super.key,
-    required this.savingsSummary,
-  });
+    OverallSavingsSummary? savingsSummary,
+  }) : explicitSavingsSummary = savingsSummary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final OverallSavingsSummary savingsSummary =
+        explicitSavingsSummary ?? ref.watch(overallSavingsSummaryProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),

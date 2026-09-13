@@ -285,20 +285,6 @@ Guidelines:
 
     final List<Map<String, dynamic>> contents = [];
 
-    // System instruction / context
-    contents.add({
-      'role': 'user',
-      'parts': [
-        {'text': '[SYSTEM INSTRUCTION]\n$systemPrompt'}
-      ],
-    });
-    contents.add({
-      'role': 'model',
-      'parts': [
-        {'text': 'Understood. I will act as the financial advisor according to these instructions.'}
-      ],
-    });
-
     // Conversation history (Sliding window of most recent messages)
     if (history != null && history.isNotEmpty) {
       final recentHistory = history.length > 12 ? history.sublist(history.length - 12) : history;
@@ -320,19 +306,29 @@ Guidelines:
       ],
     });
 
+    final bodyPayload = <String, dynamic>{
+      'contents': contents,
+      'generationConfig': {
+        'temperature': 0.7,
+        'maxOutputTokens': 2000,
+      },
+    };
+
+    if (systemPrompt.trim().isNotEmpty) {
+      bodyPayload['systemInstruction'] = {
+        'parts': [
+          {'text': systemPrompt.trim()}
+        ],
+      };
+    }
+
     final response = await _httpClient.post(
       url,
       headers: {
         'Content-Type': 'application/json',
         'x-goog-api-key': key,
       },
-      body: jsonEncode({
-        'contents': contents,
-        'generationConfig': {
-          'temperature': 0.7,
-          'maxOutputTokens': 2000,
-        },
-      }),
+      body: jsonEncode(bodyPayload),
     ).timeout(
       const Duration(seconds: 30),
       onTimeout: () => throw Exception(

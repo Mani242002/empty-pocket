@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
+import '../../../../core/utilities/app_haptics.dart';
 import '../../../ai_assistant/presentation/screens/ai_chat_screen.dart';
+import '../../../transactions/presentation/state/transactions_provider.dart';
 
-class DashboardHeaderBar extends StatelessWidget {
+class DashboardHeaderBar extends ConsumerWidget {
   final String todayFormatted;
 
   const DashboardHeaderBar({
@@ -11,11 +14,67 @@ class DashboardHeaderBar extends StatelessWidget {
     required this.todayFormatted,
   });
 
+  void _showStreakDialog(BuildContext context, int streak) {
+    AppHaptics.selectionClick();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Text(streak > 0 ? '🔥' : '⚡', style: const TextStyle(fontSize: 24)),
+            const SizedBox(width: 8),
+            Text(streak > 0 ? '$streak-Day Streak!' : 'Start Your Streak!'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              streak > 0
+                  ? 'Incredible consistency! You have actively logged your finances for $streak consecutive day${streak == 1 ? '' : 's'}.'
+                  : 'Log your first income or expense today to ignite your daily financial tracking streak!',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primaryEmerald.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primaryEmerald.withAlpha(60)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.lightbulb_outline_rounded, color: AppColors.primaryEmerald, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Daily expense tracking builds mindful spending habits and eliminates surprise month-end deficits.',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Keep It Up'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+    final streak = ref.watch(loggingStreakProvider);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -153,13 +212,60 @@ class DashboardHeaderBar extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            todayFormatted,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: financialColors.textMuted,
-              fontWeight: FontWeight.w500,
-            ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  todayFormatted,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: financialColors.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _showStreakDialog(context, streak),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: streak > 0
+                        ? Colors.orange.withAlpha(isDark ? 40 : 25)
+                        : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: streak > 0 ? Colors.orange.withAlpha(140) : financialColors.cardBorder,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        streak > 0 ? '🔥' : '⚡',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        streak > 0 ? '$streak Day${streak == 1 ? '' : 's'}' : 'Start Streak',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: streak > 0
+                              ? (isDark ? Colors.orangeAccent : Colors.deepOrange)
+                              : financialColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

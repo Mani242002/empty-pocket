@@ -67,6 +67,36 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
     final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
     final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
 
+    final goal = widget.goal;
+    if (_deductAndLog && goal.autoSyncAccount && goal.linkedAccountId != null && _selectedAccountId == goal.linkedAccountId) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.info_outline_rounded, color: AppColors.warning),
+              SizedBox(width: 8),
+              Expanded(child: Text('Linked Account Conflict', overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+          content: Text(
+            'This goal auto-tracks ${goal.allocationPercentage.toStringAsFixed(0)}% of "${selectedAcc?.accountName ?? 'this account'}". Deducting funds from it will decrease the bank balance, which in turn lowers the goal\'s auto-tracked savings. Do you still want to proceed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Proceed Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     await ref.read(savingsGoalsListNotifierProvider.notifier).addFunds(
           goal: widget.goal,
           amount: amount,
@@ -249,7 +279,7 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ActionChip(
-                            label: Text('+₹$amt'),
+                            label: Text('+${CurrencyFormatter.activeCurrency.symbol}$amt'),
                             labelStyle: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -281,6 +311,31 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
                   ),
                 ),
                 const SizedBox(height: 18),
+
+                if (goal.autoSyncAccount && goal.linkedAccountId != null) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withAlpha(isDark ? 30 : 18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.warning.withAlpha(70)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This goal automatically tracks ${goal.allocationPercentage.toStringAsFixed(0)}% of "${bankAccounts.where((a) => a.id == goal.linkedAccountId).firstOrNull?.accountName ?? 'Linked Account'}". If you deduct contributions from this same account, its tracked balance will automatically readjust.',
+                            style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 // Deep Account Linking: ON/OFF Toggle
                 Material(
@@ -318,12 +373,33 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
                             prefixIcon: Icon(Icons.account_balance_rounded),
                           ),
                           items: bankAccounts.map((acc) {
+                            final isAutoLinked = goal.autoSyncAccount && acc.id == goal.linkedAccountId;
                             return DropdownMenuItem(
                               value: acc.id,
-                              child: Text(
-                                '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isAutoLinked)
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.warning.withAlpha(25),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: AppColors.warning.withAlpha(80)),
+                                      ),
+                                      child: const Text(
+                                        'Auto-tracked',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.warning),
+                                      ),
+                                    ),
+                                ],
                               ),
                             );
                           }).toList(),

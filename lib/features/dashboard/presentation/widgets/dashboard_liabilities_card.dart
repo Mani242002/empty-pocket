@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/debt_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../debts/presentation/screens/add_edit_debt_sheet.dart';
 import '../../../debts/presentation/screens/debts_screen.dart';
+import '../../../debts/presentation/state/debts_provider.dart';
 
-class DashboardLiabilitiesCard extends StatelessWidget {
-  final OverallLiabilitiesSummary liabilitiesSummary;
+class DashboardLiabilitiesCard extends ConsumerWidget {
+  final OverallLiabilitiesSummary? explicitLiabilitiesSummary;
 
   const DashboardLiabilitiesCard({
     super.key,
-    required this.liabilitiesSummary,
-  });
+    OverallLiabilitiesSummary? liabilitiesSummary,
+  }) : explicitLiabilitiesSummary = liabilitiesSummary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final OverallLiabilitiesSummary liabilitiesSummary =
+        explicitLiabilitiesSummary ?? ref.watch(overallLiabilitiesSummaryProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),

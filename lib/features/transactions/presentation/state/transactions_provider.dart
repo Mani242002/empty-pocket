@@ -885,3 +885,12 @@ final pendingByPersonSummaryProvider = Provider<List<PersonPendingSummary>>((ref
   final pendingTransactions = ref.watch(pendingSharedExpensesProvider);
   return SplitHelper.groupPendingByPerson(pendingTransactions);
 });
+
+/// Provider for consecutive daily transaction logging streak
+final loggingStreakProvider = Provider<int>((ref) {
+  final transactionsAsync = ref.watch(transactionListNotifierProvider);
+  return transactionsAsync.maybeWhen(
+    data: (transactions) => FinancialCalculator.calculateLoggingStreak(transactions),
+    orElse: () => 0,
+  );
+});

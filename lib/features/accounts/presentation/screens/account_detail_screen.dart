@@ -71,8 +71,23 @@ class AccountDetailScreen extends ConsumerWidget {
       return false;
     }).toList();
 
-    final isCard = liveCard != null;
-    final title = isCard ? liveCard.cardName : (liveAccount?.accountName ?? 'Account');
+    final isCard = creditCard != null;
+    final exists = isCard
+        ? liveCards.any((c) => c.id == creditCard!.id)
+        : liveAccounts.any((a) => a.id == bankAccount!.id);
+
+    if (!exists) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
+      });
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final title = isCard ? liveCard!.cardName : (liveAccount?.accountName ?? 'Account');
 
     return Scaffold(
       appBar: AppBar(
@@ -81,11 +96,17 @@ class AccountDetailScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Edit',
-            onPressed: () {
+            onPressed: () async {
               if (isCard) {
-                AddEditCreditCardSheet.show(context, card: liveCard);
+                final deleted = await AddEditCreditCardSheet.show(context, card: liveCard);
+                if (deleted == true && context.mounted) {
+                  Navigator.pop(context);
+                }
               } else if (liveAccount != null) {
-                AddEditBankAccountSheet.show(context, account: liveAccount);
+                final deleted = await AddEditBankAccountSheet.show(context, account: liveAccount);
+                if (deleted == true && context.mounted) {
+                  Navigator.pop(context);
+                }
               }
             },
           ),
@@ -100,7 +121,7 @@ class AccountDetailScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                 child: isCard
-                    ? _buildCardHero(context, liveCard, isDark, financialColors)
+                    ? _buildCardHero(context, liveCard!, isDark, financialColors)
                     : _buildAccountHero(context, liveAccount!, isDark, financialColors),
               ),
             ),

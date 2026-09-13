@@ -286,4 +286,63 @@ void main() {
       expect(partialUpdate.notes, 'Monthly bonus');
     });
   });
+
+  group('FinancialCalculator - calculateLoggingStreak Tests', () {
+    final today = DateTime(2026, 9, 13, 14, 0);
+
+    TransactionEntity createTx(String id, DateTime date) {
+      return TransactionEntity(
+        id: id,
+        title: 'Test Tx',
+        amount: 100,
+        type: TransactionType.expense,
+        category: 'Food',
+        date: date,
+        paymentSource: 'Cash',
+        createdAt: date,
+        updatedAt: date,
+      );
+    }
+
+    test('returns 0 when transaction list is empty', () {
+      expect(FinancialCalculator.calculateLoggingStreak([], referenceDate: today), 0);
+    });
+
+    test('returns 1 when transaction logged today only', () {
+      final txs = [createTx('t1', DateTime(2026, 9, 13, 9, 30))];
+      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 1);
+    });
+
+    test('returns 1 when transaction logged yesterday only (active streak grace)', () {
+      final txs = [createTx('t1', DateTime(2026, 9, 12, 19, 0))];
+      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 1);
+    });
+
+    test('returns 3 when transactions logged today, yesterday, and day before yesterday', () {
+      final txs = [
+        createTx('t1', DateTime(2026, 9, 13, 10, 0)),
+        createTx('t2', DateTime(2026, 9, 12, 14, 0)),
+        createTx('t3', DateTime(2026, 9, 11, 20, 0)),
+      ];
+      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 3);
+    });
+
+    test('deduplicates multiple transactions on the same day', () {
+      final txs = [
+        createTx('t1', DateTime(2026, 9, 13, 10, 0)),
+        createTx('t2', DateTime(2026, 9, 13, 15, 30)),
+        createTx('t3', DateTime(2026, 9, 12, 9, 0)),
+        createTx('t4', DateTime(2026, 9, 12, 21, 0)),
+      ];
+      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 2);
+    });
+
+    test('returns 0 when last transaction was 2 days ago (broken streak)', () {
+      final txs = [
+        createTx('t1', DateTime(2026, 9, 11, 10, 0)),
+        createTx('t2', DateTime(2026, 9, 10, 10, 0)),
+      ];
+      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 0);
+    });
+  });
 }

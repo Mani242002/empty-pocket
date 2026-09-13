@@ -15,6 +15,7 @@ import '../../../net_worth/presentation/state/net_worth_provider.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../../../../core/services/log_service.dart';
+import '../../../../core/database/app_database.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -212,11 +213,25 @@ final aiFinancialContextProvider = Provider<String>((ref) {
   );
 });
 
-/// Manages generated AI reports with full markdown support, regeneration, and deletion
+/// Manages generated AI reports with full markdown support, regeneration, and SQLite persistence
 class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
   final Ref ref;
 
-  AiReportsNotifier(this.ref) : super(const AsyncValue.data([]));
+  AiReportsNotifier(this.ref) : super(const AsyncValue.loading()) {
+    _loadPersistedReports();
+  }
+
+  Future<void> _loadPersistedReports() async {
+    try {
+      final db = AppDatabase.instance;
+      final rawMaps = await db.getAllAiReports();
+      final reports = rawMaps.map((m) => AiReportItem.fromMap(m)).toList();
+      state = AsyncValue.data(reports);
+    } catch (e, st) {
+      LogService.error('AiReportsNotifier', 'Failed to load persisted AI reports', e, st);
+      state = const AsyncValue.data([]);
+    }
+  }
 
   Future<void> generateReport({
     required AiReportType type,
@@ -243,6 +258,9 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
         financialContext: contextText,
         customPromptText: customPrompt,
       );
+
+      // Persist to SQLite
+      await AppDatabase.instance.insertAiReport(newReport.toMap());
 
       // Prepend newest report
       state = AsyncValue.data([newReport, ...currentReports]);
@@ -288,6 +306,9 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
         financialContext: contextText,
       );
 
+      // Persist replacement to SQLite
+      await AppDatabase.instance.insertAiReport(updatedReport.toMap());
+
       final updatedList = List<AiReportItem>.from(currentReports);
       updatedList[existingIndex] = updatedReport;
       state = AsyncValue.data(updatedList);
@@ -296,14 +317,24 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
     }
   }
 
-  void deleteReport(String id) {
+  Future<void> deleteReport(String id) async {
     final currentReports = state.value ?? [];
     final filtered = currentReports.where((r) => r.id != id).toList();
     state = AsyncValue.data(filtered);
+    try {
+      await AppDatabase.instance.deleteAiReport(id);
+    } catch (e, st) {
+      LogService.error('AiReportsNotifier', 'Failed to delete report from SQLite', e, st);
+    }
   }
 
-  void clearAllReports() {
+  Future<void> clearAllReports() async {
     state = const AsyncValue.data([]);
+    try {
+      await AppDatabase.instance.clearAllAiReports();
+    } catch (e, st) {
+      LogService.error('AiReportsNotifier', 'Failed to clear all reports from SQLite', e, st);
+    }
   }
 }
 

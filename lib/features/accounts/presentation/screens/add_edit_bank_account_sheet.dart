@@ -13,8 +13,8 @@ class AddEditBankAccountSheet extends ConsumerStatefulWidget {
 
   const AddEditBankAccountSheet({super.key, this.initialAccount});
 
-  static Future<void> show(BuildContext context, {BankAccountEntity? account}) {
-    return showModalBottomSheet(
+  static Future<bool?> show(BuildContext context, {BankAccountEntity? account}) {
+    return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -184,7 +184,7 @@ class _AddEditBankAccountSheetState
     if (confirmed == true && mounted) {
       await ref.read(bankAccountListProvider.notifier).deleteAccount(widget.initialAccount!.id);
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Account deleted.'),

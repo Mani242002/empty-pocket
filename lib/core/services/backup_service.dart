@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../domain/entities/ai_assistant_entity.dart';
 import '../domain/entities/backup_entity.dart';
@@ -37,6 +38,7 @@ class BackupService {
     List<AiChatMessage> chatMessages = const [],
     List<BankAccountEntity> bankAccounts = const [],
     List<CreditCardEntity> creditCards = const [],
+    List<AiReportItem> aiReports = const [],
   }) {
     final metadata = BackupMetadata(
       schemaVersion: 10,
@@ -53,6 +55,7 @@ class BackupService {
       chatMessagesCount: chatMessages.length,
       bankAccountsCount: bankAccounts.length,
       creditCardsCount: creditCards.length,
+      aiReportsCount: aiReports.length,
     );
 
     final backup = FullDatabaseBackup(
@@ -69,6 +72,7 @@ class BackupService {
       chatMessages: chatMessages,
       bankAccounts: bankAccounts,
       creditCards: creditCards,
+      aiReports: aiReports,
     );
 
     const encoder = JsonEncoder.withIndent('  ');
@@ -111,6 +115,235 @@ class BackupService {
 
   String _escapeCsvField(String field) {
     return field.replaceAll('"', '""');
+  }
+
+  /// Parse CSV content into a list of [TransactionEntity].
+  /// Supports EmptyPocket's export format as well as generic financial app CSV formats.
+  List<TransactionEntity> parseTransactionsFromCsv(String csvContent) {
+    final cleanContent = csvContent.startsWith('\uFEFF')
+        ? csvContent.substring(1)
+        : csvContent;
+    final rows = _parseCsvRows(cleanContent);
+    if (rows.isEmpty) return [];
+
+    final headerRow = rows.first;
+    int idIdx = -1;
+    int dateIdx = -1;
+    int typeIdx = -1;
+    int categoryIdx = -1;
+    int titleIdx = -1;
+    int amountIdx = -1;
+    int paymentSourceIdx = -1;
+    int notesIdx = -1;
+    int createdAtIdx = -1;
+
+    for (int i = 0; i < headerRow.length; i++) {
+      final col = headerRow[i].toLowerCase().trim();
+      if (col == 'id') {
+        idIdx = i;
+      } else if (col.contains('date') && !col.contains('created')) {
+        dateIdx = i;
+      } else if (col == 'created at' || col == 'created_at' || col.contains('create')) {
+        createdAtIdx = i;
+      } else if (col == 'type' || col.contains('transaction type')) {
+        typeIdx = i;
+      } else if (col.contains('category')) {
+        categoryIdx = i;
+      } else if (col.contains('title') || col.contains('desc') || col.contains('payee') || col == 'name') {
+        titleIdx = i;
+      } else if (col.contains('amount') || col == 'sum' || col == 'value' || col == 'cost') {
+        amountIdx = i;
+      } else if (col.contains('payment') || col.contains('source') || col.contains('method') || col.contains('account') || col.contains('wallet')) {
+        paymentSourceIdx = i;
+      } else if (col.contains('note') || col.contains('memo') || col.contains('remark')) {
+        notesIdx = i;
+      }
+    }
+
+    final hasRecognizedHeader = (dateIdx != -1 || amountIdx != -1 || titleIdx != -1);
+    final dataRows = hasRecognizedHeader ? rows.sublist(1) : rows;
+
+    // Fallback column positions if standard EmptyPocket header was positional or headerless
+    if (dateIdx == -1 && dataRows.isNotEmpty && dataRows.first.length >= 6) {
+      dateIdx = 1;
+      typeIdx = 2;
+      categoryIdx = 3;
+      titleIdx = 4;
+      amountIdx = 5;
+      paymentSourceIdx = 6 < dataRows.first.length ? 6 : -1;
+      notesIdx = 7 < dataRows.first.length ? 7 : -1;
+    }
+
+    final transactions = <TransactionEntity>[];
+    final dateTimeFormats = [
+      DateFormat('yyyy-MM-dd HH:mm:ss'),
+      DateFormat('yyyy-MM-dd'),
+      DateFormat('dd-MM-yyyy HH:mm:ss'),
+      DateFormat('dd-MM-yyyy'),
+      DateFormat('dd/MM/yyyy HH:mm:ss'),
+      DateFormat('dd/MM/yyyy'),
+      DateFormat('MM/dd/yyyy HH:mm:ss'),
+      DateFormat('MM/dd/yyyy'),
+    ];
+
+    for (final row in dataRows) {
+      if (row.isEmpty || (row.length == 1 && row[0].isEmpty)) continue;
+
+      // Extract amount
+      double amount = 0.0;
+      if (amountIdx != -1 && amountIdx < row.length) {
+        final cleanAmt = row[amountIdx].replaceAll(RegExp(r'[^0-9.-]'), '');
+        amount = double.tryParse(cleanAmt)?.abs() ?? 0.0;
+      }
+      if (amount <= 0) continue; // Skip invalid or zero-amount lines
+
+      // Extract Date
+      DateTime date = DateTime.now();
+      if (dateIdx != -1 && dateIdx < row.length) {
+        final rawDate = row[dateIdx].trim();
+        DateTime? parsedDate = DateTime.tryParse(rawDate);
+        if (parsedDate == null) {
+          for (final fmt in dateTimeFormats) {
+            try {
+              parsedDate = fmt.parse(rawDate);
+              break;
+            } catch (_) {}
+          }
+        }
+        if (parsedDate != null) {
+          date = parsedDate;
+        }
+      }
+
+      // Extract Type
+      TransactionType type = TransactionType.expense;
+      if (typeIdx != -1 && typeIdx < row.length) {
+        final rawType = row[typeIdx].toLowerCase().trim();
+        if (rawType.contains('inc') || rawType.contains('credit')) {
+          type = TransactionType.income;
+        } else if (rawType.contains('trans')) {
+          type = TransactionType.transfer;
+        } else {
+          type = TransactionType.expense;
+        }
+      }
+
+      // Extract Title
+      String title = 'Transaction';
+      if (titleIdx != -1 && titleIdx < row.length && row[titleIdx].trim().isNotEmpty) {
+        title = row[titleIdx].trim();
+      }
+
+      // Extract Category
+      String category = 'General';
+      if (categoryIdx != -1 && categoryIdx < row.length && row[categoryIdx].trim().isNotEmpty) {
+        category = row[categoryIdx].trim();
+      } else if (title != 'Transaction') {
+        category = title;
+      }
+
+      // Extract Payment Source
+      String paymentSource = 'Cash';
+      if (paymentSourceIdx != -1 && paymentSourceIdx < row.length && row[paymentSourceIdx].trim().isNotEmpty) {
+        paymentSource = row[paymentSourceIdx].trim();
+      }
+
+      // Extract Notes
+      String? notes;
+      if (notesIdx != -1 && notesIdx < row.length && row[notesIdx].trim().isNotEmpty) {
+        notes = row[notesIdx].trim();
+      }
+
+      // Extract CreatedAt
+      DateTime createdAt = date;
+      if (createdAtIdx != -1 && createdAtIdx < row.length) {
+        final rawCreated = row[createdAtIdx].trim();
+        final parsed = DateTime.tryParse(rawCreated);
+        if (parsed != null) createdAt = parsed;
+      }
+
+      // Extract ID
+      String id = const Uuid().v4();
+      if (idIdx != -1 && idIdx < row.length && row[idIdx].trim().isNotEmpty) {
+        final rawId = row[idIdx].trim();
+        if (rawId.length >= 8) {
+          id = rawId;
+        }
+      }
+
+      transactions.add(
+        TransactionEntity(
+          id: id,
+          title: title,
+          amount: amount,
+          type: type,
+          category: category,
+          date: date,
+          paymentSource: paymentSource,
+          notes: notes,
+          createdAt: createdAt,
+          updatedAt: createdAt,
+        ),
+      );
+    }
+
+    return transactions;
+  }
+
+  List<List<String>> _parseCsvRows(String content) {
+    final rows = <List<String>>[];
+    final currentField = StringBuffer();
+    final currentRow = <String>[];
+    bool inQuotes = false;
+
+    for (int i = 0; i < content.length; i++) {
+      final char = content[i];
+      if (inQuotes) {
+        if (char == '"') {
+          if (i + 1 < content.length && content[i + 1] == '"') {
+            currentField.write('"');
+            i++; // skip escaped quote
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          currentField.write(char);
+        }
+      } else {
+        if (char == '"') {
+          inQuotes = true;
+        } else if (char == ',') {
+          currentRow.add(currentField.toString().trim());
+          currentField.clear();
+        } else if (char == '\r') {
+          if (i + 1 < content.length && content[i + 1] == '\n') {
+            i++;
+          }
+          currentRow.add(currentField.toString().trim());
+          currentField.clear();
+          if (currentRow.isNotEmpty && (currentRow.length > 1 || currentRow[0].isNotEmpty)) {
+            rows.add(List.from(currentRow));
+          }
+          currentRow.clear();
+        } else if (char == '\n') {
+          currentRow.add(currentField.toString().trim());
+          currentField.clear();
+          if (currentRow.isNotEmpty && (currentRow.length > 1 || currentRow[0].isNotEmpty)) {
+            rows.add(List.from(currentRow));
+          }
+          currentRow.clear();
+        } else {
+          currentField.write(char);
+        }
+      }
+    }
+    if (currentField.isNotEmpty || currentRow.isNotEmpty) {
+      currentRow.add(currentField.toString().trim());
+      if (currentRow.isNotEmpty && (currentRow.length > 1 || currentRow[0].isNotEmpty)) {
+        rows.add(currentRow);
+      }
+    }
+    return rows;
   }
 
   /// Restore all data into repositories (with batch optimization for SQLite)

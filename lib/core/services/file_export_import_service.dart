@@ -113,4 +113,96 @@ class FileExportImportService {
       sizeInBytes: picked.size,
     );
   }
+
+  /// Exports and saves a transactions CSV file to device storage or downloads
+  static Future<String> saveCsvFile({
+    required String csvContent,
+    String basePrefix = 'EmptyPocket_Transactions',
+  }) async {
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final fileName = '${basePrefix}_$timestamp.csv';
+    final bytes = utf8.encode(csvContent);
+
+    try {
+      final savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Transactions CSV',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+        bytes: Uint8List.fromList(bytes),
+      );
+
+      if (savePath != null && savePath.isNotEmpty) {
+        final savedFile = File(savePath);
+        if (!await savedFile.exists() || (await savedFile.length()) == 0) {
+          await savedFile.writeAsString(csvContent, flush: true);
+        }
+        return savePath;
+      }
+    } catch (e) {
+      debugPrint('[FileExportImportService] CSV FilePicker saveFile fallback: $e');
+    }
+
+    Directory? targetDir;
+    try {
+      targetDir = await getDownloadsDirectory();
+    } catch (_) {}
+    targetDir ??= await getApplicationDocumentsDirectory();
+
+    final fallbackFile = File('${targetDir.path}/$fileName');
+    await fallbackFile.writeAsString(csvContent, flush: true);
+    return fallbackFile.path;
+  }
+
+  /// Shares a CSV file via the native system share sheet (WhatsApp, Email, Drive, Excel, etc.)
+  static Future<void> shareCsvFile({
+    required String csvContent,
+    String basePrefix = 'EmptyPocket_Transactions',
+  }) async {
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final fileName = '${basePrefix}_$timestamp.csv';
+
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/$fileName');
+    await file.writeAsString(csvContent, flush: true);
+
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: 'text/csv')],
+        subject: fileName,
+      ),
+    );
+  }
+
+  /// Opens the system file picker to select a .csv file
+  static Future<FileExportImportResult?> pickCsvFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Select Transactions CSV File',
+      type: FileType.custom,
+      allowedExtensions: ['csv', 'txt'],
+      withData: true,
+    );
+
+    if (result == null || result.files.isEmpty) {
+      return null;
+    }
+
+    final picked = result.files.first;
+    String content;
+
+    if (picked.bytes != null && picked.bytes!.isNotEmpty) {
+      content = utf8.decode(picked.bytes!);
+    } else if (picked.path != null) {
+      final file = File(picked.path!);
+      content = await file.readAsString();
+    } else {
+      throw const FormatException('Could not read selected file data.');
+    }
+
+    return FileExportImportResult(
+      content: content,
+      fileName: picked.name,
+      sizeInBytes: picked.size,
+    );
+  }
 }

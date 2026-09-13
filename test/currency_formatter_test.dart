@@ -48,5 +48,23 @@ void main() {
       expect(CurrencyFormatter.formatCompact(double.infinity), '₹0');
       expect(CurrencyFormatter.formatCompact(double.negativeInfinity), '₹0');
     });
+
+    test('supports global currencies with Western numbering', () {
+      CurrencyFormatter.setCurrencyByCode('USD');
+      expect(CurrencyFormatter.format(1250.50), '\$1,250.50');
+      expect(CurrencyFormatter.formatCompact(45000), '\$45.0 k');
+      expect(CurrencyFormatter.formatCompact(2500000), '\$2.50 M');
+      expect(CurrencyFormatter.formatCompact(1500000000), '\$1.50 B');
+
+      CurrencyFormatter.setCurrencyByCode('EUR');
+      expect(CurrencyFormatter.format(850.00), '€850.00');
+
+      CurrencyFormatter.setCurrencyByCode('GBP');
+      expect(CurrencyFormatter.format(120.75), '£120.75');
+
+      // Reset to INR
+      CurrencyFormatter.setCurrencyByCode('INR');
+      expect(CurrencyFormatter.format(1250.50), '₹1,250.50');
+    });
   });
 }

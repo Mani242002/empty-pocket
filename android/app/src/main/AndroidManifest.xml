@@ -55,6 +55,17 @@
                 android:value="Overlay for quick expense logging" />
         </service>
 
+        <service
+            android:name=".StickyOverlayService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:enabled="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Sticky overlay for quick expense logging" />
+        </service>
+
         <receiver
             android:name=".OverlayRestartReceiver"
             android:enabled="true"

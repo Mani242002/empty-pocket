@@ -23,6 +23,7 @@ class BackupMetadata {
   final int chatMessagesCount;
   final int bankAccountsCount;
   final int creditCardsCount;
+  final int aiReportsCount;
 
   const BackupMetadata({
     required this.schemaVersion,
@@ -39,6 +40,7 @@ class BackupMetadata {
     this.chatMessagesCount = 0,
     this.bankAccountsCount = 0,
     this.creditCardsCount = 0,
+    this.aiReportsCount = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -56,6 +58,7 @@ class BackupMetadata {
         'chatMessagesCount': chatMessagesCount,
         'bankAccountsCount': bankAccountsCount,
         'creditCardsCount': creditCardsCount,
+        'aiReportsCount': aiReportsCount,
       };
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) => BackupMetadata(
@@ -73,6 +76,7 @@ class BackupMetadata {
         chatMessagesCount: json['chatMessagesCount'] as int? ?? 0,
         bankAccountsCount: json['bankAccountsCount'] as int? ?? 0,
         creditCardsCount: json['creditCardsCount'] as int? ?? 0,
+        aiReportsCount: json['aiReportsCount'] as int? ?? 0,
       );
 }
 
@@ -90,6 +94,7 @@ class FullDatabaseBackup {
   final List<AiChatMessage> chatMessages;
   final List<BankAccountEntity> bankAccounts;
   final List<CreditCardEntity> creditCards;
+  final List<AiReportItem> aiReports;
 
   const FullDatabaseBackup({
     required this.metadata,
@@ -105,6 +110,7 @@ class FullDatabaseBackup {
     this.chatMessages = const [],
     this.bankAccounts = const [],
     this.creditCards = const [],
+    this.aiReports = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -121,6 +127,7 @@ class FullDatabaseBackup {
         'chatMessages': chatMessages.map((m) => m.toMap()).toList(),
         'bankAccounts': bankAccounts.map((a) => a.toMap()).toList(),
         'creditCards': creditCards.map((c) => c.toMap()).toList(),
+        'aiReports': aiReports.map((r) => r.toMap()).toList(),
       };
 
   factory FullDatabaseBackup.fromJson(Map<String, dynamic> json) {
@@ -161,6 +168,9 @@ class FullDatabaseBackup {
     final cardsList = (json['creditCards'] as List<dynamic>? ?? [])
         .map((m) => CreditCardEntity.fromMap(m as Map<String, dynamic>))
         .toList();
+    final aiReportsList = (json['aiReports'] as List<dynamic>? ?? [])
+        .map((m) => AiReportItem.fromMap(m as Map<String, dynamic>))
+        .toList();
 
     return FullDatabaseBackup(
       metadata: BackupMetadata.fromJson(metaJson),
@@ -176,6 +186,7 @@ class FullDatabaseBackup {
       chatMessages: messagesList,
       bankAccounts: accountsList,
       creditCards: cardsList,
+      aiReports: aiReportsList,
     );
   }
 }

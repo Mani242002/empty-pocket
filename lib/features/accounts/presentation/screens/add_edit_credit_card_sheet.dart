@@ -13,8 +13,8 @@ class AddEditCreditCardSheet extends ConsumerStatefulWidget {
 
   const AddEditCreditCardSheet({super.key, this.initialCard});
 
-  static Future<void> show(BuildContext context, {CreditCardEntity? card}) {
-    return showModalBottomSheet(
+  static Future<bool?> show(BuildContext context, {CreditCardEntity? card}) {
+    return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -200,7 +200,7 @@ class _AddEditCreditCardSheetState
     if (confirmed == true && mounted) {
       await ref.read(creditCardListProvider.notifier).deleteCard(widget.initialCard!.id);
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Credit card removed.'),

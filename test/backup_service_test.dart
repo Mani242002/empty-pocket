@@ -201,5 +201,72 @@ void main() {
       final wipedTxs = await txRepo.getAllTransactions();
       expect(wipedTxs.isEmpty, isTrue);
     });
+
+    test('parseTransactionsFromCsv parses EmptyPocket exported CSV accurately', () {
+      final txs = [
+        TransactionEntity(
+          id: 'tx_csv_1',
+          title: 'Grocery Mart',
+          amount: 1250.00,
+          type: TransactionType.expense,
+          category: 'Groceries',
+          date: DateTime(2026, 8, 10, 14, 0),
+          paymentSource: 'UPI',
+          notes: 'Fresh veggies',
+          createdAt: now,
+          updatedAt: now,
+        ),
+        TransactionEntity(
+          id: 'tx_csv_2',
+          title: 'Consulting Income',
+          amount: 45000.00,
+          type: TransactionType.income,
+          category: 'Income',
+          date: DateTime(2026, 8, 12, 10, 30),
+          paymentSource: 'Bank Account',
+          notes: null,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ];
+
+      final csvStr = backupService.exportTransactionsToCsv(txs);
+      final parsed = backupService.parseTransactionsFromCsv(csvStr);
+
+      expect(parsed.length, 2);
+      expect(parsed[0].id, 'tx_csv_1');
+      expect(parsed[0].title, 'Grocery Mart');
+      expect(parsed[0].amount, 1250.00);
+      expect(parsed[0].type, TransactionType.expense);
+      expect(parsed[0].category, 'Groceries');
+      expect(parsed[0].paymentSource, 'UPI');
+      expect(parsed[0].notes, 'Fresh veggies');
+
+      expect(parsed[1].id, 'tx_csv_2');
+      expect(parsed[1].title, 'Consulting Income');
+      expect(parsed[1].amount, 45000.00);
+      expect(parsed[1].type, TransactionType.income);
+    });
+
+    test('parseTransactionsFromCsv parses generic and foreign CSV formats gracefully', () {
+      const foreignCsv = '''
+Date,Payee,Category,Amount,Type,Notes
+2026-07-15,"Coffee & Bakery, Downtown",Food & Drinks,\$14.50,Expense,"Quick snack"
+16/07/2026,Monthly Bonus,Income,5000.00,Credit,Mid-year bonus
+''';
+
+      final parsed = backupService.parseTransactionsFromCsv(foreignCsv);
+
+      expect(parsed.length, 2);
+      expect(parsed[0].title, 'Coffee & Bakery, Downtown');
+      expect(parsed[0].amount, 14.50);
+      expect(parsed[0].type, TransactionType.expense);
+      expect(parsed[0].category, 'Food & Drinks');
+      expect(parsed[0].notes, 'Quick snack');
+
+      expect(parsed[1].title, 'Monthly Bonus');
+      expect(parsed[1].amount, 5000.00);
+      expect(parsed[1].type, TransactionType.income);
+    });
   });
 }

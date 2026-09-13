@@ -1,31 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/domain/entities/transaction_entity.dart';
+import '../../../core/utilities/app_haptics.dart';
 import '../../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../features/transactions/presentation/screens/add_edit_transaction_sheet.dart';
 import '../../../features/transactions/presentation/screens/transactions_screen.dart';
+import '../../../features/transactions/presentation/state/transactions_provider.dart';
+import '../../../features/accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../features/budgets/presentation/screens/budgets_screen.dart';
+import '../../../features/budgets/presentation/state/budgets_provider.dart';
 import '../../../features/reports/presentation/screens/reports_analytics_screen.dart';
 import '../../../features/settings/presentation/screens/settings_screen.dart';
+import '../../../features/settings/presentation/state/backup_provider.dart';
 import '../../../features/ai_assistant/presentation/screens/ai_chat_screen.dart';
 
-class MainNavigationScaffold extends StatefulWidget {
+class MainNavigationScaffold extends ConsumerStatefulWidget {
   const MainNavigationScaffold({super.key});
 
   @override
-  State<MainNavigationScaffold> createState() => _MainNavigationScaffoldState();
+  ConsumerState<MainNavigationScaffold> createState() => _MainNavigationScaffoldState();
 }
 
-class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
+class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
+    with WidgetsBindingObserver {
   static const MethodChannel _overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
   int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _setupOverlayListener();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(transactionListNotifierProvider);
+      ref.invalidate(bankAccountListProvider);
+      ref.invalidate(creditCardListProvider);
+      ref.invalidate(budgetListNotifierProvider);
+    }
   }
 
   void _setupOverlayListener() {
@@ -41,11 +65,13 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
     });
   }
 
-
   void _onTabSelected(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+    if (_currentIndex != index) {
+      AppHaptics.selectionClick();
+      setState(() {
+        _currentIndex = index;
+      });
+    }
   }
 
   void _showQuickAddBottomSheet() {
@@ -266,6 +292,9 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    // Re-render navigation tree when user alters the regional currency preference
+    ref.watch(currencyProvider);
+
     final screens = [
       DashboardScreen(
         onViewAllTransactions: () => _onTabSelected(1),

@@ -49,16 +49,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final summary = ref.watch(monthlyFinancialSummaryProvider);
     final comparison = ref.watch(monthlySpendingComparisonProvider);
-    final budgetSummary = ref.watch(overallMonthlyBudgetSummaryProvider);
-    final savingsSummary = ref.watch(overallSavingsSummaryProvider);
-    final liabilitiesSummary = ref.watch(overallLiabilitiesSummaryProvider);
-    final portfolioSummary = ref.watch(overallPortfolioSummaryProvider);
     final healthSummary = ref.watch(financialHealthSummaryProvider);
     final recentTransactions = ref.watch(recentTransactionsProvider);
-    final bankAccounts = ref.watch(activeBankAccountsProvider);
-    final creditCards = ref.watch(activeCreditCardsProvider);
-    final combinedCash = ref.watch(combinedLiquidCashProvider);
-    final creditSummary = ref.watch(combinedCreditSummaryProvider);
     final dailySafeToSpend = ref.watch(dailySafeToSpendProvider);
 
     return Scaffold(
@@ -116,42 +108,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
 
               // Accounts & Cards Overview Card
-              SliverToBoxAdapter(
-                child: DashboardAccountsCard(
-                  bankAccounts: bankAccounts,
-                  creditCards: creditCards,
-                  combinedCash: combinedCash,
-                  creditSummary: creditSummary,
-                ),
+              const SliverToBoxAdapter(
+                child: DashboardAccountsCard(),
               ),
 
               // Monthly Budget Status Card
-              SliverToBoxAdapter(
-                child: DashboardBudgetCard(
-                  budgetSummary: budgetSummary,
-                  totalExpense: summary.totalExpense,
-                ),
+              const SliverToBoxAdapter(
+                child: DashboardBudgetCard(),
               ),
 
               // Savings & Goals Card
-              SliverToBoxAdapter(
-                child: DashboardSavingsCard(
-                  savingsSummary: savingsSummary,
-                ),
+              const SliverToBoxAdapter(
+                child: DashboardSavingsCard(),
               ),
 
               // Investments & Portfolio Card
-              SliverToBoxAdapter(
-                child: DashboardInvestmentsCard(
-                  portfolioSummary: portfolioSummary,
-                ),
+              const SliverToBoxAdapter(
+                child: DashboardInvestmentsCard(),
               ),
 
               // Loans & Liabilities Card
-              SliverToBoxAdapter(
-                child: DashboardLiabilitiesCard(
-                  liabilitiesSummary: liabilitiesSummary,
-                ),
+              const SliverToBoxAdapter(
+                child: DashboardLiabilitiesCard(),
               ),
 
               // Recent Transactions Section Header

@@ -484,7 +484,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                           child: FilledButton.icon(
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.primaryEmerald,
-                              foregroundColor: Colors.black,
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),

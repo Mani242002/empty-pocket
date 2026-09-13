@@ -18,7 +18,7 @@ import '../services/log_service.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 10;
+  static const int _databaseVersion = 11;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
@@ -32,6 +32,7 @@ class AppDatabase {
   static const String tableChatMessages = 'ai_chat_messages';
   static const String tableBankAccounts = 'bank_accounts';
   static const String tableCreditCards = 'credit_cards';
+  static const String tableAiReports = 'ai_reports';
 
   static final AppDatabase instance = AppDatabase._internal();
 
@@ -129,6 +130,7 @@ class AppDatabase {
       await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_card ON $tableTransactions(credit_card_id)');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_shared ON $tableTransactions(is_shared, is_settled)');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_transactions_category ON $tableTransactions(category)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_ai_reports_timestamp ON $tableAiReports(timestamp DESC)');
     } catch (e, stack) {
       LogService.error('AppDatabase', 'Failed to ensure indexes on open', e, stack);
     }
@@ -200,6 +202,9 @@ class AppDatabase {
     // Bank Accounts & Credit Cards Tables
     await _createBankAccountsTable(db);
     await _createCreditCardsTable(db);
+
+    // AI Reports Table
+    await _createAiReportsTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -331,6 +336,28 @@ class AppDatabase {
         LogService.debug('AppDatabase', 'auto_sync_account column migration: $e');
       }
     }
+    if (oldVersion < 11) {
+      await _createAiReportsTable(db);
+    }
+  }
+
+  Future<void> _createAiReportsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableAiReports (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        type TEXT NOT NULL,
+        markdown_content TEXT NOT NULL,
+        model_used TEXT NOT NULL,
+        model_display_name TEXT NOT NULL,
+        provider_used TEXT NOT NULL,
+        timestamp INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_ai_reports_timestamp ON $tableAiReports(timestamp DESC)',
+    );
   }
 
   Future<void> _createBankAccountsTable(Database db) async {
@@ -1310,6 +1337,41 @@ class AppDatabase {
     return CreditCardEntity.fromMap(maps.first);
   }
 
+  // ==========================================
+  // AI REPORTS OPERATIONS
+  // ==========================================
+
+  Future<void> insertAiReport(Map<String, dynamic> reportMap) async {
+    final database = await this.database;
+    await database.insert(
+      tableAiReports,
+      reportMap,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getAllAiReports() async {
+    final database = await this.database;
+    return await database.query(
+      tableAiReports,
+      orderBy: 'timestamp DESC',
+    );
+  }
+
+  Future<void> deleteAiReport(String id) async {
+    final database = await this.database;
+    await database.delete(
+      tableAiReports,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> clearAllAiReports() async {
+    final database = await this.database;
+    await database.delete(tableAiReports);
+  }
+
   /// Clear all tables in a single atomic transaction
   Future<void> clearAllData() async {
     final client = await database;
@@ -1326,6 +1388,7 @@ class AppDatabase {
       await txn.delete(tableChatSessions);
       await txn.delete(tableCreditCards);
       await txn.delete(tableBankAccounts);
+      await txn.delete(tableAiReports);
     });
   }
 
@@ -1348,6 +1411,7 @@ class AppDatabase {
       await txn.delete(tableChatSessions);
       await txn.delete(tableCreditCards);
       await txn.delete(tableBankAccounts);
+      await txn.delete(tableAiReports);
 
       // 2. Insert new records in safe dependency order
       for (final a in backup.bankAccounts) {
@@ -1385,6 +1449,9 @@ class AppDatabase {
       }
       for (final m in backup.chatMessages) {
         await txn.insert(tableChatMessages, m.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final rep in backup.aiReports) {
+        await txn.insert(tableAiReports, rep.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
   }

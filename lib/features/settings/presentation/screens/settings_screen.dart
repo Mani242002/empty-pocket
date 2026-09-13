@@ -11,7 +11,9 @@ import '../../../../core/presentation/widgets/app_lock_gate.dart';
 import '../../../../core/services/file_export_import_service.dart';
 import '../../../../core/services/log_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
+import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
+import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../state/backup_provider.dart';
 
 final appVersionProvider = FutureProvider<String>((ref) async {
@@ -210,6 +212,46 @@ class SettingsScreen extends ConsumerWidget {
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Close'),
             ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.share_rounded, size: 16),
+              label: const Text('Share'),
+              onPressed: () async {
+                try {
+                  await FileExportImportService.shareCsvFile(csvContent: csvStr);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Share failed: $e'), backgroundColor: AppColors.expense),
+                    );
+                  }
+                }
+              },
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.download_rounded, size: 16),
+              label: const Text('Save File'),
+              onPressed: () async {
+                try {
+                  final savedPath = await FileExportImportService.saveCsvFile(csvContent: csvStr);
+                  if (context.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('CSV saved to: $savedPath'),
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: AppColors.income,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Save failed: $e'), backgroundColor: AppColors.expense),
+                    );
+                  }
+                }
+              },
+            ),
             FilledButton.icon(
               icon: const Icon(Icons.copy_rounded, size: 16),
               label: const Text('Copy CSV'),
@@ -234,6 +276,208 @@ class SettingsScreen extends ConsumerWidget {
         );
       }
     }
+  }
+
+  void _showImportCsvSheet(BuildContext context, WidgetRef ref) {
+    final textController = TextEditingController();
+    final financialColors = context.financialColors;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.file_upload_rounded, color: AppColors.primaryEmerald),
+                  const SizedBox(width: 8),
+                  const Text('Import Transactions (CSV)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Import transactions from EmptyPocket or other finance apps. Select a .csv file or paste raw CSV text.',
+                style: TextStyle(color: financialColors.textMuted, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.file_open_rounded),
+                label: const Text('Pick CSV File from Device'),
+                onPressed: () async {
+                  try {
+                    final result = await FileExportImportService.pickCsvFile();
+                    if (result != null && result.content.isNotEmpty) {
+                      textController.text = result.content;
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Loaded ${result.fileName} (${result.sizeInBytes} bytes)'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('File pick failed: $e'), backgroundColor: AppColors.expense),
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: textController,
+                maxLines: 5,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                decoration: InputDecoration(
+                  hintText: 'Or paste CSV content here...\nID,Date,Type,Category,Title,Amount...',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.download_done_rounded, size: 16),
+                    label: const Text('Import Transactions'),
+                    onPressed: () async {
+                      final text = textController.text.trim();
+                      if (text.isEmpty) return;
+
+                      try {
+                        final count = await ref.read(backupOperationsProvider.notifier).importTransactionsFromCsv(text);
+                        ref.invalidate(transactionListNotifierProvider);
+                        if (context.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Successfully imported $count transactions!'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: AppColors.income,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Import error: $e'),
+                              backgroundColor: AppColors.expense,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCurrencySelectorDialog(BuildContext context, WidgetRef ref) {
+    final currentCurrency = ref.read(currencyProvider).valueOrNull ?? CurrencyFormatter.activeCurrency;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.currency_exchange_rounded, color: AppColors.primaryEmerald),
+            SizedBox(width: 8),
+            Text('Select Currency'),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: CurrencyFormatter.supportedCurrencies.length,
+            itemBuilder: (context, index) {
+              final option = CurrencyFormatter.supportedCurrencies[index];
+              final isSelected = option.code == currentCurrency.code;
+              return ListTile(
+                leading: Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primaryEmerald
+                        : AppColors.primaryEmerald.withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    option.symbol.trim(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isSelected ? Colors.white : AppColors.primaryEmerald,
+                    ),
+                  ),
+                ),
+                title: Text('${option.code} — ${option.name}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                subtitle: Text(
+                  option.isIndianNumbering ? 'Indian Numbering (Lakhs, Crores)' : 'Standard Numbering (Thousands, Millions)',
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryEmerald) : null,
+                onTap: () async {
+                  AppHaptics.selectionClick();
+                  await ref.read(currencyProvider.notifier).setCurrency(option);
+                  if (context.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Currency updated to ${option.code} (${option.symbol})'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showReconcileBalancesDialog(BuildContext context, WidgetRef ref) {
@@ -535,6 +779,7 @@ class SettingsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final currentThemeMode = ref.watch(themeModeProvider);
+    final currentCurrency = ref.watch(currencyProvider).valueOrNull ?? CurrencyFormatter.activeCurrency;
     final isAppLockEnabled = ref.watch(appLockProvider).valueOrNull ?? false;
     final isBubbleEnabled = ref.watch(floatingBubbleProvider);
     final aiConfig = ref.watch(aiProviderConfigProvider);
@@ -585,6 +830,26 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Section: Preferences & Currency
+          _buildSectionHeader(context, 'Preferences & Region'),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
+                _buildListTile(
+                  context,
+                  icon: Icons.currency_exchange_rounded,
+                  iconColor: AppColors.primaryEmerald,
+                  title: 'Currency',
+                  subtitle: '${currentCurrency.code} (${currentCurrency.symbol}) — ${currentCurrency.name}',
+                  onTap: () => _showCurrencySelectorDialog(context, ref),
+                ),
+              ],
             ),
           ),
 
@@ -748,7 +1013,7 @@ class SettingsScreen extends ConsumerWidget {
               children: [
                 _buildListTile(
                   context,
-                  icon: Icons.file_download_outlined,
+                  icon: Icons.file_download_rounded,
                   iconColor: financialColors.info,
                   title: 'Export Full Backup (JSON)',
                   subtitle: 'Export complete offline database for safe keeping',
@@ -757,7 +1022,7 @@ class SettingsScreen extends ConsumerWidget {
                 const Divider(),
                 _buildListTile(
                   context,
-                  icon: Icons.file_upload_outlined,
+                  icon: Icons.file_upload_rounded,
                   iconColor: financialColors.investment,
                   title: 'Restore Database (JSON)',
                   subtitle: 'Restore financial records from a backup JSON string',
@@ -766,11 +1031,20 @@ class SettingsScreen extends ConsumerWidget {
                 const Divider(),
                 _buildListTile(
                   context,
-                  icon: Icons.table_chart_outlined,
+                  icon: Icons.table_chart_rounded,
                   iconColor: AppColors.primaryEmerald,
                   title: 'Export Transactions (CSV)',
                   subtitle: 'Export spreadsheet-ready log for Excel / Sheets',
                   onTap: () => _showExportCsvDialog(context, ref),
+                ),
+                const Divider(),
+                _buildListTile(
+                  context,
+                  icon: Icons.file_open_rounded,
+                  iconColor: financialColors.warning,
+                  title: 'Import Transactions (CSV)',
+                  subtitle: 'Ingest transactions from CSV file or spreadsheet export',
+                  onTap: () => _showImportCsvSheet(context, ref),
                 ),
                 const Divider(),
                 _buildListTile(

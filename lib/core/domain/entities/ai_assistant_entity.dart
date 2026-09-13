@@ -318,6 +318,38 @@ class AiReportItem {
     required this.providerUsed,
     required this.timestamp,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'type': type.name,
+      'markdown_content': markdownContent,
+      'model_used': modelUsed,
+      'model_display_name': modelDisplayName,
+      'provider_used': providerUsed.name,
+      'timestamp': timestamp.millisecondsSinceEpoch,
+    };
+  }
+
+  factory AiReportItem.fromMap(Map<String, dynamic> map) {
+    return AiReportItem(
+      id: map['id'] as String,
+      title: map['title'] as String,
+      type: AiReportType.values.firstWhere(
+        (t) => t.name == map['type'],
+        orElse: () => AiReportType.custom,
+      ),
+      markdownContent: map['markdown_content'] as String,
+      modelUsed: map['model_used'] as String? ?? '',
+      modelDisplayName: map['model_display_name'] as String? ?? '',
+      providerUsed: AiProviderType.values.firstWhere(
+        (p) => p.name == map['provider_used'],
+        orElse: () => AiProviderType.gemini,
+      ),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int),
+    );
+  }
 }
 
 class AiAuditReport {

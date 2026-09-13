@@ -1307,4 +1307,47 @@ abstract class FinancialCalculator {
 
     return buffer.toString();
   }
+
+  /// Calculate consecutive daily transaction logging streak.
+  /// A streak is active if the user has logged a transaction today,
+  /// or if they logged yesterday (allowing them to log today to keep the streak going).
+  static int calculateLoggingStreak(
+    List<TransactionEntity> transactions, {
+    DateTime? referenceDate,
+  }) {
+    if (transactions.isEmpty) return 0;
+
+    final ref = referenceDate ?? DateTime.now();
+    final todayMidnight = DateTime(ref.year, ref.month, ref.day);
+
+    // Collect all unique calendar days that have at least one transaction
+    final loggedDays = <DateTime>{};
+    for (final tx in transactions) {
+      final txDay = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      loggedDays.add(txDay);
+    }
+
+    if (loggedDays.isEmpty) return 0;
+
+    final yesterdayMidnight = DateTime(todayMidnight.year, todayMidnight.month, todayMidnight.day - 1);
+
+    // Check if the streak is active (logged today or yesterday)
+    DateTime checkDay;
+    if (loggedDays.contains(todayMidnight)) {
+      checkDay = todayMidnight;
+    } else if (loggedDays.contains(yesterdayMidnight)) {
+      checkDay = yesterdayMidnight;
+    } else {
+      // Neither today nor yesterday had any transaction logged
+      return 0;
+    }
+
+    int streak = 0;
+    while (loggedDays.contains(checkDay)) {
+      streak++;
+      checkDay = DateTime(checkDay.year, checkDay.month, checkDay.day - 1);
+    }
+
+    return streak;
+  }
 }

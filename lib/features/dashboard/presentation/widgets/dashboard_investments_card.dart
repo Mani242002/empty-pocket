@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/investment_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../investments/presentation/screens/add_edit_investment_sheet.dart';
 import '../../../investments/presentation/screens/investments_screen.dart';
+import '../../../investments/presentation/state/investments_provider.dart';
 
-class DashboardInvestmentsCard extends StatelessWidget {
-  final OverallPortfolioSummary portfolioSummary;
+class DashboardInvestmentsCard extends ConsumerWidget {
+  final OverallPortfolioSummary? explicitPortfolioSummary;
 
   const DashboardInvestmentsCard({
     super.key,
-    required this.portfolioSummary,
-  });
+    OverallPortfolioSummary? portfolioSummary,
+  }) : explicitPortfolioSummary = portfolioSummary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final OverallPortfolioSummary portfolioSummary =
+        explicitPortfolioSummary ?? ref.watch(overallPortfolioSummaryProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),

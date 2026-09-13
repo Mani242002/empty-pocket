@@ -22,7 +22,18 @@ class OverlayRestartReceiver : BroadcastReceiver() {
             val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val bubbleEnabled = prefs.getBoolean("flutter.floating_bubble_enabled", false)
             Log.d(TAG, "Bubble enabled preference: $bubbleEnabled")
-            // System is ready for Flutter engine initialization upon app or overlay trigger
+            if (bubbleEnabled) {
+                try {
+                    val serviceIntent = Intent(context, StickyOverlayService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to restart overlay service: ${e.message}")
+                }
+            }
         }
     }
 }

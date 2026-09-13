@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
@@ -8,26 +9,35 @@ import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/screens/accounts_cards_screen.dart';
 import '../../../accounts/presentation/screens/account_transfer_sheet.dart';
 import '../../../accounts/presentation/screens/pay_credit_card_sheet.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 
-class DashboardAccountsCard extends StatelessWidget {
-  final List<BankAccountEntity> bankAccounts;
-  final List<CreditCardEntity> creditCards;
-  final double combinedCash;
-  final CombinedCreditSummary creditSummary;
+class DashboardAccountsCard extends ConsumerWidget {
+  final List<BankAccountEntity>? explicitBankAccounts;
+  final List<CreditCardEntity>? explicitCreditCards;
+  final double? explicitCombinedCash;
+  final CombinedCreditSummary? explicitCreditSummary;
 
   const DashboardAccountsCard({
     super.key,
-    required this.bankAccounts,
-    required this.creditCards,
-    required this.combinedCash,
-    required this.creditSummary,
-  });
+    List<BankAccountEntity>? bankAccounts,
+    List<CreditCardEntity>? creditCards,
+    double? combinedCash,
+    CombinedCreditSummary? creditSummary,
+  })  : explicitBankAccounts = bankAccounts,
+        explicitCreditCards = creditCards,
+        explicitCombinedCash = combinedCash,
+        explicitCreditSummary = creditSummary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+
+    final List<BankAccountEntity> bankAccounts = explicitBankAccounts ?? ref.watch(activeBankAccountsProvider);
+    final List<CreditCardEntity> creditCards = explicitCreditCards ?? ref.watch(activeCreditCardsProvider);
+    final double combinedCash = explicitCombinedCash ?? ref.watch(combinedLiquidCashProvider);
+    final CombinedCreditSummary creditSummary = explicitCreditSummary ?? ref.watch(combinedCreditSummaryProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
