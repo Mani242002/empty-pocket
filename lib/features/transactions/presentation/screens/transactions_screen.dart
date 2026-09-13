@@ -8,7 +8,6 @@ import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
-import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../screens/add_edit_transaction_sheet.dart';
 import '../screens/transaction_detail_sheet.dart';
 import '../state/transactions_provider.dart';
@@ -60,38 +59,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     );
 
     // Apply balance impact for cloned transaction
-    if (cloned.type == TransactionType.income) {
-      if (cloned.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(cloned.accountId!, cloned.amount);
-      } else if (cloned.creditCardId != null) {
-        await ref
-            .read(creditCardListProvider.notifier)
-            .adjustUsedAmount(cloned.creditCardId!, -cloned.amount);
-      }
-    } else if (cloned.type == TransactionType.expense) {
-      if (cloned.creditCardId != null) {
-        await ref
-            .read(creditCardListProvider.notifier)
-            .adjustUsedAmount(cloned.creditCardId!, cloned.amount);
-      } else if (cloned.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(cloned.accountId!, -cloned.amount);
-      }
-    } else if (cloned.type == TransactionType.transfer) {
-      if (cloned.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(cloned.accountId!, -cloned.amount);
-      }
-      if (cloned.toAccountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(cloned.toAccountId!, cloned.amount);
-      }
-    }
+    await LedgerBalanceSynchronizer.applyTransactionImpact(ref, cloned);
 
     await ref
         .read(transactionListNotifierProvider.notifier)
@@ -117,7 +85,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
     final selectedMonth = ref.watch(selectedMonthProvider);
     final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
+    final allTransactionsAsync = ref.watch(transactionListNotifierProvider);
+    final allTransactions = allTransactionsAsync.valueOrNull ?? [];
     final monthTitle = DateFormat('MMMM yyyy').format(selectedMonth);
+
+    final searchQuery = _searchController.text.trim();
+    final isGlobalSearch = searchQuery.length >= 2;
+    final baseTransactions = isGlobalSearch ? allTransactions : monthlyTransactions;
 
     // Apply Filter
     TransactionType? filterType;
@@ -125,15 +99,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     if (_selectedFilterIndex == 2) filterType = TransactionType.income;
 
     var filteredTransactions = FinancialCalculator.filterByType(
-      monthlyTransactions,
+      baseTransactions,
       filterType,
     );
 
     // Apply Search
-    if (_searchController.text.trim().isNotEmpty) {
+    if (searchQuery.isNotEmpty) {
       filteredTransactions = FinancialCalculator.searchTransactions(
         filteredTransactions,
-        _searchController.text.trim(),
+        searchQuery,
       );
     }
 
@@ -236,6 +210,28 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 onChanged: (_) => setState(() {}),
               ),
             ),
+
+            if (isGlobalSearch)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.travel_explore_rounded, size: 14, color: AppColors.primaryEmerald),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Searching all-time history (${filteredTransactions.length} found)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: financialColors.textMuted,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // Filter Chips
             SizedBox(

@@ -140,3 +140,17 @@ final monthlyRecurringTotalProvider = Provider<double>((ref) {
     orElse: () => 0.0,
   );
 });
+
+/// Active recurring bills that are due today or overdue
+final recurringBillsDueTodayProvider = Provider<List<RecurringExpenseEntity>>((ref) {
+  final recurringAsync = ref.watch(recurringListNotifierProvider);
+  final now = DateTime.now();
+  final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+  return recurringAsync.maybeWhen(
+    data: (items) => items
+        .where((r) => r.isActive && r.nextDueDate.isBefore(endOfToday))
+        .toList(),
+    orElse: () => [],
+  );
+});

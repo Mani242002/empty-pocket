@@ -76,6 +76,9 @@ class DashboardHeaderBar extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final streak = ref.watch(loggingStreakProvider);
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 360;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Column(
@@ -125,6 +128,7 @@ class DashboardHeaderBar extends ConsumerWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               // Badges (PocketAI + Offline)
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -141,7 +145,7 @@ class DashboardHeaderBar extends ConsumerWidget {
                     child: Container(
                       height: 32,
                       alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: EdgeInsets.symmetric(horizontal: isCompact ? 7 : 10),
                       decoration: BoxDecoration(
                         color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
                         borderRadius: BorderRadius.circular(20),
@@ -173,12 +177,12 @@ class DashboardHeaderBar extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   // Privacy badge
                   Container(
                     height: 32,
                     alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 10),
                     decoration: BoxDecoration(
                       color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
                       borderRadius: BorderRadius.circular(20),
@@ -196,15 +200,17 @@ class DashboardHeaderBar extends ConsumerWidget {
                           size: 14,
                           color: financialColors.income,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Offline',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                            height: 1.1,
+                        if (!isCompact) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            'Offline',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              height: 1.1,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),

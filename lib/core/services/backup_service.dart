@@ -14,6 +14,7 @@ import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
 import '../repositories/ai_chat_repository.dart';
+import '../repositories/ai_reports_repository.dart';
 import '../repositories/bank_account_repository.dart';
 import '../repositories/budget_repository.dart';
 import '../repositories/credit_card_repository.dart';
@@ -41,7 +42,7 @@ class BackupService {
     List<AiReportItem> aiReports = const [],
   }) {
     final metadata = BackupMetadata(
-      schemaVersion: 10,
+      schemaVersion: 11,
       exportedAt: DateTime.now(),
       transactionsCount: transactions.length,
       budgetsCount: budgets.length,
@@ -358,6 +359,7 @@ class BackupService {
     BankAccountRepository? bankAccountRepo,
     CreditCardRepository? creditCardRepo,
     AiChatRepository? aiChatRepo,
+    AiReportsRepository? aiReportsRepo,
   }) async {
     final isSqlite = transactionRepo is SqliteTransactionRepository;
 
@@ -378,168 +380,59 @@ class BackupService {
       bankAccountRepo: bankAccountRepo,
       creditCardRepo: creditCardRepo,
       aiChatRepo: aiChatRepo,
+      aiReportsRepo: aiReportsRepo,
     );
 
-    // 2. Restore Bank Accounts
-    if (isSqlite && backup.bankAccounts.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertBankAccounts(backup.bankAccounts);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert bank accounts failed: $e, falling back to repository');
-        if (bankAccountRepo != null) {
-          for (final a in backup.bankAccounts) {
-            await bankAccountRepo.saveAccount(a);
-          }
-        }
-      }
-    } else if (bankAccountRepo != null) {
+    // 2. Restore Bank Accounts (in-memory mock repos)
+    if (bankAccountRepo != null) {
       for (final a in backup.bankAccounts) {
         await bankAccountRepo.saveAccount(a);
       }
     }
 
     // 3. Restore Credit Cards
-    if (isSqlite && backup.creditCards.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertCreditCards(backup.creditCards);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert credit cards failed: $e, falling back to repository');
-        if (creditCardRepo != null) {
-          for (final c in backup.creditCards) {
-            await creditCardRepo.saveCard(c);
-          }
-        }
-      }
-    } else if (creditCardRepo != null) {
+    if (creditCardRepo != null) {
       for (final c in backup.creditCards) {
         await creditCardRepo.saveCard(c);
       }
     }
 
     // 4. Restore transactions
-    if (isSqlite && backup.transactions.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertTransactions(backup.transactions);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert transactions failed: $e, falling back to repository');
-        for (final tx in backup.transactions) {
-          await transactionRepo.addTransaction(tx);
-        }
-      }
-    } else {
-      for (final tx in backup.transactions) {
-        await transactionRepo.addTransaction(tx);
-      }
+    for (final tx in backup.transactions) {
+      await transactionRepo.addTransaction(tx);
     }
 
     // 5. Restore budgets
-    if (isSqlite && backup.budgets.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertBudgets(backup.budgets);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert budgets failed: $e, falling back to repository');
-        for (final b in backup.budgets) {
-          await budgetRepo.saveBudget(b);
-        }
-      }
-    } else {
-      for (final b in backup.budgets) {
-        await budgetRepo.saveBudget(b);
-      }
+    for (final b in backup.budgets) {
+      await budgetRepo.saveBudget(b);
     }
 
     // 6. Restore savings goals & contributions
-    if (isSqlite && backup.savingsGoals.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertSavingsGoals(backup.savingsGoals);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert goals failed: $e, falling back to repository');
-        for (final g in backup.savingsGoals) {
-          await savingsRepo.saveGoal(g);
-        }
-      }
-    } else {
-      for (final g in backup.savingsGoals) {
-        await savingsRepo.saveGoal(g);
-      }
+    for (final g in backup.savingsGoals) {
+      await savingsRepo.saveGoal(g);
     }
 
-    if (isSqlite && backup.savingsContributions.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertGoalContributions(backup.savingsContributions);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert contributions failed: $e, falling back to repository');
-        for (final c in backup.savingsContributions) {
-          await savingsRepo.addContribution(c);
-        }
-      }
-    } else {
-      for (final c in backup.savingsContributions) {
-        await savingsRepo.addContribution(c);
-      }
+    for (final c in backup.savingsContributions) {
+      await savingsRepo.addContribution(c);
     }
 
     // 7. Restore debts & payments
-    if (isSqlite && backup.debts.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertDebts(backup.debts);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert debts failed: $e, falling back to repository');
-        for (final d in backup.debts) {
-          await debtRepo.saveDebt(d);
-        }
-      }
-    } else {
-      for (final d in backup.debts) {
-        await debtRepo.saveDebt(d);
-      }
+    for (final d in backup.debts) {
+      await debtRepo.saveDebt(d);
     }
 
-    if (isSqlite && backup.debtPayments.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertDebtPayments(backup.debtPayments);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert payments failed: $e, falling back to repository');
-        for (final p in backup.debtPayments) {
-          await debtRepo.addPayment(p);
-        }
-      }
-    } else {
-      for (final p in backup.debtPayments) {
-        await debtRepo.addPayment(p);
-      }
+    for (final p in backup.debtPayments) {
+      await debtRepo.addPayment(p);
     }
 
     // 8. Restore investments
-    if (isSqlite && backup.investments.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertInvestments(backup.investments);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert investments failed: $e, falling back to repository');
-        for (final i in backup.investments) {
-          await investmentRepo.saveInvestment(i);
-        }
-      }
-    } else {
-      for (final i in backup.investments) {
-        await investmentRepo.saveInvestment(i);
-      }
+    for (final i in backup.investments) {
+      await investmentRepo.saveInvestment(i);
     }
 
     // 9. Restore recurring expenses
-    if (isSqlite && backup.recurringExpenses.isNotEmpty) {
-      try {
-        await AppDatabase.instance.batchInsertRecurringExpenses(backup.recurringExpenses);
-      } catch (e) {
-        debugPrint('[BackupService] Batch insert recurring failed: $e, falling back to repository');
-        for (final r in backup.recurringExpenses) {
-          await recurringRepo.saveRecurringExpense(r);
-        }
-      }
-    } else {
-      for (final r in backup.recurringExpenses) {
-        await recurringRepo.saveRecurringExpense(r);
-      }
+    for (final r in backup.recurringExpenses) {
+      await recurringRepo.saveRecurringExpense(r);
     }
 
     // 10. Restore AI chat history
@@ -550,20 +443,12 @@ class BackupService {
       if (backup.chatMessages.isNotEmpty) {
         await aiChatRepo.batchSaveMessages(backup.chatMessages);
       }
-    } else if (isSqlite) {
-      if (backup.chatSessions.isNotEmpty) {
-        try {
-          await AppDatabase.instance.batchInsertChatSessions(backup.chatSessions);
-        } catch (e) {
-          debugPrint('[BackupService] Batch insert chat sessions failed: $e');
-        }
-      }
-      if (backup.chatMessages.isNotEmpty) {
-        try {
-          await AppDatabase.instance.batchInsertChatMessages(backup.chatMessages);
-        } catch (e) {
-          debugPrint('[BackupService] Batch insert chat messages failed: $e');
-        }
+    }
+
+    // 11. Restore AI reports
+    if (aiReportsRepo != null) {
+      for (final report in backup.aiReports) {
+        await aiReportsRepo.saveReport(report);
       }
     }
   }
@@ -579,6 +464,7 @@ class BackupService {
     BankAccountRepository? bankAccountRepo,
     CreditCardRepository? creditCardRepo,
     AiChatRepository? aiChatRepo,
+    AiReportsRepository? aiReportsRepo,
   }) async {
     if (transactionRepo is SqliteTransactionRepository) {
       try {
@@ -639,6 +525,14 @@ class BackupService {
         await aiChatRepo.clearAllChatHistory();
       } catch (err) {
         debugPrint('[BackupService] clearAllChatHistory error: $err');
+      }
+    }
+
+    if (aiReportsRepo != null) {
+      try {
+        await aiReportsRepo.clearAllReports();
+      } catch (err) {
+        debugPrint('[BackupService] clearAllReports error: $err');
       }
     }
   }

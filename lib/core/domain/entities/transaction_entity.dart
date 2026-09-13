@@ -82,7 +82,7 @@ class TransactionEntity {
 
   /// The user's true personal expenditure for this transaction
   double get netPersonalAmount =>
-      isShared ? (myShareAmount ?? (amount - reimbursedAmount)) : amount;
+      isShared ? (myShareAmount ?? (amount - reimbursedAmount).clamp(0.0, double.infinity)) : amount;
 
   static const Object _sentinel = Object();
 

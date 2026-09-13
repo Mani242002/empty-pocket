@@ -105,9 +105,24 @@ class OverlayService {
       // Move to center of screen (0, 0)
       await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
 
+      // Adaptively scale overlay window on compact screens to prevent overflow
+      final view = ui.PlatformDispatcher.instance.views.firstOrNull;
+      int width = expandedWidth;
+      int height = expandedHeight;
+      if (view != null && view.devicePixelRatio > 0) {
+        final screenWidthDp = view.physicalSize.width / view.devicePixelRatio;
+        final screenHeightDp = view.physicalSize.height / view.devicePixelRatio;
+        if (screenWidthDp > 0 && screenWidthDp < expandedWidth) {
+          width = (screenWidthDp - 24).round();
+        }
+        if (screenHeightDp > 0 && screenHeightDp < expandedHeight) {
+          height = (screenHeightDp * 0.85).round();
+        }
+      }
+
       await FlutterOverlayWindow.resizeOverlay(
-        expandedWidth,
-        expandedHeight,
+        width,
+        height,
         false,
       );
     } catch (e, stack) {

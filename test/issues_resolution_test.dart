@@ -23,6 +23,13 @@ class InMemoryTxRepo implements TransactionRepository {
   Future<void> addTransaction(TransactionEntity tx) async => _db[tx.id] = tx;
 
   @override
+  Future<void> addTransactions(List<TransactionEntity> transactions) async {
+    for (final tx in transactions) {
+      _db[tx.id] = tx;
+    }
+  }
+
+  @override
   Future<void> updateTransaction(TransactionEntity tx) async => _db[tx.id] = tx;
 
   @override

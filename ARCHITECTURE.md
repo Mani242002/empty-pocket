@@ -25,17 +25,12 @@ lib/
 │   └── theme/                        # Emerald Design System (Dark & Light tokens)
 │
 ├── core/                             # Cross-Cutting Shared Kernel
-│   ├── calculation/                  # Pure Financial Math Engines
-│   │   ├── financial_calculator.dart # Outflow, Net Balance, True Personal Math
-│   │   ├── budget_calculator.dart    # Category caps, overspend alerts
-│   │   ├── savings_calculator.dart   # Goal milestones, completion ETA
-│   │   ├── debt_calculator.dart      # Amortization, EMI, DTI calculations
-│   │   ├── investment_calculator.dart# Portfolio ROI, asset allocation weights
-│   │   ├── health_calculator.dart    # 4-Pillar Financial Health Score (0-100)
-│   │   └── reports_calculator.dart   # Outflows, MoM deltas, 3-month forecast
+│   ├── calculation/                  # Pure Financial Math Engine
+│   │   └── financial_calculator.dart # Consolidated financial math: Outflow, True Personal,
+│   │                                 # Budgets, Savings, Debts, Investments, Health Score & AI Context
 │   │
 │   ├── database/                     # SQLite Engine & Migrations
-│   │   └── app_database.dart         # Singleton Database, Schema v10 DDL & Alter logic
+│   │   └── app_database.dart         # Singleton Database, Schema v11 DDL & Alter logic
 │   │
 │   ├── domain/entities/              # Enterprise Domain Entities
 │   │   ├── transaction_entity.dart   # TransactionType, Split parameters
@@ -52,7 +47,7 @@ lib/
 │   │   └── ... (In-memory mock doubles for automated tests)
 │   │
 │   ├── services/                     # Device & Platform Services
-│   │   ├── backup_service.dart       # JSON Schema v10 & CSV RFC 4180 export/import
+│   │   ├── backup_service.dart       # JSON Schema v11 & CSV RFC 4180 export/import
 │   │   ├── ai_service.dart           # BYOK client-side Gemini / Groq caller
 │   │   ├── overlay_service.dart      # PlatformChannel for floating quick-add
 │   │   └── biometric_service.dart    # Local biometric authentication
@@ -87,7 +82,18 @@ graph LR
     v1_to_v7[Versions 1–7<br/>Core Tables] --> v8[Version 8<br/>Accounts & Cards]
     v8 --> v9[Version 9<br/>Shared Expenses & Splits]
     v9 --> v10[Version 10<br/>Account Purpose & Goal Allocations]
+    v10 --> v11[Version 11<br/>AI Markdown Reports Persistence]
 ```
+
+### Schema Version 11 Additions
+- **`ai_reports` Table**:
+  - `id TEXT PRIMARY KEY`
+  - `type TEXT NOT NULL`
+  - `title TEXT NOT NULL`
+  - `content TEXT NOT NULL`
+  - `timestamp INTEGER NOT NULL`
+  - `provider TEXT NOT NULL`
+  - `model TEXT NOT NULL`
 
 ### Schema Version 10 Additions
 - **`savings_goals` Table**:

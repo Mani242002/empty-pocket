@@ -9,6 +9,7 @@ abstract class TransactionRepository {
     int offset = 0,
   });
   Future<void> addTransaction(TransactionEntity transaction);
+  Future<void> addTransactions(List<TransactionEntity> transactions);
   Future<void> updateTransaction(TransactionEntity transaction);
   Future<void> deleteTransaction(String id);
   Future<void> clearAllTransactions();
@@ -35,6 +36,11 @@ class SqliteTransactionRepository implements TransactionRepository {
   @override
   Future<void> addTransaction(TransactionEntity transaction) async {
     await _db.insertTransaction(transaction);
+  }
+
+  @override
+  Future<void> addTransactions(List<TransactionEntity> transactions) async {
+    await _db.batchInsertTransactions(transactions);
   }
 
   @override
@@ -84,6 +90,13 @@ class InMemoryTransactionRepository implements TransactionRepository {
   Future<void> addTransaction(TransactionEntity transaction) async {
     _transactions.removeWhere((t) => t.id == transaction.id);
     _transactions.add(transaction);
+  }
+
+  @override
+  Future<void> addTransactions(List<TransactionEntity> transactions) async {
+    final ids = transactions.map((t) => t.id).toSet();
+    _transactions.removeWhere((t) => ids.contains(t.id));
+    _transactions.addAll(transactions);
   }
 
   @override

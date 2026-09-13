@@ -894,3 +894,56 @@ final loggingStreakProvider = Provider<int>((ref) {
     orElse: () => 0,
   );
 });
+
+/// Centralized engine for applying ledger account and credit card balance impacts
+/// ensuring consistent balance synchronization across all presentation flows.
+class LedgerBalanceSynchronizer {
+  static Future<void> applyTransactionImpact(
+    dynamic ref,
+    TransactionEntity tx, {
+    bool isRevert = false,
+  }) async {
+    final factor = isRevert ? -1.0 : 1.0;
+
+    if (tx.type == TransactionType.income) {
+      if (tx.accountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(tx.accountId!, factor * tx.amount);
+      } else if (tx.creditCardId != null) {
+        // Income / cashback / refund on credit card reduces used amount
+        await ref
+            .read(creditCardListProvider.notifier)
+            .adjustUsedAmount(tx.creditCardId!, -factor * tx.amount);
+      }
+    } else if (tx.type == TransactionType.expense) {
+      if (tx.creditCardId != null) {
+        await ref
+            .read(creditCardListProvider.notifier)
+            .adjustUsedAmount(tx.creditCardId!, factor * tx.amount);
+      } else if (tx.accountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(tx.accountId!, -factor * tx.amount);
+      }
+    } else if (tx.type == TransactionType.transfer) {
+      // Source account debit
+      if (tx.accountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(tx.accountId!, -factor * tx.amount);
+      }
+      // Destination bank account credit OR credit card bill payment credit
+      if (tx.toAccountId != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(tx.toAccountId!, factor * tx.amount);
+      } else if (tx.creditCardId != null) {
+        // Paying off credit card reduces used amount
+        await ref
+            .read(creditCardListProvider.notifier)
+            .adjustUsedAmount(tx.creditCardId!, -factor * tx.amount);
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
 import '../../../../core/repositories/ai_chat_repository.dart';
+import '../../../../core/repositories/ai_reports_repository.dart';
 import '../../../../core/services/ai_service.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../budgets/presentation/state/recurring_provider.dart';
@@ -15,7 +16,6 @@ import '../../../net_worth/presentation/state/net_worth_provider.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../../../../core/services/log_service.dart';
-import '../../../../core/database/app_database.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -221,11 +221,12 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
     _loadPersistedReports();
   }
 
+  Future<void> loadReports() => _loadPersistedReports();
+
   Future<void> _loadPersistedReports() async {
     try {
-      final db = AppDatabase.instance;
-      final rawMaps = await db.getAllAiReports();
-      final reports = rawMaps.map((m) => AiReportItem.fromMap(m)).toList();
+      final repository = ref.read(aiReportsRepositoryProvider);
+      final reports = await repository.getAllReports();
       state = AsyncValue.data(reports);
     } catch (e, st) {
       LogService.error('AiReportsNotifier', 'Failed to load persisted AI reports', e, st);
@@ -259,8 +260,9 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
         customPromptText: customPrompt,
       );
 
-      // Persist to SQLite
-      await AppDatabase.instance.insertAiReport(newReport.toMap());
+      // Persist to repository
+      final repository = ref.read(aiReportsRepositoryProvider);
+      await repository.saveReport(newReport);
 
       // Prepend newest report
       state = AsyncValue.data([newReport, ...currentReports]);
@@ -306,8 +308,9 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
         financialContext: contextText,
       );
 
-      // Persist replacement to SQLite
-      await AppDatabase.instance.insertAiReport(updatedReport.toMap());
+      // Persist replacement to repository
+      final repository = ref.read(aiReportsRepositoryProvider);
+      await repository.saveReport(updatedReport);
 
       final updatedList = List<AiReportItem>.from(currentReports);
       updatedList[existingIndex] = updatedReport;
@@ -322,18 +325,20 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
     final filtered = currentReports.where((r) => r.id != id).toList();
     state = AsyncValue.data(filtered);
     try {
-      await AppDatabase.instance.deleteAiReport(id);
+      final repository = ref.read(aiReportsRepositoryProvider);
+      await repository.deleteReport(id);
     } catch (e, st) {
-      LogService.error('AiReportsNotifier', 'Failed to delete report from SQLite', e, st);
+      LogService.error('AiReportsNotifier', 'Failed to delete report from repository', e, st);
     }
   }
 
   Future<void> clearAllReports() async {
     state = const AsyncValue.data([]);
     try {
-      await AppDatabase.instance.clearAllAiReports();
+      final repository = ref.read(aiReportsRepositoryProvider);
+      await repository.clearAllReports();
     } catch (e, st) {
-      LogService.error('AiReportsNotifier', 'Failed to clear all reports from SQLite', e, st);
+      LogService.error('AiReportsNotifier', 'Failed to clear all reports from repository', e, st);
     }
   }
 }

@@ -143,7 +143,8 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
 
     // 3. Optionally record transaction in offline ledger & adjust account balance
     if (logAsTransaction) {
-      if (accountId != null) {
+      final isSameAutoSyncAccount = goal.autoSyncAccount && goal.linkedAccountId == accountId;
+      if (accountId != null && !isSameAutoSyncAccount) {
         await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(accountId, -amount);
       }
       final tx = TransactionEntity(
@@ -154,7 +155,7 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
         category: 'Savings & Investments',
         date: now,
         paymentSource: paymentSource,
-        accountId: accountId,
+        accountId: isSameAutoSyncAccount ? null : accountId,
         linkedEntityId: goal.id,
         notes: notes ?? 'Savings contribution towards "${goal.title}"',
         createdAt: now,

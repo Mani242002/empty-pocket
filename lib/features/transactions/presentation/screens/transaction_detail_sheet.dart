@@ -41,42 +41,7 @@ class TransactionDetailSheet extends ConsumerWidget {
     );
 
     // Synchronize account/card balances for the duplicated transaction
-    if (cloned.type == TransactionType.income) {
-      if (cloned.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(cloned.accountId!, cloned.amount);
-      } else if (cloned.creditCardId != null) {
-        await ref
-            .read(creditCardListProvider.notifier)
-            .adjustUsedAmount(cloned.creditCardId!, -cloned.amount);
-      }
-    } else if (cloned.type == TransactionType.expense) {
-      if (cloned.creditCardId != null) {
-        await ref
-            .read(creditCardListProvider.notifier)
-            .adjustUsedAmount(cloned.creditCardId!, cloned.amount);
-      } else if (cloned.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(cloned.accountId!, -cloned.amount);
-      }
-    } else if (cloned.type == TransactionType.transfer) {
-      if (cloned.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(cloned.accountId!, -cloned.amount);
-      }
-      if (cloned.toAccountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(cloned.toAccountId!, cloned.amount);
-      } else if (cloned.creditCardId != null) {
-        await ref
-            .read(creditCardListProvider.notifier)
-            .adjustUsedAmount(cloned.creditCardId!, -cloned.amount);
-      }
-    }
+    await LedgerBalanceSynchronizer.applyTransactionImpact(ref, cloned);
 
     await ref.read(transactionListNotifierProvider.notifier).addTransaction(cloned);
     AppHaptics.success();

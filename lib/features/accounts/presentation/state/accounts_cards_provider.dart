@@ -28,6 +28,14 @@ class BankAccountListNotifier extends AsyncNotifier<List<BankAccountEntity>> {
     });
   }
 
+  Future<void> archiveAccount(String id) async {
+    final current = state.valueOrNull ?? [];
+    final target = current.where((a) => a.id == id).firstOrNull;
+    if (target != null) {
+      await saveAccount(target.copyWith(isArchived: true, updatedAt: DateTime.now()));
+    }
+  }
+
   Future<void> deleteAccount(String id) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
@@ -105,6 +113,14 @@ class CreditCardListNotifier extends AsyncNotifier<List<CreditCardEntity>> {
       await repository.saveCard(card);
       return await repository.getAllCards();
     });
+  }
+
+  Future<void> archiveCard(String id) async {
+    final current = state.valueOrNull ?? [];
+    final target = current.where((c) => c.id == id).firstOrNull;
+    if (target != null) {
+      await saveCard(target.copyWith(isArchived: true, updatedAt: DateTime.now()));
+    }
   }
 
   Future<void> deleteCard(String id) async {

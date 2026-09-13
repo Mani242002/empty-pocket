@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:empty_pocket/app/app.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
 import 'package:empty_pocket/core/repositories/ai_chat_repository.dart';
+import 'package:empty_pocket/core/repositories/ai_reports_repository.dart';
 import 'package:empty_pocket/core/repositories/bank_account_repository.dart';
 import 'package:empty_pocket/core/repositories/budget_repository.dart';
 import 'package:empty_pocket/core/repositories/credit_card_repository.dart';
@@ -62,6 +63,7 @@ void main() {
     final inMemoryBankAccountRepo = InMemoryBankAccountRepository();
     final inMemoryCreditCardRepo = InMemoryCreditCardRepository();
     final inMemoryAiChatRepo = InMemoryAiChatRepository();
+    final inMemoryAiReportsRepo = InMemoryAiReportsRepository();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -75,6 +77,7 @@ void main() {
           bankAccountRepositoryProvider.overrideWithValue(inMemoryBankAccountRepo),
           creditCardRepositoryProvider.overrideWithValue(inMemoryCreditCardRepo),
           aiChatRepositoryProvider.overrideWithValue(inMemoryAiChatRepo),
+          aiReportsRepositoryProvider.overrideWithValue(inMemoryAiReportsRepo),
         ],
         child: const EmptyPocketApp(),
       ),

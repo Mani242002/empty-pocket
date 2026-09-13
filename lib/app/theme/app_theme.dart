@@ -89,8 +89,30 @@ extension FinancialColorsExtension on BuildContext {
       Theme.of(this).extension<AppFinancialColors>() ?? AppFinancialColors.light;
 }
 
+extension AppThemeContextExtension on BuildContext {
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+  Color get surfaceColor => isDarkMode ? AppColors.darkSurface : AppColors.lightSurface;
+  Color get surfaceVariantColor => isDarkMode ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant;
+  Color get textSecondaryColor => isDarkMode ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+  Color get borderColor => isDarkMode ? AppColors.darkBorder : AppColors.lightBorder;
+}
+
 /// Main App Themes
 abstract class AppTheme {
+  static TextTheme _buildTabularTextTheme(TextTheme base) {
+    return base.copyWith(
+      headlineLarge: base.headlineLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      headlineMedium: base.headlineMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      headlineSmall: base.headlineSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      titleLarge: base.titleLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      titleMedium: base.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      titleSmall: base.titleSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      bodyLarge: base.bodyLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      bodyMedium: base.bodyMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      labelLarge: base.labelLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+    );
+  }
+
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primaryEmerald,
@@ -104,8 +126,12 @@ abstract class AppTheme {
       visualDensity: VisualDensity.adaptivePlatformDensity,
       brightness: Brightness.light,
       colorScheme: colorScheme,
+      textTheme: _buildTabularTextTheme(ThemeData.light().textTheme),
       scaffoldBackgroundColor: AppColors.lightBackground,
       extensions: const [AppFinancialColors.light],
+      bottomSheetTheme: const BottomSheetThemeData(
+        constraints: BoxConstraints(maxWidth: 640),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.lightBackground,
         foregroundColor: AppColors.lightTextPrimary,
@@ -220,8 +246,12 @@ abstract class AppTheme {
       visualDensity: VisualDensity.adaptivePlatformDensity,
       brightness: Brightness.dark,
       colorScheme: colorScheme,
+      textTheme: _buildTabularTextTheme(ThemeData.dark().textTheme),
       scaffoldBackgroundColor: AppColors.darkBackground,
       extensions: const [AppFinancialColors.dark],
+      bottomSheetTheme: const BottomSheetThemeData(
+        constraints: BoxConstraints(maxWidth: 640),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.darkBackground,
         foregroundColor: AppColors.darkTextPrimary,

@@ -10,6 +10,7 @@ import '../domain/entities/recurring_expense_entity.dart';
 import '../domain/entities/reports_entity.dart';
 import '../domain/entities/savings_goal_entity.dart';
 import '../domain/entities/transaction_entity.dart';
+import '../utilities/currency_formatter.dart';
 
 class CombinedCreditSummary {
   final double totalLimit;
@@ -1254,23 +1255,25 @@ abstract class FinancialCalculator {
     List<RecurringExpenseEntity>? recurringExpenses,
   }) {
     final net = healthSummary.netWorth;
+    final sym = CurrencyFormatter.activeCurrency.symbol;
+    final curCode = CurrencyFormatter.activeCurrency.code;
     final buffer = StringBuffer();
 
-    buffer.writeln('### Executive Financial Summary:');
-    buffer.writeln('- Monthly Income: ₹${monthlyIncome.toStringAsFixed(2)}');
-    buffer.writeln('- Monthly Expenses: ₹${monthlyExpense.toStringAsFixed(2)}');
-    buffer.writeln('- Monthly Net Savings: ₹${monthlyNetBalance.toStringAsFixed(2)} (${savingsRate.toStringAsFixed(1)}% savings rate)');
-    buffer.writeln('- Liquid Cash / Accounts: ₹${net.cashBalance.toStringAsFixed(2)}');
-    buffer.writeln('- Savings Goals Total: ₹${savingsSummary.totalSaved.toStringAsFixed(2)} across ${savingsSummary.activeGoalsCount} active goals (Emergency Fund: ₹${savingsSummary.emergencyFundSaved.toStringAsFixed(2)})');
-    buffer.writeln('- Investments Portfolio: ₹${portfolioSummary.totalCurrentValue.toStringAsFixed(2)} (Invested: ₹${portfolioSummary.totalInvested.toStringAsFixed(2)}, Returns: ₹${portfolioSummary.totalProfitLoss.toStringAsFixed(2)} / ${portfolioSummary.overallReturnPercentage.toStringAsFixed(1)}%)');
-    buffer.writeln('- Outstanding Liabilities / Debts: ₹${liabilitiesSummary.totalOutstanding.toStringAsFixed(2)} (Total Monthly EMI: ₹${liabilitiesSummary.totalMonthlyEmi.toStringAsFixed(2)})');
-    buffer.writeln('- Consolidated Net Worth: ₹${net.netWorth.toStringAsFixed(2)}');
+    buffer.writeln('### Executive Financial Summary (Currency: $curCode):');
+    buffer.writeln('- Monthly Income: $sym${monthlyIncome.toStringAsFixed(2)}');
+    buffer.writeln('- Monthly Expenses: $sym${monthlyExpense.toStringAsFixed(2)}');
+    buffer.writeln('- Monthly Net Savings: $sym${monthlyNetBalance.toStringAsFixed(2)} (${savingsRate.toStringAsFixed(1)}% savings rate)');
+    buffer.writeln('- Liquid Cash / Accounts: $sym${net.cashBalance.toStringAsFixed(2)}');
+    buffer.writeln('- Savings Goals Total: $sym${savingsSummary.totalSaved.toStringAsFixed(2)} across ${savingsSummary.activeGoalsCount} active goals (Emergency Fund: $sym${savingsSummary.emergencyFundSaved.toStringAsFixed(2)})');
+    buffer.writeln('- Investments Portfolio: $sym${portfolioSummary.totalCurrentValue.toStringAsFixed(2)} (Invested: $sym${portfolioSummary.totalInvested.toStringAsFixed(2)}, Returns: $sym${portfolioSummary.totalProfitLoss.toStringAsFixed(2)} / ${portfolioSummary.overallReturnPercentage.toStringAsFixed(1)}%)');
+    buffer.writeln('- Outstanding Liabilities / Debts: $sym${liabilitiesSummary.totalOutstanding.toStringAsFixed(2)} (Total Monthly EMI: $sym${liabilitiesSummary.totalMonthlyEmi.toStringAsFixed(2)})');
+    buffer.writeln('- Consolidated Net Worth: $sym${net.netWorth.toStringAsFixed(2)}');
     buffer.writeln('- Financial Health Score: ${healthSummary.overallScore}/100 (${healthSummary.grade.displayName})');
 
     if (topExpenseCategories != null && topExpenseCategories.isNotEmpty) {
       buffer.writeln('\n### Top Expense Categories (This Month):');
       for (final cat in topExpenseCategories.take(5)) {
-        buffer.writeln('- ${cat.category}: ₹${cat.amount.toStringAsFixed(2)} (${cat.percentage.toStringAsFixed(1)}% of total)');
+        buffer.writeln('- ${cat.category}: $sym${cat.amount.toStringAsFixed(2)} (${cat.percentage.toStringAsFixed(1)}% of total)');
       }
     }
 
@@ -1279,7 +1282,7 @@ abstract class FinancialCalculator {
       if (active.isNotEmpty) {
         buffer.writeln('\n### Bank & Cash Accounts:');
         for (final acc in active) {
-          buffer.writeln('- ${acc.accountName} (${acc.bankName}, ${acc.accountType.displayName}) [Used for: ${acc.usedFor}]: ₹${acc.currentBalance.toStringAsFixed(2)}');
+          buffer.writeln('- ${acc.accountName} (${acc.bankName}, ${acc.accountType.displayName}) [Used for: ${acc.usedFor}]: $sym${acc.currentBalance.toStringAsFixed(2)}');
         }
       }
     }
@@ -1290,7 +1293,7 @@ abstract class FinancialCalculator {
         buffer.writeln('\n### Credit Cards & Utilization:');
         for (final card in activeCards) {
           final util = card.creditLimit > 0 ? (card.usedAmount / card.creditLimit) * 100 : 0.0;
-          buffer.writeln('- ${card.cardName} (${card.bankName}): Used ₹${card.usedAmount.toStringAsFixed(2)} / ₹${card.creditLimit.toStringAsFixed(2)} (${util.toStringAsFixed(1)}% util, due in ${card.daysUntilDue()} days)');
+          buffer.writeln('- ${card.cardName} (${card.bankName}): Used $sym${card.usedAmount.toStringAsFixed(2)} / $sym${card.creditLimit.toStringAsFixed(2)} (${util.toStringAsFixed(1)}% util, due in ${card.daysUntilDue()} days)');
         }
       }
     }
@@ -1300,7 +1303,7 @@ abstract class FinancialCalculator {
       if (activeRec.isNotEmpty) {
         buffer.writeln('\n### Recurring Bills & Fixed Expenses:');
         for (final r in activeRec.take(6)) {
-          buffer.writeln('- ${r.title}: ₹${r.amount.toStringAsFixed(2)} / ${r.frequency.displayName} (Next due: ${r.nextDueDate.day}/${r.nextDueDate.month})');
+          buffer.writeln('- ${r.title}: $sym${r.amount.toStringAsFixed(2)} / ${r.frequency.displayName} (Next due: ${r.nextDueDate.day}/${r.nextDueDate.month})');
         }
       }
     }

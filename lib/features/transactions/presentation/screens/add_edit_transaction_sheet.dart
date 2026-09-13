@@ -631,6 +631,7 @@ class _AddEditTransactionSheetState
         isSettled = prevTx.reimbursedAmount >= (amount - myShare);
       }
 
+      final friendShare = isSharedExpense ? (amount - (myShare ?? 0.0)).clamp(0.0, amount) : 0.0;
       final updated = prevTx.copyWith(
         title: title,
         amount: amount,
@@ -647,7 +648,9 @@ class _AddEditTransactionSheetState
         isShared: isSharedExpense,
         myShareAmount: isSharedExpense ? myShare : null,
         sharedWith: isSharedExpense ? sharedWith : null,
-        reimbursedAmount: isSharedExpense ? prevTx.reimbursedAmount : 0.0,
+        reimbursedAmount: isSharedExpense
+            ? prevTx.reimbursedAmount.clamp(0.0, friendShare)
+            : 0.0,
         isSettled: isSettled,
         updatedAt: now,
       );

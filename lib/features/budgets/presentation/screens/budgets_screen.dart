@@ -961,14 +961,21 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    FilledButton.tonalIcon(
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    Tooltip(
+                      message: goal.autoSyncAccount
+                          ? 'This goal automatically tracks a percentage of your linked bank account balance.'
+                          : 'Contribute funds to this goal',
+                      child: FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        ),
+                        icon: Icon(goal.autoSyncAccount ? Icons.sync_rounded : Icons.add_rounded, size: 16),
+                        label: Text(goal.autoSyncAccount ? 'Auto-Synced' : 'Add Funds'),
+                        onPressed: goal.autoSyncAccount
+                            ? null
+                            : () => AddContributionSheet.show(context, goal),
                       ),
-                      icon: const Icon(Icons.add_rounded, size: 16),
-                      label: const Text('Add Funds'),
-                      onPressed: () => AddContributionSheet.show(context, goal),
                     ),
                   ],
                 ),

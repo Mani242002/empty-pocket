@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_theme.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../budgets/presentation/state/budgets_provider.dart';
 import '../../../budgets/presentation/state/recurring_provider.dart';
@@ -45,6 +46,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final financialColors = context.financialColors;
     final today = DateFormat('EEEE, d MMMM').format(DateTime.now());
 
     final summary = ref.watch(monthlyFinancialSummaryProvider);
@@ -52,6 +54,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final healthSummary = ref.watch(financialHealthSummaryProvider);
     final recentTransactions = ref.watch(recentTransactionsProvider);
     final dailySafeToSpend = ref.watch(dailySafeToSpendProvider);
+    final dueBills = ref.watch(recurringBillsDueTodayProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -96,6 +99,64 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   },
                 ),
               ),
+
+              // Recurring Bills Due Alert Banner
+              if (dueBills.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: financialColors.warning.withAlpha(isDark ? 30 : 20),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: financialColors.warning.withAlpha(isDark ? 80 : 50),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: financialColors.warning.withAlpha(isDark ? 50 : 30),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.calendar_today_rounded,
+                              color: financialColors.warning,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${dueBills.length} Recurring Bill${dueBills.length > 1 ? 's' : ''} Due Today',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: financialColors.warning,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  dueBills.map((b) => b.title).join(', '),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.textTheme.bodySmall?.color?.withAlpha(200),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
               // Quick Actions
               const SliverToBoxAdapter(
