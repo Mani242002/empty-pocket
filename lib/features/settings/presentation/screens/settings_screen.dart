@@ -8,8 +8,10 @@ import '../../../../app/theme/theme_provider.dart';
 import '../../../ai_assistant/presentation/screens/ai_settings_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../../core/presentation/widgets/app_lock_gate.dart';
+import '../../../../core/services/file_export_import_service.dart';
 import '../../../../core/services/log_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/backup_provider.dart';
 
 final appVersionProvider = FutureProvider<String>((ref) async {
@@ -56,7 +58,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               Container(
-                constraints: const BoxConstraints(maxHeight: 180),
+                constraints: const BoxConstraints(maxHeight: 140),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.black12,
@@ -69,27 +71,80 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              Text(
+                'Tip: Saving as a .json file prevents clipboard truncation on large datasets.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+              ),
             ],
           ),
           actionsOverflowButtonSpacing: 8,
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
-            ),
-            FilledButton.icon(
-              icon: const Icon(Icons.copy_rounded, size: 16),
-              label: const Text('Copy JSON'),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: jsonStr));
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Database backup copied to clipboard'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  label: const Text('Copy JSON'),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: jsonStr));
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Database backup copied to clipboard'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.share_rounded, size: 16),
+                  label: const Text('Share File'),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      await FileExportImportService.shareJsonFile(jsonContent: jsonStr);
+                    } catch (err) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Share failed: $err'), backgroundColor: AppColors.expense),
+                        );
+                      }
+                    }
+                  },
+                ),
+                FilledButton.icon(
+                  icon: const Icon(Icons.download_rounded, size: 16),
+                  label: const Text('Save / Download .json'),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      final path = await FileExportImportService.saveJsonFile(jsonContent: jsonStr);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Backup saved successfully: $path'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: AppColors.income,
+                          ),
+                        );
+                      }
+                    } catch (err) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('File save error: $err'), backgroundColor: AppColors.expense),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -181,9 +236,81 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
+  void _showReconcileBalancesDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.sync_rounded, color: AppColors.primaryEmerald),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Reconcile Account Balances',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This tool audits all your transactions from the ledger and recalculates every bank account balance and credit card used balance according to the exact transaction history.',
+              style: TextStyle(fontSize: 13, height: 1.4),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '✓ Fixes historical balance drift.\n✓ Corrects transfer balance mismatches.\n✓ Does not alter or delete any transactions.',
+              style: TextStyle(fontSize: 12, height: 1.5, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+            label: const Text('Reconcile Now'),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref.read(accountOperationsProvider).reconcileAllBalancesWithLedger();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All bank and card balances successfully reconciled with ledger!'),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: AppColors.income,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Reconciliation error: $e'),
+                      backgroundColor: AppColors.expense,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showRestoreSheet(BuildContext context, WidgetRef ref) {
     final textController = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    String? loadedFileName;
 
     showModalBottomSheet(
       context: context,
@@ -192,90 +319,131 @@ class SettingsScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withAlpha(80),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Restore Database from JSON',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Paste a previously exported EmptyPocket backup JSON. Restoring will replace existing local data.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: textController,
-              maxLines: 6,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-              decoration: InputDecoration(
-                hintText: 'Paste backup JSON string here...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: FilledButton.icon(
-                    icon: const Icon(Icons.restore_rounded, size: 16),
-                    label: const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text('Restore Database'),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withAlpha(80),
+                      borderRadius: BorderRadius.circular(2),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Restore Database from JSON',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Upload a .json backup file or paste JSON data. Restoring will replace existing local data.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.file_open_rounded, size: 18),
+                  label: Text(loadedFileName != null
+                      ? 'Selected: $loadedFileName'
+                      : 'Upload / Pick .json File'),
                   onPressed: () async {
-                    final text = textController.text.trim();
-                    if (text.isEmpty) return;
-
                     try {
-                      await ref.read(backupOperationsProvider.notifier).restoreFromJson(text);
-                      if (context.mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Database restored successfully!'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: AppColors.income,
-                          ),
-                        );
+                      final picked = await FileExportImportService.pickJsonFile();
+                      if (picked != null) {
+                        setSheetState(() {
+                          loadedFileName = '${picked.fileName} (${(picked.sizeInBytes / 1024).toStringAsFixed(1)} KB)';
+                          textController.text = picked.content;
+                        });
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Loaded "${picked.fileName}" ready for restore!'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: AppColors.primaryEmerald,
+                            ),
+                          );
+                        }
                       }
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Restore error: $e'),
-                            backgroundColor: AppColors.expense,
-                          ),
+                          SnackBar(content: Text('File pick failed: $e'), backgroundColor: AppColors.expense),
                         );
                       }
                     }
                   },
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: textController,
+                  maxLines: 5,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                  decoration: InputDecoration(
+                    hintText: 'Or paste backup JSON string here...',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.restore_rounded, size: 16),
+                        label: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Restore Database'),
+                        ),
+                        onPressed: () async {
+                          final text = textController.text.trim();
+                          if (text.isEmpty) return;
+
+                          try {
+                            await ref.read(backupOperationsProvider.notifier).restoreFromJson(text);
+                            if (context.mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Database restored successfully!'),
+                                  behavior: SnackBarBehavior.floating,
+                                  backgroundColor: AppColors.income,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Restore error: $e'),
+                                  backgroundColor: AppColors.expense,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          ],
         ),
       ),
     );
@@ -603,6 +771,15 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Export Transactions (CSV)',
                   subtitle: 'Export spreadsheet-ready log for Excel / Sheets',
                   onTap: () => _showExportCsvDialog(context, ref),
+                ),
+                const Divider(),
+                _buildListTile(
+                  context,
+                  icon: Icons.sync_rounded,
+                  iconColor: financialColors.income,
+                  title: 'Reconcile Account Balances',
+                  subtitle: 'Audit & align bank & card balances with transaction ledger',
+                  onTap: () => _showReconcileBalancesDialog(context, ref),
                 ),
               ],
             ),

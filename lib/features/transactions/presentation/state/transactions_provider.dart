@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/calculation/financial_calculator.dart';
+import '../../../../core/domain/entities/split_person_share.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/transaction_repository.dart';
 import '../../../../core/utilities/split_helper.dart';
@@ -115,37 +117,124 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       final repository = ref.read(transactionRepositoryProvider);
       if (prevTx != null) {
         // If this was a reimbursement or loan repayment settlement, roll back the original transaction
-        if ((prevTx.category == 'Shared Expense Reimbursement' ||
-                prevTx.category == 'Loan Repayment Received') &&
-            prevTx.linkedEntityId != null) {
-          final origMatches = previous.where((t) => t.id == prevTx.linkedEntityId).toList();
-          if (origMatches.isNotEmpty) {
-            final orig = origMatches.first;
-            final loan = LoanShareHelper.parseLoan(orig.sharedWith);
-            final rolledBackReimbursed =
-                (orig.reimbursedAmount - prevTx.amount).clamp(0.0, double.infinity);
+        if (prevTx.category == 'Shared Expense Reimbursement' ||
+            prevTx.category == 'Loan Repayment Received') {
+          List<TransactionEntity> origMatches = [];
+          if (prevTx.linkedEntityId != null && prevTx.linkedEntityId!.trim().isNotEmpty) {
+            final parentIds = prevTx.linkedEntityId!.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toSet();
+            origMatches = previous.where((t) => parentIds.contains(t.id)).toList();
+          }
 
+          // Determine person name from sharedWith, title, or notes
+          String? targetPerson = prevTx.sharedWith?.trim();
+          if (targetPerson != null && (targetPerson.startsWith('{') || targetPerson.startsWith('['))) {
+            targetPerson = null;
+          }
+          if (targetPerson == null || targetPerson.isEmpty) {
+            final title = prevTx.title;
+            if (title.startsWith('Reimbursement: ')) {
+              final sub = title.substring('Reimbursement: '.length).split('(').first.trim();
+              if (sub.isNotEmpty && !sub.startsWith('{') && !sub.startsWith('[')) {
+                targetPerson = sub;
+              }
+            } else if (title.startsWith('Loan Repayment: ')) {
+              final sub = title.substring('Loan Repayment: '.length).split('(').first.trim();
+              if (sub.isNotEmpty && !sub.startsWith('{') && !sub.startsWith('[')) {
+                targetPerson = sub;
+              }
+            }
+          }
+          final cleanPerson = targetPerson?.toLowerCase();
+
+          // Fallback if linkedEntityId was missing (e.g. legacy data)
+          if (origMatches.isEmpty && cleanPerson != null && cleanPerson.isNotEmpty) {
+            origMatches = previous.where((t) {
+              if (!t.isShared) return false;
+              final loan = LoanShareHelper.parseLoan(t.sharedWith);
+              if (loan != null && loan.borrowerName.trim().toLowerCase() == cleanPerson) {
+                return loan.repaidAmount > 0;
+              }
+              final shares = SplitHelper.parseShares(t.sharedWith);
+              if (shares.any((s) => s.personName.trim().toLowerCase() == cleanPerson && s.reimbursedAmount > 0)) {
+                return true;
+              }
+              return false;
+            }).toList();
+          }
+
+          double remainingRollback = prevTx.amount;
+
+          for (final orig in origMatches) {
+            if (remainingRollback <= 0) break;
+
+            final loan = LoanShareHelper.parseLoan(orig.sharedWith);
             LoanShareData? updatedLoan;
-            bool rolledBackSettled;
+            String? updatedSharedWith = orig.sharedWith;
+            double amountRevertedFromThisTx = 0.0;
+
             if (loan != null) {
-              final newRepaid = (loan.repaidAmount - prevTx.amount).clamp(0.0, double.infinity);
+              amountRevertedFromThisTx = min(remainingRollback, loan.repaidAmount);
+              if (amountRevertedFromThisTx <= 0) amountRevertedFromThisTx = remainingRollback;
+              final newRepaid = (loan.repaidAmount - amountRevertedFromThisTx).clamp(0.0, double.infinity);
               final isRepaid = newRepaid >= loan.totalExpected && loan.totalExpected > 0;
               updatedLoan = loan.copyWith(repaidAmount: newRepaid, isRepaid: isRepaid);
-              rolledBackSettled = isRepaid;
+              updatedSharedWith = LoanShareHelper.encodeLoan(updatedLoan);
             } else {
-              rolledBackSettled = rolledBackReimbursed >= orig.friendsShare && orig.friendsShare > 0;
+              final shares = SplitHelper.parseShares(orig.sharedWith);
+              if (shares.isNotEmpty) {
+                // If cleanPerson does not match any actual person in shares, treat as general/unnamed rollback
+                final isRealPersonInShares = cleanPerson != null &&
+                    shares.any((s) => s.personName.trim().toLowerCase() == cleanPerson);
+                final effectivePerson = isRealPersonInShares ? cleanPerson : null;
+
+                // Roll back in reverse order (to undo the most recently reimbursed shares first)
+                final reversedShares = shares.reversed.toList();
+                final updatedReversed = <SplitPersonShare>[];
+                for (final s in reversedShares) {
+                  final isPersonMatch = effectivePerson != null &&
+                      s.personName.trim().toLowerCase() == effectivePerson;
+                  final availableToRevert = remainingRollback - amountRevertedFromThisTx;
+                  if ((isPersonMatch || effectivePerson == null) &&
+                      s.reimbursedAmount > 0 &&
+                      availableToRevert > 0) {
+                    final canRevert = min(availableToRevert, s.reimbursedAmount);
+                    amountRevertedFromThisTx += canRevert;
+                    final newShareReimbursed =
+                        (s.reimbursedAmount - canRevert).clamp(0.0, s.amount);
+                    updatedReversed.add(s.copyWith(
+                      reimbursedAmount: newShareReimbursed,
+                      isSettled: newShareReimbursed >= s.amount && s.amount > 0,
+                    ));
+                  } else {
+                    updatedReversed.add(s);
+                  }
+                }
+                final updatedShares = updatedReversed.reversed.toList();
+                updatedSharedWith = SplitHelper.encodeShares(updatedShares);
+              }
+              if (amountRevertedFromThisTx <= 0) {
+                amountRevertedFromThisTx = min(remainingRollback, orig.reimbursedAmount);
+                if (amountRevertedFromThisTx <= 0) amountRevertedFromThisTx = remainingRollback;
+              }
             }
+
+            remainingRollback -= amountRevertedFromThisTx;
+            final rolledBackReimbursed =
+                (orig.reimbursedAmount - amountRevertedFromThisTx).clamp(0.0, double.infinity);
+            final rolledBackSettled = updatedLoan != null
+                ? updatedLoan.isRepaid
+                : (rolledBackReimbursed >= orig.friendsShare && orig.friendsShare > 0);
 
             final updatedOrig = orig.copyWith(
               reimbursedAmount: rolledBackReimbursed,
               isSettled: rolledBackSettled,
-              sharedWith: updatedLoan != null ? LoanShareHelper.encodeLoan(updatedLoan) : orig.sharedWith,
+              sharedWith: updatedSharedWith,
               updatedAt: DateTime.now(),
             );
             await repository.updateTransaction(updatedOrig);
             optimistic = optimistic.map((t) => t.id == orig.id ? updatedOrig : t).toList();
-            state = AsyncValue.data(optimistic);
           }
+          state = AsyncValue.data(optimistic);
         }
 
         // 1. Revert balance impact for linked accounts and credit cards
@@ -219,32 +308,70 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
 
     final original = targetList.first;
     final updatedReimbursed = original.reimbursedAmount + amountReceived;
-    final isFullySettled = updatedReimbursed >= original.friendsShare;
+    final isFullySettledByMath = updatedReimbursed >= original.friendsShare;
+
+    String? updatedSharedWith = original.sharedWith;
+    String? settlementPerson;
+    bool isFullySettled = isFullySettledByMath;
+
+    final loan = LoanShareHelper.parseLoan(original.sharedWith);
+    if (loan != null) {
+      settlementPerson = loan.borrowerName;
+      final newRepaid = (loan.repaidAmount + amountReceived).clamp(0.0, double.infinity);
+      final isRepaid = newRepaid >= loan.totalExpected;
+      final updatedLoan = loan.copyWith(repaidAmount: newRepaid, isRepaid: isRepaid);
+      updatedSharedWith = LoanShareHelper.encodeLoan(updatedLoan);
+      isFullySettled = isRepaid;
+    } else {
+      final shares = SplitHelper.parseShares(original.sharedWith);
+      if (shares.isNotEmpty) {
+        if (shares.length == 1) {
+          settlementPerson = shares.first.personName;
+        }
+        double remaining = amountReceived;
+        final updatedShares = shares.map((s) {
+          if (remaining <= 0 || s.isSettled) return s;
+          final canApply = min(remaining, s.pendingAmount);
+          remaining -= canApply;
+          final newReimbursed = s.reimbursedAmount + canApply;
+          return s.copyWith(
+            reimbursedAmount: newReimbursed,
+            isSettled: newReimbursed >= s.amount && s.amount > 0,
+          );
+        }).toList();
+        updatedSharedWith = SplitHelper.encodeShares(updatedShares);
+        isFullySettled = updatedShares.every((s) => s.isSettled) || isFullySettledByMath;
+      }
+    }
 
     final updatedOriginal = original.copyWith(
       reimbursedAmount: updatedReimbursed,
       isSettled: isFullySettled,
+      sharedWith: updatedSharedWith,
       updatedAt: DateTime.now(),
     );
 
     final now = DateTime.now();
     final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
-    final destAcc = destAccounts.firstWhere(
-      (a) => a.id == destinationAccountId,
-      orElse: () => destAccounts.first,
-    );
+    final destAcc = destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
+        destAccounts.firstOrNull;
+
+    final isLoanExpense = original.category == 'Money Lent / Helping Friend' || loan != null;
 
     final settlementTx = TransactionEntity(
       id: const Uuid().v4(),
-      title: 'Reimbursement: ${original.title}',
+      title: isLoanExpense
+          ? 'Loan Repayment: ${settlementPerson ?? original.title}'
+          : 'Reimbursement: ${original.title}',
       amount: amountReceived,
       type: TransactionType.income,
-      category: 'Shared Expense Reimbursement',
+      category: isLoanExpense ? 'Loan Repayment Received' : 'Shared Expense Reimbursement',
       date: now,
-      paymentSource: destAcc.accountName,
-      accountId: destAcc.id,
-      creditCardId: original.creditCardId,
+      paymentSource: destAcc?.accountName ?? 'Cash',
+      accountId: destAcc?.id,
+      creditCardId: null, // Critical Fix: Bank account deposit must never attach creditCardId
       linkedEntityId: original.id,
+      sharedWith: settlementPerson ?? original.sharedWith,
       notes: notes ?? 'Reimbursement collected for "${original.title}"',
       createdAt: now,
       updatedAt: now,
@@ -260,9 +387,11 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       await repository.updateTransaction(updatedOriginal);
       await repository.addTransaction(settlementTx);
 
-      await ref
-          .read(bankAccountListProvider.notifier)
-          .adjustAccountBalance(destAcc.id, amountReceived);
+      if (destAcc != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(destAcc.id, amountReceived);
+      }
     } catch (e, stack) {
       state = AsyncValue.data(previous);
       state = AsyncValue.error(e, stack);
@@ -365,14 +494,23 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       final pending = orig.pendingReimbursement;
       totalReimbursed += pending;
 
-      // Mark individual shares as settled if structured JSON
+      // Mark individual shares or loan as settled if structured JSON
       String? updatedSharedWith = orig.sharedWith;
-      final shares = SplitHelper.parseShares(orig.sharedWith);
-      if (shares.isNotEmpty) {
-        final updatedShares = shares
-            .map((s) => s.copyWith(reimbursedAmount: s.amount, isSettled: true))
-            .toList();
-        updatedSharedWith = SplitHelper.encodeShares(updatedShares);
+      final loan = LoanShareHelper.parseLoan(orig.sharedWith);
+      if (loan != null) {
+        final updatedLoan = loan.copyWith(
+          repaidAmount: loan.totalExpected,
+          isRepaid: true,
+        );
+        updatedSharedWith = LoanShareHelper.encodeLoan(updatedLoan);
+      } else {
+        final shares = SplitHelper.parseShares(orig.sharedWith);
+        if (shares.isNotEmpty) {
+          final updatedShares = shares
+              .map((s) => s.copyWith(reimbursedAmount: s.amount, isSettled: true))
+              .toList();
+          updatedSharedWith = SplitHelper.encodeShares(updatedShares);
+        }
       }
 
       final updatedOrig = orig.copyWith(
@@ -387,10 +525,8 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     if (totalReimbursed <= 0) return;
 
     final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
-    final destAcc = destAccounts.firstWhere(
-      (a) => a.id == destinationAccountId,
-      orElse: () => destAccounts.first,
-    );
+    final destAcc = destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
+        destAccounts.firstOrNull;
 
     final settlementTx = TransactionEntity(
       id: const Uuid().v4(),
@@ -399,8 +535,10 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       type: TransactionType.income,
       category: 'Shared Expense Reimbursement',
       date: now,
-      paymentSource: destAcc.accountName,
-      accountId: destAcc.id,
+      paymentSource: destAcc?.accountName ?? 'Cash',
+      accountId: destAcc?.id,
+      creditCardId: null, // Bank account deposit must never attach creditCardId
+      linkedEntityId: pendingSplits.map((t) => t.id).join(','),
       notes: notes ?? 'Cleared all ${pendingSplits.length} pending shared expenses payback',
       createdAt: now,
       updatedAt: now,
@@ -419,9 +557,11 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       }
       await repository.addTransaction(settlementTx);
 
-      await ref
-          .read(bankAccountListProvider.notifier)
-          .adjustAccountBalance(destAcc.id, totalReimbursed);
+      if (destAcc != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(destAcc.id, totalReimbursed);
+      }
     } catch (e, stack) {
       state = AsyncValue.data(previous);
       state = AsyncValue.error(e, stack);
@@ -445,29 +585,44 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     final List<TransactionEntity> matchingExpenses = [];
     final List<TransactionEntity> updatedOriginals = [];
     double totalCollected = 0.0;
+    final double totalSettlementValue = customAmount != null
+        ? (customAmount + (offsetExpenseAmount ?? 0.0))
+        : double.infinity;
+    double remainingCustomBudget = totalSettlementValue;
 
     for (final tx in previous) {
       if (!tx.isShared || tx.isSettled || tx.pendingReimbursement <= 0) continue;
+      if (remainingCustomBudget <= 0) break;
 
       // 1. Check if this is a Money Lent / Personal Help loan
       final loan = LoanShareHelper.parseLoan(tx.sharedWith);
       if (loan != null) {
         if (loan.borrowerName.trim().toLowerCase() == cleanName && loan.pendingAmount > 0) {
-          matchingExpenses.add(tx);
           final pending = loan.pendingAmount > 0 ? loan.pendingAmount : tx.pendingReimbursement;
-          totalCollected += pending;
+          final alloc = min(remainingCustomBudget, pending);
+          if (alloc > 0) {
+            matchingExpenses.add(tx);
+            totalCollected += alloc;
+            remainingCustomBudget -= alloc;
 
-          final updatedLoan = loan.copyWith(
-            repaidAmount: loan.totalExpected,
-            isRepaid: true,
-          );
-          final updatedTx = tx.copyWith(
-            reimbursedAmount: tx.friendsShare,
-            isSettled: true,
-            sharedWith: LoanShareHelper.encodeLoan(updatedLoan),
-            updatedAt: now,
-          );
-          updatedOriginals.add(updatedTx);
+            final newRepaid = (loan.repaidAmount + alloc).clamp(0.0, double.infinity);
+            final isRepaid = newRepaid >= loan.totalExpected && loan.totalExpected > 0;
+
+            final updatedLoan = loan.copyWith(
+              repaidAmount: newRepaid,
+              isRepaid: isRepaid,
+            );
+            final newReimbursed = (tx.reimbursedAmount + alloc).clamp(0.0, tx.friendsShare);
+            final isTxSettled = isRepaid || (newReimbursed >= tx.friendsShare && tx.friendsShare > 0);
+
+            final updatedTx = tx.copyWith(
+              reimbursedAmount: newReimbursed,
+              isSettled: isTxSettled,
+              sharedWith: LoanShareHelper.encodeLoan(updatedLoan),
+              updatedAt: now,
+            );
+            updatedOriginals.add(updatedTx);
+          }
         }
         continue;
       }
@@ -476,23 +631,29 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       final shares = SplitHelper.parseShares(tx.sharedWith);
       if (shares.isNotEmpty) {
         bool hasPersonShare = false;
-        double personPending = 0.0;
+        double personAlloc = 0.0;
         final updatedShares = shares.map((s) {
-          if (s.personName.trim().toLowerCase() == cleanName && s.pendingAmount > 0) {
+          if (s.personName.trim().toLowerCase() == cleanName && s.pendingAmount > 0 && remainingCustomBudget > 0) {
             hasPersonShare = true;
-            personPending += s.pendingAmount;
-            return s.copyWith(reimbursedAmount: s.amount, isSettled: true);
+            final alloc = min(remainingCustomBudget, s.pendingAmount);
+            personAlloc += alloc;
+            remainingCustomBudget -= alloc;
+            final newReimbursed = s.reimbursedAmount + alloc;
+            return s.copyWith(
+              reimbursedAmount: newReimbursed,
+              isSettled: newReimbursed >= s.amount && s.amount > 0,
+            );
           }
           return s;
         }).toList();
 
-        if (hasPersonShare && personPending > 0) {
+        if (hasPersonShare && personAlloc > 0) {
           matchingExpenses.add(tx);
-          totalCollected += personPending;
+          totalCollected += personAlloc;
 
-          final newReimbursed = (tx.reimbursedAmount + personPending).clamp(0.0, tx.friendsShare);
-          final fullySettled = newReimbursed >= tx.friendsShare ||
-              updatedShares.every((s) => s.isSettled);
+          final newReimbursed = (tx.reimbursedAmount + personAlloc).clamp(0.0, tx.friendsShare);
+          final fullySettled = updatedShares.every((s) => s.isSettled) ||
+              (newReimbursed >= tx.friendsShare && tx.friendsShare > 0);
 
           final updatedTx = tx.copyWith(
             reimbursedAmount: newReimbursed,
@@ -507,27 +668,30 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           !tx.sharedWith!.trim().startsWith('[') &&
           tx.sharedWith!.trim().toLowerCase().contains(cleanName)) {
         // Fallback for non-JSON plain text sharedWith containing person's name
-        matchingExpenses.add(tx);
         final pending = tx.pendingReimbursement;
-        totalCollected += pending;
+        final alloc = min(remainingCustomBudget, pending);
+        if (alloc > 0) {
+          matchingExpenses.add(tx);
+          totalCollected += alloc;
+          remainingCustomBudget -= alloc;
 
-        final updatedTx = tx.copyWith(
-          reimbursedAmount: tx.friendsShare,
-          isSettled: true,
-          updatedAt: now,
-        );
-        updatedOriginals.add(updatedTx);
+          final newReimbursed = (tx.reimbursedAmount + alloc).clamp(0.0, tx.friendsShare);
+          final updatedTx = tx.copyWith(
+            reimbursedAmount: newReimbursed,
+            isSettled: newReimbursed >= tx.friendsShare && tx.friendsShare > 0,
+            updatedAt: now,
+          );
+          updatedOriginals.add(updatedTx);
+        }
       }
     }
 
     if (totalCollected <= 0 || updatedOriginals.isEmpty) return;
-    final finalAmount = customAmount ?? totalCollected;
+    final finalAmount = customAmount ?? (totalCollected - (offsetExpenseAmount ?? 0.0)).clamp(0.0, double.infinity);
 
     final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
-    final destAcc = destAccounts.firstWhere(
-      (a) => a.id == destinationAccountId,
-      orElse: () => destAccounts.first,
-    );
+    final destAcc = destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
+        destAccounts.firstOrNull;
 
     final bool isAllLoans = matchingExpenses.isNotEmpty &&
         matchingExpenses.every((t) => LoanShareHelper.parseLoan(t.sharedWith) != null);
@@ -541,11 +705,14 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       type: TransactionType.income,
       category: isAllLoans ? 'Loan Repayment Received' : 'Shared Expense Reimbursement',
       date: now,
-      paymentSource: destAcc.accountName,
-      accountId: destAcc.id,
+      paymentSource: destAcc?.accountName ?? 'Cash',
+      accountId: destAcc?.id,
+      creditCardId: null, // Critical Fix: Bank account deposit must never attach creditCardId
+      linkedEntityId: matchingExpenses.map((t) => t.id).join(','),
+      sharedWith: personName,
       notes: notes ?? (isAllLoans
           ? 'Repayment received from $personName for loan'
-          : 'Full reimbursement collected from $personName across ${matchingExpenses.length} shared bills'),
+          : 'Reimbursement collected from $personName across ${matchingExpenses.length} shared bills'),
       createdAt: now,
       updatedAt: now,
     );
@@ -559,7 +726,7 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
         type: TransactionType.expense,
         category: offsetExpenseCategory ?? 'Food & Dining',
         date: now,
-        paymentSource: destAcc.accountName,
+        paymentSource: destAcc?.accountName ?? 'Cash',
         accountId: null, // Zero cash impact since net was credited
         notes: 'Offset share deducted against reimbursement by $personName',
         createdAt: now,
@@ -590,7 +757,7 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
         await repository.addTransaction(offsetTx);
       }
 
-      if (finalAmount > 0) {
+      if (destAcc != null && finalAmount > 0) {
         await ref
             .read(bankAccountListProvider.notifier)
             .adjustAccountBalance(destAcc.id, finalAmount);

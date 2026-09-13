@@ -5,7 +5,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
-import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
+import '../../../transactions/presentation/screens/transaction_detail_sheet.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../../../transactions/presentation/widgets/transaction_list_item.dart';
 import 'account_transfer_sheet.dart';
@@ -227,7 +227,7 @@ class AccountDetailScreen extends ConsumerWidget {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: TransactionListItem(
                           transaction: tx,
-                          onTap: () => AddEditTransactionSheet.show(
+                          onTap: () => TransactionDetailSheet.show(
                             context,
                             transaction: tx,
                           ),

@@ -95,6 +95,7 @@ class _AddEditTransactionSheetState
   late String _selectedPaymentSource;
   String? _autoSelectedReason;
   late DateTime _selectedDate;
+  bool _userManuallySelectedAccount = false;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -104,6 +105,7 @@ class _AddEditTransactionSheetState
   void initState() {
     super.initState();
     final tx = widget.initialTransaction;
+    _userManuallySelectedAccount = tx != null;
 
     _selectedType = tx?.type ?? widget.initialType;
 
@@ -207,8 +209,9 @@ class _AddEditTransactionSheetState
             _selectedCategory = matched.name;
             final bankAccounts = ref.read(activeBankAccountsProvider);
             final defaultAcc = ref.read(defaultBankAccountProvider);
-            if (_selectedPaymentMode == PaymentMode.bankAccount ||
-                (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null)) {
+            if (!_userManuallySelectedAccount &&
+                (_selectedPaymentMode == PaymentMode.bankAccount ||
+                (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null))) {
               final acc = AccountPurposeTags.matchAccountForCategory(
                 matched.name,
                 bankAccounts,
@@ -486,7 +489,11 @@ class _AddEditTransactionSheetState
               .read(bankAccountListProvider.notifier)
               .adjustAccountBalance(_selectedAccountId!, -amount);
         }
-        if (_selectedCreditCardId != null) {
+        if (prevTx.toAccountId != null) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(prevTx.toAccountId!, amount);
+        } else if (_selectedCreditCardId != null) {
           await ref
               .read(creditCardListProvider.notifier)
               .adjustUsedAmount(_selectedCreditCardId!, -amount);
@@ -570,6 +577,7 @@ class _AddEditTransactionSheetState
         date: _selectedDate,
         paymentSource: _selectedPaymentSource,
         accountId: _selectedAccountId,
+        toAccountId: prevTx.toAccountId,
         creditCardId: _selectedCreditCardId,
         notes: _notesController.text.trim().isEmpty
             ? null
@@ -1070,8 +1078,9 @@ class _AddEditTransactionSheetState
                             }
 
                             // Smart category-based account defaulting
-                            if (_selectedPaymentMode == PaymentMode.bankAccount ||
-                                (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null)) {
+                            if (!_userManuallySelectedAccount &&
+                                (_selectedPaymentMode == PaymentMode.bankAccount ||
+                                (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null))) {
                               final matched = AccountPurposeTags.matchAccountForCategory(
                                 item.name,
                                 bankAccounts,
@@ -1415,10 +1424,11 @@ class _AddEditTransactionSheetState
         }
 
         final currentValid = bankAccounts.any((a) => a.id == _selectedAccountId);
-        final initialVal = currentValid ? _selectedAccountId : bankAccounts.first.id;
+        final selectedVal = currentValid ? _selectedAccountId : (bankAccounts.isNotEmpty ? bankAccounts.first.id : null);
 
         return DropdownButtonFormField<String>(
-          initialValue: initialVal,
+          key: ValueKey('bank_acc_$selectedVal'),
+          initialValue: selectedVal,
           isExpanded: true,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.account_balance_rounded, size: 18),
@@ -1436,6 +1446,7 @@ class _AddEditTransactionSheetState
           onChanged: (accId) {
             if (accId == null) return;
             setState(() {
+              _userManuallySelectedAccount = true;
               _selectedAccountId = accId;
               _selectedCreditCardId = null;
               final acc = bankAccounts.firstWhere((a) => a.id == accId);
@@ -1470,10 +1481,11 @@ class _AddEditTransactionSheetState
         }
 
         final currentValid = creditCards.any((c) => c.id == _selectedCreditCardId);
-        final initialVal = currentValid ? _selectedCreditCardId : creditCards.first.id;
+        final selectedVal = currentValid ? _selectedCreditCardId : (creditCards.isNotEmpty ? creditCards.first.id : null);
 
         return DropdownButtonFormField<String>(
-          initialValue: initialVal,
+          key: ValueKey('card_$selectedVal'),
+          initialValue: selectedVal,
           isExpanded: true,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.credit_card_rounded, size: 18),
@@ -1491,6 +1503,7 @@ class _AddEditTransactionSheetState
           onChanged: (cardId) {
             if (cardId == null) return;
             setState(() {
+              _userManuallySelectedAccount = true;
               _selectedCreditCardId = cardId;
               _selectedAccountId = null;
               final card = creditCards.firstWhere((c) => c.id == cardId);
@@ -1548,10 +1561,11 @@ class _AddEditTransactionSheetState
         ];
 
         final isKeyValid = items.any((i) => i.value == upiKey);
-        final initialUpiVal = isKeyValid ? upiKey : items.first.value;
+        final selectedUpiVal = isKeyValid ? upiKey : (items.isNotEmpty ? items.first.value : null);
 
         return DropdownButtonFormField<String>(
-          initialValue: initialUpiVal,
+          key: ValueKey('upi_$selectedUpiVal'),
+          initialValue: selectedUpiVal,
           isExpanded: true,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.qr_code_scanner_rounded, size: 18),
@@ -1560,6 +1574,7 @@ class _AddEditTransactionSheetState
           onChanged: (val) {
             if (val == null) return;
             setState(() {
+              _userManuallySelectedAccount = true;
               if (val.startsWith('acc_')) {
                 final accId = val.substring(4);
                 _selectedAccountId = accId;

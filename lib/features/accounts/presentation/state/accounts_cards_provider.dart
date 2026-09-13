@@ -7,6 +7,7 @@ import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/bank_account_repository.dart';
 import '../../../../core/repositories/credit_card_repository.dart';
+import '../../../../core/repositories/transaction_repository.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 
 /// Bank Accounts Notifier
@@ -235,6 +236,74 @@ class AccountOperationsNotifier {
     );
 
     await _ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
+  }
+
+  /// Reconciles all Bank Account and Credit Card balances from the transaction ledger.
+  /// Eliminates historical drift and ensures exact mathematical alignment.
+  Future<void> reconcileAllBalancesWithLedger() async {
+    final bankRepo = _ref.read(bankAccountRepositoryProvider);
+    final cardRepo = _ref.read(creditCardRepositoryProvider);
+    final txRepo = _ref.read(transactionRepositoryProvider);
+
+    final accounts = await bankRepo.getAllAccounts();
+    final cards = await cardRepo.getAllCards();
+    final allTxs = await txRepo.getAllTransactions();
+
+    // 1. Reconcile Bank Accounts
+    for (final account in accounts) {
+      double computedBalance = account.initialBalance;
+      for (final tx in allTxs) {
+        if (tx.accountId == account.id) {
+          if (tx.type == TransactionType.income) {
+            computedBalance += tx.amount;
+          } else if (tx.type == TransactionType.expense) {
+            computedBalance -= tx.amount;
+          } else if (tx.type == TransactionType.transfer) {
+            computedBalance -= tx.amount;
+          }
+        }
+        if (tx.toAccountId == account.id && tx.type == TransactionType.transfer) {
+          computedBalance += tx.amount;
+        }
+      }
+
+      if ((computedBalance - account.currentBalance).abs() > 0.001) {
+        final updatedAccount = account.copyWith(
+          currentBalance: computedBalance,
+          updatedAt: DateTime.now(),
+        );
+        await bankRepo.updateAccount(updatedAccount);
+      }
+    }
+
+    // 2. Reconcile Credit Cards
+    for (final card in cards) {
+      final cardTxs = allTxs.where((tx) => tx.creditCardId == card.id).toList();
+      if (cardTxs.isEmpty) continue; // Preserve initial usedAmount if no transactions recorded yet
+
+      double computedUsed = 0.0;
+      for (final tx in cardTxs) {
+        if (tx.type == TransactionType.expense) {
+          computedUsed += tx.amount;
+        } else if (tx.type == TransactionType.income) {
+          computedUsed -= tx.amount;
+        } else if (tx.type == TransactionType.transfer) {
+          computedUsed -= tx.amount;
+        }
+      }
+
+      if ((computedUsed - card.usedAmount).abs() > 0.001) {
+        final updatedCard = card.copyWith(
+          usedAmount: computedUsed,
+          updatedAt: DateTime.now(),
+        );
+        await cardRepo.updateCard(updatedCard);
+      }
+    }
+
+    // 3. Invalidate/refresh accounts and cards providers
+    _ref.invalidate(bankAccountListProvider);
+    _ref.invalidate(creditCardListProvider);
   }
 }
 
