@@ -19,8 +19,10 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 subprojects {
-    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
-        enabled = false
+    if (project.name == "file_picker") {
+        tasks.matching { it.name.contains("AarMetadata") }.configureEach {
+            enabled = false
+        }
     }
 }
 

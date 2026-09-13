@@ -12,6 +12,7 @@
 -keep class flutter.overlay.window.flutter_overlay_window.** { *; }
 -keep class com.it_nomads.fluttersecurestorage.** { *; }
 -keep class dev.fluttercommunity.plus.packageinfo.** { *; }
+-keep class com.dexterous.flutterlocalnotifications.** { *; }
 -dontwarn flutter.overlay.window.flutter_overlay_window.**
 -dontwarn com.it_nomads.fluttersecurestorage.**
 -dontwarn com.google.android.play.core.**

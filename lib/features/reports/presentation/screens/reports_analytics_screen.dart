@@ -5,6 +5,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/reports_entity.dart';
+import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../ai_assistant/presentation/screens/ai_assistant_screen.dart';
 import '../../../ai_assistant/presentation/screens/ai_chat_screen.dart';
@@ -12,12 +13,21 @@ import '../../../ai_assistant/presentation/screens/ai_reports_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../state/reports_provider.dart';
+import '../widgets/interactive_cashflow_line_chart.dart';
+import '../widgets/interactive_donut_chart.dart';
 
-class ReportsAnalyticsScreen extends ConsumerWidget {
+class ReportsAnalyticsScreen extends ConsumerStatefulWidget {
   const ReportsAnalyticsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReportsAnalyticsScreen> createState() => _ReportsAnalyticsScreenState();
+}
+
+class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen> {
+  int? _selectedCategoryIndex;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -50,11 +60,13 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
+      body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
-        children: [
-          // 1. AI Advisor Entry Card
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 1. AI Advisor Entry Card
           InkWell(
             onTap: () {
               Navigator.of(context).push(
@@ -157,35 +169,26 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.income)),
-                          const SizedBox(width: 6),
-                          const Text('Income', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 14),
-                          Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.expense)),
-                          const SizedBox(width: 6),
-                          const Text('Expense', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                      Text(
-                        'MoM Overview',
-                        style: TextStyle(fontSize: 11, color: financialColors.textMuted, fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                  InteractiveCashflowLineChart(
+                    trends: trends,
+                    forecast: forecast,
                   ),
-                  const SizedBox(height: 16),
-                  if (trends.isEmpty || trends.every((t) => t.totalIncome == 0 && t.totalExpense == 0))
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Text('No historical transactions logged yet', style: TextStyle(color: financialColors.textMuted)),
-                    )
-                  else
+                  if (trends.isNotEmpty && trends.any((t) => t.totalIncome > 0 || t.totalExpense > 0)) ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Month-by-Month Breakdown',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: financialColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     ...trends.map((t) => _buildMonthTrendRow(context, t, isDark, financialColors)),
+                  ],
                 ],
               ),
             ),
@@ -212,64 +215,102 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
-                  children: categoryBreakdown.take(6).map((cat) {
-                    final icon = CategoryConstants.getIconForCategory(cat.category);
-                    final color = CategoryConstants.getColorForCategory(cat.category);
+                  children: [
+                    InteractiveDonutChart(
+                      categories: categoryBreakdown,
+                      selectedIndex: _selectedCategoryIndex,
+                      onSliceSelected: (index) {
+                        setState(() {
+                          _selectedCategoryIndex = index;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    ...categoryBreakdown.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final cat = entry.value;
+                      final isSelected = (_selectedCategoryIndex == index);
+                      final icon = CategoryConstants.getIconForCategory(cat.category);
+                      final color = CategoryConstants.getColorForCategory(cat.category);
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                      return InkWell(
+                        onTap: () {
+                          AppHaptics.selectionClick();
+                          setState(() {
+                            _selectedCategoryIndex = isSelected ? null : index;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: isSelected
+                                ? color.withAlpha(isDark ? 35 : 20)
+                                : Colors.transparent,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: color.withAlpha(isDark ? 40 : 25),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(icon, color: color, size: 16),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: color.withAlpha(isDark ? 40 : 25),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(icon, color: color, size: 16),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      cat.category,
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      CurrencyFormatter.format(cat.amount),
+                                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${cat.percentage.toStringAsFixed(0)}%',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: isSelected ? color : financialColors.textMuted,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  cat.category,
-                                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                                  overflow: TextOverflow.ellipsis,
+                              const SizedBox(height: 6),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: cat.percentage / 100,
+                                  minHeight: isSelected ? 8 : 6,
+                                  backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                                  valueColor: AlwaysStoppedAnimation<Color>(color),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  CurrencyFormatter.format(cat.amount),
-                                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${cat.percentage.toStringAsFixed(0)}%',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: financialColors.textMuted),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: cat.percentage / 100,
-                              minHeight: 6,
-                              backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                              valueColor: AlwaysStoppedAnimation<Color>(color),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                        ),
+                      );
+                    }),
+                  ],
                 ),
               ),
             ),
@@ -429,8 +470,9 @@ class ReportsAnalyticsScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildMonthTrendRow(
     BuildContext context,

@@ -10,6 +10,7 @@ import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../../core/presentation/widgets/app_lock_gate.dart';
 import '../../../../core/services/file_export_import_service.dart';
 import '../../../../core/services/log_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
@@ -778,6 +779,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
+    final isDark = theme.brightness == Brightness.dark;
     final currentThemeMode = ref.watch(themeModeProvider);
     final currentCurrency = ref.watch(currencyProvider).valueOrNull ?? CurrencyFormatter.activeCurrency;
     final isAppLockEnabled = ref.watch(appLockProvider).valueOrNull ?? false;
@@ -994,6 +996,90 @@ class SettingsScreen extends ConsumerWidget {
                           content: Text('Please grant "Display over other apps" permission in Android settings.'),
                           behavior: SnackBarBehavior.floating,
                           backgroundColor: AppColors.warning,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Section: Notifications & Reminders
+          _buildSectionHeader(context, 'Notifications & Reminders'),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile.adaptive(
+                  activeTrackColor: AppColors.primaryEmerald,
+                  secondary: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withAlpha(isDark ? 45 : 25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.local_fire_department_rounded, color: AppColors.warning, size: 20),
+                  ),
+                  title: const Text('Daily Streak Reminder', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: Text(
+                    'Prompt at 8:00 PM to log daily expenses & maintain tracking streak',
+                    style: TextStyle(color: financialColors.textMuted, fontSize: 12),
+                  ),
+                  value: ref.watch(dailyStreakReminderNotifierProvider),
+                  onChanged: (val) async {
+                    AppHaptics.selectionClick();
+                    if (val) {
+                      await ref.read(notificationServiceProvider).requestPermission();
+                    }
+                    await ref.read(dailyStreakReminderNotifierProvider.notifier).setEnabled(val);
+                  },
+                ),
+                const Divider(),
+                SwitchListTile.adaptive(
+                  activeTrackColor: AppColors.primaryEmerald,
+                  secondary: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryTeal.withAlpha(isDark ? 45 : 25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.event_repeat_rounded, color: AppColors.primaryTeal, size: 20),
+                  ),
+                  title: const Text('Recurring Bill Due Alerts', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: Text(
+                    'Morning alert when recurring bills, subscriptions, and EMIs are due',
+                    style: TextStyle(color: financialColors.textMuted, fontSize: 12),
+                  ),
+                  value: ref.watch(billDueAlertNotifierProvider),
+                  onChanged: (val) async {
+                    AppHaptics.selectionClick();
+                    if (val) {
+                      await ref.read(notificationServiceProvider).requestPermission();
+                    }
+                    await ref.read(billDueAlertNotifierProvider.notifier).setEnabled(val);
+                  },
+                ),
+                const Divider(),
+                _buildListTile(
+                  context,
+                  icon: Icons.notifications_active_outlined,
+                  iconColor: financialColors.income,
+                  title: 'Send Test Notification',
+                  subtitle: 'Verify notification display on this device',
+                  onTap: () async {
+                    AppHaptics.buttonPress();
+                    await ref.read(notificationServiceProvider).requestPermission();
+                    await ref.read(notificationServiceProvider).sendTestNotification();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Test notification sent to system tray.'),
+                          behavior: SnackBarBehavior.floating,
                         ),
                       );
                     }

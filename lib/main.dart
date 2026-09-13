@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app/app.dart';
 import 'core/services/log_service.dart';
+import 'core/services/notification_service.dart';
 import 'core/utilities/currency_formatter.dart';
 import 'features/overlay/presentation/screens/floating_bubble_overlay.dart';
 
@@ -19,6 +20,13 @@ void main() async {
     }
   } catch (e) {
     LogService.debug('Main', 'Failed to pre-load currency preference: $e');
+  }
+
+  // Initialize offline local notifications service
+  try {
+    await NotificationService.instance.initialize();
+  } catch (e) {
+    LogService.debug('Main', 'Failed to initialize NotificationService: $e');
   }
 
   // Catch synchronous Flutter framework errors
