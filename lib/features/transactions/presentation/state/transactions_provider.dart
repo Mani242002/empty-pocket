@@ -238,42 +238,11 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
         }
 
         // 1. Revert balance impact for linked accounts and credit cards
-        if (prevTx.type == TransactionType.income) {
-          if (prevTx.accountId != null) {
-            await ref
-                .read(bankAccountListProvider.notifier)
-                .adjustAccountBalance(prevTx.accountId!, -prevTx.amount);
-          } else if (prevTx.creditCardId != null) {
-            await ref
-                .read(creditCardListProvider.notifier)
-                .adjustUsedAmount(prevTx.creditCardId!, prevTx.amount);
-          }
-        } else if (prevTx.type == TransactionType.expense) {
-          if (prevTx.creditCardId != null) {
-            await ref
-                .read(creditCardListProvider.notifier)
-                .adjustUsedAmount(prevTx.creditCardId!, -prevTx.amount);
-          } else if (prevTx.accountId != null) {
-            await ref
-                .read(bankAccountListProvider.notifier)
-                .adjustAccountBalance(prevTx.accountId!, prevTx.amount);
-          }
-        } else if (prevTx.type == TransactionType.transfer) {
-          if (prevTx.accountId != null) {
-            await ref
-                .read(bankAccountListProvider.notifier)
-                .adjustAccountBalance(prevTx.accountId!, prevTx.amount);
-          }
-          if (prevTx.toAccountId != null) {
-            await ref
-                .read(bankAccountListProvider.notifier)
-                .adjustAccountBalance(prevTx.toAccountId!, -prevTx.amount);
-          } else if (prevTx.creditCardId != null) {
-            await ref
-                .read(creditCardListProvider.notifier)
-                .adjustUsedAmount(prevTx.creditCardId!, prevTx.amount);
-          }
-        }
+        await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
+          ref,
+          prevTx,
+          isRevert: true,
+        );
       }
       await repository.deleteTransaction(id);
     } catch (e, stack) {
@@ -898,52 +867,93 @@ final loggingStreakProvider = Provider<int>((ref) {
 /// Centralized engine for applying ledger account and credit card balance impacts
 /// ensuring consistent balance synchronization across all presentation flows.
 class LedgerBalanceSynchronizer {
-  static Future<void> applyTransactionImpact(
-    dynamic ref,
-    TransactionEntity tx, {
+  static Future<void> _apply({
+    required Future<void> Function(String accountId, double amount) adjustAccountBalance,
+    required Future<void> Function(String cardId, double amount) adjustUsedAmount,
+    required TransactionEntity tx,
     bool isRevert = false,
   }) async {
     final factor = isRevert ? -1.0 : 1.0;
 
     if (tx.type == TransactionType.income) {
       if (tx.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(tx.accountId!, factor * tx.amount);
+        await adjustAccountBalance(tx.accountId!, factor * tx.amount);
       } else if (tx.creditCardId != null) {
         // Income / cashback / refund on credit card reduces used amount
-        await ref
-            .read(creditCardListProvider.notifier)
-            .adjustUsedAmount(tx.creditCardId!, -factor * tx.amount);
+        await adjustUsedAmount(tx.creditCardId!, -factor * tx.amount);
       }
     } else if (tx.type == TransactionType.expense) {
       if (tx.creditCardId != null) {
-        await ref
-            .read(creditCardListProvider.notifier)
-            .adjustUsedAmount(tx.creditCardId!, factor * tx.amount);
+        await adjustUsedAmount(tx.creditCardId!, factor * tx.amount);
       } else if (tx.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(tx.accountId!, -factor * tx.amount);
+        await adjustAccountBalance(tx.accountId!, -factor * tx.amount);
       }
     } else if (tx.type == TransactionType.transfer) {
       // Source account debit
       if (tx.accountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(tx.accountId!, -factor * tx.amount);
+        await adjustAccountBalance(tx.accountId!, -factor * tx.amount);
       }
       // Destination bank account credit OR credit card bill payment credit
       if (tx.toAccountId != null) {
-        await ref
-            .read(bankAccountListProvider.notifier)
-            .adjustAccountBalance(tx.toAccountId!, factor * tx.amount);
+        await adjustAccountBalance(tx.toAccountId!, factor * tx.amount);
       } else if (tx.creditCardId != null) {
         // Paying off credit card reduces used amount
-        await ref
-            .read(creditCardListProvider.notifier)
-            .adjustUsedAmount(tx.creditCardId!, -factor * tx.amount);
+        await adjustUsedAmount(tx.creditCardId!, -factor * tx.amount);
       }
+    }
+  }
+
+  /// Synchronize balance impact using Riverpod [Ref]
+  static Future<void> applyTransactionImpactFromRef(
+    Ref ref,
+    TransactionEntity tx, {
+    bool isRevert = false,
+  }) async {
+    await _apply(
+      adjustAccountBalance: (id, amount) =>
+          ref.read(bankAccountListProvider.notifier).adjustAccountBalance(id, amount),
+      adjustUsedAmount: (id, amount) =>
+          ref.read(creditCardListProvider.notifier).adjustUsedAmount(id, amount),
+      tx: tx,
+      isRevert: isRevert,
+    );
+  }
+
+  /// Synchronize balance impact using Flutter Riverpod [WidgetRef]
+  static Future<void> applyTransactionImpactFromWidgetRef(
+    WidgetRef ref,
+    TransactionEntity tx, {
+    bool isRevert = false,
+  }) async {
+    await _apply(
+      adjustAccountBalance: (id, amount) =>
+          ref.read(bankAccountListProvider.notifier).adjustAccountBalance(id, amount),
+      adjustUsedAmount: (id, amount) =>
+          ref.read(creditCardListProvider.notifier).adjustUsedAmount(id, amount),
+      tx: tx,
+      isRevert: isRevert,
+    );
+  }
+
+  /// Backward-compatible dispatcher supporting [Ref], [WidgetRef], or dynamic reference
+  static Future<void> applyTransactionImpact(
+    dynamic ref,
+    TransactionEntity tx, {
+    bool isRevert = false,
+  }) async {
+    if (ref is Ref) {
+      return applyTransactionImpactFromRef(ref, tx, isRevert: isRevert);
+    } else if (ref is WidgetRef) {
+      return applyTransactionImpactFromWidgetRef(ref, tx, isRevert: isRevert);
+    } else {
+      final notifierAccount = (ref as dynamic).read(bankAccountListProvider.notifier);
+      final notifierCard = (ref as dynamic).read(creditCardListProvider.notifier);
+      await _apply(
+        adjustAccountBalance: (id, amt) => notifierAccount.adjustAccountBalance(id, amt),
+        adjustUsedAmount: (id, amt) => notifierCard.adjustUsedAmount(id, amt),
+        tx: tx,
+        isRevert: isRevert,
+      );
     }
   }
 }

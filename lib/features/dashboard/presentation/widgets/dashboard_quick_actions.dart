@@ -14,9 +14,31 @@ class DashboardQuickActions extends StatelessWidget {
     required IconData icon,
     required Color color,
     VoidCallback? onTap,
+    bool horizontal = false,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final iconWidget = Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withAlpha(isDark ? 40 : 25),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: color, size: 20),
+    );
+
+    final textWidget = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+        textAlign: TextAlign.center,
+        maxLines: 1,
+      ),
+    );
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -31,32 +53,24 @@ class DashboardQuickActions extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withAlpha(isDark ? 40 : 25),
-                  shape: BoxShape.circle,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          child: horizontal
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    iconWidget,
+                    const SizedBox(width: 10),
+                    Flexible(child: textWidget),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    iconWidget,
+                    const SizedBox(height: 8),
+                    textWidget,
+                  ],
                 ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(height: 8),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -66,50 +80,81 @@ class DashboardQuickActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final financialColors = context.financialColors;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _buildActionButton(
-                context,
-                label: 'Add Expense',
-                icon: Icons.remove_circle_outline_rounded,
-                color: financialColors.expense,
-                onTap: () => AddEditTransactionSheet.show(
-                  context,
-                  initialType: TransactionType.expense,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final expenseBtn = _buildActionButton(
+          context,
+          label: 'Add Expense',
+          icon: Icons.remove_circle_outline_rounded,
+          color: financialColors.expense,
+          onTap: () => AddEditTransactionSheet.show(
+            context,
+            initialType: TransactionType.expense,
+          ),
+        );
+
+        final incomeBtn = _buildActionButton(
+          context,
+          label: 'Add Income',
+          icon: Icons.add_circle_outline_rounded,
+          color: financialColors.income,
+          onTap: () => AddEditTransactionSheet.show(
+            context,
+            initialType: TransactionType.income,
+          ),
+        );
+
+        final isCompact = constraints.maxWidth < 360;
+
+        final budgetBtn = _buildActionButton(
+          context,
+          label: 'Set Budget',
+          icon: Icons.pie_chart_outline_rounded,
+          color: financialColors.investment,
+          horizontal: isCompact,
+          onTap: () => SetBudgetSheet.show(context),
+        );
+
+        if (isCompact) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: expenseBtn),
+                    const SizedBox(width: 8),
+                    Expanded(child: incomeBtn),
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildActionButton(
-                context,
-                label: 'Add Income',
-                icon: Icons.add_circle_outline_rounded,
-                color: financialColors.income,
-                onTap: () => AddEditTransactionSheet.show(
-                  context,
-                  initialType: TransactionType.income,
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: budgetBtn),
+                  ],
                 ),
-              ),
+              ],
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildActionButton(
-                context,
-                label: 'Set Budget',
-                icon: Icons.pie_chart_outline_rounded,
-                color: financialColors.investment,
-                onTap: () => SetBudgetSheet.show(context),
-              ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: expenseBtn),
+                const SizedBox(width: 10),
+                Expanded(child: incomeBtn),
+                const SizedBox(width: 10),
+                Expanded(child: budgetBtn),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

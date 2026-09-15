@@ -296,6 +296,7 @@ class OverallLiabilitiesSummary {
   final double totalPaidOff;
   final int activeDebtsCount;
   final int paidOffDebtsCount;
+  final double totalReceivables;
 
   const OverallLiabilitiesSummary({
     required this.totalOutstanding,
@@ -304,6 +305,7 @@ class OverallLiabilitiesSummary {
     required this.totalPaidOff,
     required this.activeDebtsCount,
     required this.paidOffDebtsCount,
+    this.totalReceivables = 0.0,
   });
 
   static const OverallLiabilitiesSummary empty = OverallLiabilitiesSummary(
@@ -313,5 +315,6 @@ class OverallLiabilitiesSummary {
     totalPaidOff: 0.0,
     activeDebtsCount: 0,
     paidOffDebtsCount: 0,
+    totalReceivables: 0.0,
   );
 }

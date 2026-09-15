@@ -487,80 +487,11 @@ class _AddEditTransactionSheetState
       final prevTx = widget.initialTransaction!;
 
       // 1. Revert previous transaction impact
-      if (prevTx.type == TransactionType.income) {
-        if (prevTx.accountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(prevTx.accountId!, -prevTx.amount);
-        } else if (prevTx.creditCardId != null) {
-          await ref
-              .read(creditCardListProvider.notifier)
-              .adjustUsedAmount(prevTx.creditCardId!, prevTx.amount);
-        }
-      } else if (prevTx.type == TransactionType.expense) {
-        if (prevTx.creditCardId != null) {
-          await ref
-              .read(creditCardListProvider.notifier)
-              .adjustUsedAmount(prevTx.creditCardId!, -prevTx.amount);
-        } else if (prevTx.accountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(prevTx.accountId!, prevTx.amount);
-        }
-      } else if (prevTx.type == TransactionType.transfer) {
-        if (prevTx.accountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(prevTx.accountId!, prevTx.amount);
-        }
-        if (prevTx.toAccountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(prevTx.toAccountId!, -prevTx.amount);
-        } else if (prevTx.creditCardId != null) {
-          await ref
-              .read(creditCardListProvider.notifier)
-              .adjustUsedAmount(prevTx.creditCardId!, prevTx.amount);
-        }
-      }
-
-      // 2. Apply new transaction impact
-      if (_selectedType == TransactionType.income) {
-        if (_selectedAccountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(_selectedAccountId!, amount);
-        } else if (_selectedCreditCardId != null) {
-          await ref
-              .read(creditCardListProvider.notifier)
-              .adjustUsedAmount(_selectedCreditCardId!, -amount);
-        }
-      } else if (_selectedType == TransactionType.expense) {
-        if (_selectedCreditCardId != null) {
-          await ref
-              .read(creditCardListProvider.notifier)
-              .adjustUsedAmount(_selectedCreditCardId!, amount);
-        } else if (_selectedAccountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(_selectedAccountId!, -amount);
-        }
-      } else if (_selectedType == TransactionType.transfer) {
-        if (_selectedAccountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(_selectedAccountId!, -amount);
-        }
-        if (_selectedToAccountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(_selectedToAccountId!, amount);
-        } else if (_selectedCreditCardId != null) {
-          await ref
-              .read(creditCardListProvider.notifier)
-              .adjustUsedAmount(_selectedCreditCardId!, -amount);
-        }
-      }
+      await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
+        ref,
+        prevTx,
+        isRevert: true,
+      );
 
       final isExpense = _selectedType == TransactionType.expense;
       final isMoneyLent = isExpense && _selectedCategory == 'Money Lent / Helping Friend';
@@ -655,6 +586,12 @@ class _AddEditTransactionSheetState
         updatedAt: now,
       );
 
+      // 2. Apply updated transaction impact
+      await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
+        ref,
+        updated,
+      );
+
       await ref
           .read(transactionListNotifierProvider.notifier)
           .updateTransaction(updated);
@@ -709,44 +646,7 @@ class _AddEditTransactionSheetState
         return;
       }
 
-      // Apply new transaction balance impact
-      if (_selectedType == TransactionType.income) {
-        if (_selectedAccountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(_selectedAccountId!, amount);
-        } else if (_selectedCreditCardId != null) {
-          await ref
-              .read(creditCardListProvider.notifier)
-              .adjustUsedAmount(_selectedCreditCardId!, -amount);
-        }
-      } else if (_selectedType == TransactionType.expense) {
-        if (_selectedCreditCardId != null) {
-          await ref
-              .read(creditCardListProvider.notifier)
-              .adjustUsedAmount(_selectedCreditCardId!, amount);
-        } else if (_selectedAccountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(_selectedAccountId!, -amount);
-        }
-      } else if (_selectedType == TransactionType.transfer) {
-        if (_selectedAccountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(_selectedAccountId!, -amount);
-        }
-        if (_selectedToAccountId != null) {
-          await ref
-              .read(bankAccountListProvider.notifier)
-              .adjustAccountBalance(_selectedToAccountId!, amount);
-        }
-        if (_selectedCreditCardId != null) {
-          await ref
-              .read(creditCardListProvider.notifier)
-              .adjustUsedAmount(_selectedCreditCardId!, -amount);
-        }
-      }
+
 
       final isExpense = _selectedType == TransactionType.expense;
       final isMoneyLent = isExpense && _selectedCategory == 'Money Lent / Helping Friend';
@@ -820,6 +720,12 @@ class _AddEditTransactionSheetState
         isSettled: false,
         createdAt: now,
         updatedAt: now,
+      );
+
+      // Apply new transaction balance impact
+      await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
+        ref,
+        newTx,
       );
 
       await ref

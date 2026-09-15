@@ -72,6 +72,7 @@ class NetWorthComposition {
   final double cashBalance;
   final double savingsGoalsAmount;
   final double investmentsAmount;
+  final double receivablesAmount;
   final double totalAssets;
   final double totalLiabilities;
   final double netWorth;
@@ -81,6 +82,7 @@ class NetWorthComposition {
     required this.cashBalance,
     required this.savingsGoalsAmount,
     required this.investmentsAmount,
+    this.receivablesAmount = 0.0,
     required this.totalAssets,
     required this.totalLiabilities,
     required this.netWorth,
@@ -91,6 +93,7 @@ class NetWorthComposition {
     cashBalance: 0.0,
     savingsGoalsAmount: 0.0,
     investmentsAmount: 0.0,
+    receivablesAmount: 0.0,
     totalAssets: 0.0,
     totalLiabilities: 0.0,
     netWorth: 0.0,
@@ -101,6 +104,7 @@ class NetWorthComposition {
   double get cashPercentage => totalAssets > 0 ? (cashBalance.clamp(0, double.infinity) / totalAssets) * 100 : 0.0;
   double get savingsPercentage => totalAssets > 0 ? (savingsGoalsAmount / totalAssets) * 100 : 0.0;
   double get investmentsPercentage => totalAssets > 0 ? (investmentsAmount / totalAssets) * 100 : 0.0;
+  double get receivablesPercentage => totalAssets > 0 ? (receivablesAmount / totalAssets) * 100 : 0.0;
 }
 
 class FinancialHealthSummary {

@@ -591,21 +591,38 @@ abstract class FinancialCalculator {
   static OverallLiabilitiesSummary calculateOverallLiabilitiesSummary(List<DebtEntity> debts) {
     if (debts.isEmpty) return OverallLiabilitiesSummary.empty;
 
-    final activeDebts = debts.where((d) => d.status == DebtStatus.active && d.remainingAmount > 0).toList();
-    final paidOffDebts = debts.where((d) => d.status == DebtStatus.paidOff || d.remainingAmount <= 0).toList();
+    // Separate actual liabilities from peer receivables (peerLent)
+    final activeLiabilities = debts.where((d) =>
+      d.status == DebtStatus.active &&
+      d.remainingAmount > 0 &&
+      d.type != DebtType.peerLent,
+    ).toList();
 
-    final totalOutstanding = activeDebts.fold(0.0, (sum, d) => sum + d.remainingAmount);
-    final totalMonthlyEmi = activeDebts.fold(0.0, (sum, d) => sum + d.monthlyEmi);
-    final totalOriginalPrincipal = debts.fold(0.0, (sum, d) => sum + d.principalAmount);
+    final activeReceivables = debts.where((d) =>
+      d.status == DebtStatus.active &&
+      d.remainingAmount > 0 &&
+      d.type == DebtType.peerLent,
+    ).toList();
+
+    final paidOffDebts = debts.where((d) =>
+      d.status == DebtStatus.paidOff ||
+      d.remainingAmount <= 0,
+    ).toList();
+
+    final totalOutstanding = activeLiabilities.fold(0.0, (sum, d) => sum + d.remainingAmount);
+    final totalReceivables = activeReceivables.fold(0.0, (sum, d) => sum + d.remainingAmount);
+    final totalMonthlyEmi = activeLiabilities.fold(0.0, (sum, d) => sum + d.monthlyEmi);
+    final totalOriginalPrincipal = debts.where((d) => d.type != DebtType.peerLent).fold(0.0, (sum, d) => sum + d.principalAmount);
     final totalPaidOff = max(0.0, totalOriginalPrincipal - totalOutstanding);
 
     return OverallLiabilitiesSummary(
-      totalOutstanding: totalOutstanding,
-      totalMonthlyEmi: totalMonthlyEmi,
-      totalOriginalPrincipal: totalOriginalPrincipal,
-      totalPaidOff: totalPaidOff,
-      activeDebtsCount: activeDebts.length,
+      totalOutstanding: roundMoney(totalOutstanding),
+      totalMonthlyEmi: roundMoney(totalMonthlyEmi),
+      totalOriginalPrincipal: roundMoney(totalOriginalPrincipal),
+      totalPaidOff: roundMoney(totalPaidOff),
+      activeDebtsCount: activeLiabilities.length,
       paidOffDebtsCount: paidOffDebts.length,
+      totalReceivables: roundMoney(totalReceivables),
     );
   }
 
@@ -694,10 +711,12 @@ abstract class FinancialCalculator {
     required double cashBalance,
     required double savingsGoalsAmount,
     required double investmentsAmount,
+    double receivablesAmount = 0.0,
     required double totalLiabilities,
   }) {
     final effectiveCash = cashBalance > 0 ? cashBalance : 0.0;
-    final totalAssets = effectiveCash + savingsGoalsAmount + investmentsAmount;
+    final validReceivables = receivablesAmount > 0 ? receivablesAmount : 0.0;
+    final totalAssets = effectiveCash + savingsGoalsAmount + investmentsAmount + validReceivables;
     final netWorth = totalAssets - totalLiabilities;
     final debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : (totalLiabilities > 0 ? 100.0 : 0.0);
 
@@ -705,10 +724,11 @@ abstract class FinancialCalculator {
       cashBalance: cashBalance,
       savingsGoalsAmount: savingsGoalsAmount,
       investmentsAmount: investmentsAmount,
-      totalAssets: totalAssets,
-      totalLiabilities: totalLiabilities,
-      netWorth: netWorth,
-      debtToAssetRatio: debtRatio,
+      receivablesAmount: validReceivables,
+      totalAssets: roundMoney(totalAssets),
+      totalLiabilities: roundMoney(totalLiabilities),
+      netWorth: roundMoney(netWorth),
+      debtToAssetRatio: roundMoney(debtRatio),
     );
   }
 
@@ -720,6 +740,7 @@ abstract class FinancialCalculator {
     required double savingsGoalsAmount,
     required double emergencyFundSaved,
     required double investmentsAmount,
+    double receivablesAmount = 0.0,
     required int distinctAssetClassesCount,
     required double totalLiabilities,
     required double totalMonthlyEmi,
@@ -728,6 +749,7 @@ abstract class FinancialCalculator {
       cashBalance: cashBalance,
       savingsGoalsAmount: savingsGoalsAmount,
       investmentsAmount: investmentsAmount,
+      receivablesAmount: receivablesAmount,
       totalLiabilities: totalLiabilities,
     );
 

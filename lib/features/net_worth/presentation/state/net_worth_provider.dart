@@ -16,16 +16,25 @@ final netWorthCompositionProvider = Provider<NetWorthComposition>((ref) {
   final bankAccounts = ref.watch(activeBankAccountsProvider);
   final combinedLiquidCash = ref.watch(combinedLiquidCashProvider);
   final creditSummary = ref.watch(combinedCreditSummaryProvider);
+  final goals = ref.watch(savingsGoalsListNotifierProvider).valueOrNull ?? [];
 
   // Use real combined bank account liquid cash if accounts configured, otherwise monthly net
   final effectiveCash = bankAccounts.isNotEmpty ? combinedLiquidCash : financialSummary.netBalance;
   final totalLiabilities = liabilitiesSummary.totalOutstanding + creditSummary.totalUsed;
 
+  // If bank accounts are tracked, exclude auto-synced goals linked to an account to avoid double-counting
+  final effectiveSavingsGoalsAmount = bankAccounts.isNotEmpty
+      ? goals
+          .where((g) => !(g.autoSyncAccount && g.linkedAccountId != null))
+          .fold<double>(0.0, (sum, g) => sum + g.currentAmount)
+      : savingsSummary.totalSaved;
+
   return FinancialCalculator.calculateNetWorthComposition(
     cashBalance: effectiveCash,
-    savingsGoalsAmount: savingsSummary.totalSaved,
+    savingsGoalsAmount: effectiveSavingsGoalsAmount,
     investmentsAmount: portfolioSummary.totalCurrentValue,
     totalLiabilities: totalLiabilities,
+    receivablesAmount: liabilitiesSummary.totalReceivables,
   );
 });
 
@@ -38,19 +47,34 @@ final financialHealthSummaryProvider = Provider<FinancialHealthSummary>((ref) {
   final bankAccounts = ref.watch(activeBankAccountsProvider);
   final combinedLiquidCash = ref.watch(combinedLiquidCashProvider);
   final creditSummary = ref.watch(combinedCreditSummaryProvider);
+  final goals = ref.watch(savingsGoalsListNotifierProvider).valueOrNull ?? [];
 
   final effectiveCash = bankAccounts.isNotEmpty ? combinedLiquidCash : financialSummary.netBalance;
   final totalLiabilities = liabilitiesSummary.totalOutstanding + creditSummary.totalUsed;
+
+  // If bank accounts are tracked, exclude auto-synced goals linked to an account to avoid double-counting
+  final effectiveSavingsGoalsAmount = bankAccounts.isNotEmpty
+      ? goals
+          .where((g) => !(g.autoSyncAccount && g.linkedAccountId != null))
+          .fold<double>(0.0, (sum, g) => sum + g.currentAmount)
+      : savingsSummary.totalSaved;
+
+  final effectiveEmergencyFund = bankAccounts.isNotEmpty
+      ? goals
+          .where((g) => g.isEmergencyFund && !(g.autoSyncAccount && g.linkedAccountId != null))
+          .fold<double>(0.0, (sum, g) => sum + g.currentAmount)
+      : savingsSummary.emergencyFundSaved;
 
   return FinancialCalculator.calculateFinancialHealthSummary(
     cashBalance: effectiveCash,
     monthlyIncome: financialSummary.totalIncome,
     monthlyExpense: financialSummary.totalExpense,
-    savingsGoalsAmount: savingsSummary.totalSaved,
-    emergencyFundSaved: savingsSummary.emergencyFundSaved,
+    savingsGoalsAmount: effectiveSavingsGoalsAmount,
+    emergencyFundSaved: effectiveEmergencyFund,
     investmentsAmount: portfolioSummary.totalCurrentValue,
     distinctAssetClassesCount: portfolioSummary.assetAllocations.length,
     totalLiabilities: totalLiabilities,
     totalMonthlyEmi: liabilitiesSummary.totalMonthlyEmi,
+    receivablesAmount: liabilitiesSummary.totalReceivables,
   );
 });

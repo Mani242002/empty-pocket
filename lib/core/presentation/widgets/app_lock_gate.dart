@@ -22,6 +22,7 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
   static DateTime? _pausedAt;
   static const Duration _graceDuration = Duration(seconds: 60);
   bool _isAuthenticating = false;
+  bool _isHardwareUnavailable = false;
 
   @override
   void initState() {
@@ -64,6 +65,21 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
       return;
     }
 
+    final security = ref.read(securityServiceProvider);
+    final isAvailable = await security.isBiometricsAvailable();
+    if (!isAvailable) {
+      if (mounted) {
+        setState(() {
+          _isHardwareUnavailable = true;
+        });
+      }
+      return;
+    } else if (_isHardwareUnavailable && mounted) {
+      setState(() {
+        _isHardwareUnavailable = false;
+      });
+    }
+
     if (!isSessionUnlocked && !_isAuthenticating) {
       await _authenticate();
     }
@@ -75,12 +91,24 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
 
     try {
       final security = ref.read(securityServiceProvider);
+      final isAvailable = await security.isBiometricsAvailable();
+      if (!isAvailable) {
+        if (mounted) {
+          setState(() {
+            _isHardwareUnavailable = true;
+            _isAuthenticating = false;
+          });
+        }
+        return;
+      }
+
       final success = await security.authenticate(
         reason: 'Authenticate to access your EmptyPocket financial vault',
       );
 
       if (success) {
         isSessionUnlocked = true;
+        _isHardwareUnavailable = false;
         await HapticFeedback.mediumImpact();
       } else {
         await HapticFeedback.heavyImpact();
@@ -182,33 +210,115 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                   height: 1.4,
                 ),
               ),
-              const Spacer(),
-              // Unlock Action Button
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primaryEmerald,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+              if (_isHardwareUnavailable) ...[
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withAlpha(isDark ? 35 : 20),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.warning.withAlpha(isDark ? 80 : 50),
                     ),
                   ),
-                  icon: _isAuthenticating
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                        )
-                      : const Icon(Icons.fingerprint_rounded, size: 24),
-                  label: Text(
-                    _isAuthenticating ? 'Verifying...' : 'Unlock Vault',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: AppColors.warning,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'No device lock, PIN, or biometric credentials detected on this device. You can disable the vault lock below to regain access.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: _isAuthenticating ? null : _authenticate,
                 ),
-              ),
+              ],
+              const Spacer(),
+              // Unlock Action Button or Disable Lock Option
+              if (_isHardwareUnavailable) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.warning,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    icon: const Icon(Icons.lock_open_rounded, size: 22),
+                    label: const Text(
+                      'Disable Vault Lock',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    ),
+                    onPressed: () async {
+                      await ref.read(appLockProvider.notifier).toggleAppLock(false);
+                      if (mounted) {
+                        setState(() {
+                          isSessionUnlocked = true;
+                          _isHardwareUnavailable = false;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryEmerald,
+                      side: const BorderSide(color: AppColors.primaryEmerald),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    label: const Text(
+                      'Retry Authentication',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                    ),
+                    onPressed: _checkLockStatus,
+                  ),
+                ),
+              ] else ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primaryEmerald,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    icon: _isAuthenticating
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                          )
+                        : const Icon(Icons.fingerprint_rounded, size: 24),
+                    label: Text(
+                      _isAuthenticating ? 'Verifying...' : 'Unlock Vault',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    ),
+                    onPressed: _isAuthenticating ? null : _authenticate,
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
             ],
           ),

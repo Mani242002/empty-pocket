@@ -12,6 +12,10 @@ import '../../../features/transactions/presentation/state/transactions_provider.
 import '../../../features/accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../features/budgets/presentation/screens/budgets_screen.dart';
 import '../../../features/budgets/presentation/state/budgets_provider.dart';
+import '../../../features/debts/presentation/state/debts_provider.dart';
+import '../../../features/investments/presentation/state/investments_provider.dart';
+import '../../../features/savings/presentation/state/savings_goals_provider.dart';
+import '../../../features/budgets/presentation/state/recurring_provider.dart';
 import '../../../features/reports/presentation/screens/reports_analytics_screen.dart';
 import '../../../features/settings/presentation/screens/settings_screen.dart';
 import '../../../features/settings/presentation/state/backup_provider.dart';
@@ -49,6 +53,10 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
       ref.invalidate(bankAccountListProvider);
       ref.invalidate(creditCardListProvider);
       ref.invalidate(budgetListNotifierProvider);
+      ref.invalidate(savingsGoalsListNotifierProvider);
+      ref.invalidate(debtListNotifierProvider);
+      ref.invalidate(investmentListNotifierProvider);
+      ref.invalidate(recurringListNotifierProvider);
     }
   }
 

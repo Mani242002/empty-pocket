@@ -123,11 +123,12 @@ class CreditCardEntity {
 
   /// Calculates upcoming statement generation date relative to a base date
   DateTime getNextStatementDate([DateTime? relativeTo]) {
-    final now = relativeTo ?? DateTime.now();
+    final rawNow = relativeTo ?? DateTime.now();
+    final now = DateTime(rawNow.year, rawNow.month, rawNow.day);
     final clampedDay = min(statementDateDay, _daysInMonth(now.year, now.month));
     final candidateThisMonth = DateTime(now.year, now.month, clampedDay);
 
-    if (now.isBefore(candidateThisMonth) || now.isAtSameMomentAs(candidateThisMonth)) {
+    if (!now.isAfter(candidateThisMonth)) {
       return candidateThisMonth;
     } else {
       final nextMonthYear = now.month == 12 ? now.year + 1 : now.year;
@@ -145,25 +146,24 @@ class CreditCardEntity {
 
   /// Days remaining until upcoming statement generation
   int daysUntilStatement([DateTime? relativeTo]) {
-    final now = relativeTo ?? DateTime.now();
+    final rawNow = relativeTo ?? DateTime.now();
+    final now = DateTime(rawNow.year, rawNow.month, rawNow.day);
     final nextStatement = getNextStatementDate(now);
-    final diff = nextStatement.difference(DateTime(now.year, now.month, now.day)).inDays;
+    final diff = nextStatement.difference(now).inDays;
     return max(0, diff);
   }
 
   /// Days remaining until upcoming bill due date
   int daysUntilDue([DateTime? relativeTo]) {
-    final now = relativeTo ?? DateTime.now();
+    final rawNow = relativeTo ?? DateTime.now();
+    final now = DateTime(rawNow.year, rawNow.month, rawNow.day);
     final nextDue = getNextDueDate(now);
-    final diff = nextDue.difference(DateTime(now.year, now.month, now.day)).inDays;
+    final diff = nextDue.difference(now).inDays;
     return max(0, diff);
   }
 
   static int _daysInMonth(int year, int month) {
-    final beginningNextMonth = (month < 12)
-        ? DateTime(year, month + 1, 1)
-        : DateTime(year + 1, 1, 1);
-    return beginningNextMonth.subtract(const Duration(days: 1)).day;
+    return DateTime(year, month + 1, 0).day;
   }
 
   CreditCardEntity copyWith({

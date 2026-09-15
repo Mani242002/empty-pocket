@@ -1413,46 +1413,48 @@ class AppDatabase {
       await txn.delete(tableBankAccounts);
       await txn.delete(tableAiReports);
 
-      // 2. Insert new records in safe dependency order
+      // 2. Insert new records in safe dependency order using high-performance SQLite batch
+      final batch = txn.batch();
       for (final a in backup.bankAccounts) {
-        await txn.insert(tableBankAccounts, a.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableBankAccounts, a.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final c in backup.creditCards) {
-        await txn.insert(tableCreditCards, c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableCreditCards, c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final t in backup.transactions) {
-        await txn.insert(tableTransactions, t.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableTransactions, t.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final b in backup.budgets) {
-        await txn.insert(tableBudgets, b.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableBudgets, b.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final g in backup.savingsGoals) {
-        await txn.insert(tableSavingsGoals, g.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableSavingsGoals, g.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final c in backup.savingsContributions) {
-        await txn.insert(tableGoalContributions, c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableGoalContributions, c.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final d in backup.debts) {
-        await txn.insert(tableDebts, d.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableDebts, d.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final p in backup.debtPayments) {
-        await txn.insert(tableDebtPayments, p.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableDebtPayments, p.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final i in backup.investments) {
-        await txn.insert(tableInvestments, i.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableInvestments, i.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final r in backup.recurringExpenses) {
-        await txn.insert(tableRecurring, r.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableRecurring, r.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final s in backup.chatSessions) {
-        await txn.insert(tableChatSessions, s.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableChatSessions, s.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final m in backup.chatMessages) {
-        await txn.insert(tableChatMessages, m.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableChatMessages, m.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final rep in backup.aiReports) {
-        await txn.insert(tableAiReports, rep.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        batch.insert(tableAiReports, rep.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
+      await batch.commit(noResult: true);
     });
   }
 

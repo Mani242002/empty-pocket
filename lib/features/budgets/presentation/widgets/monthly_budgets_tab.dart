@@ -49,32 +49,40 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                 },
                 visualDensity: VisualDensity.compact,
               ),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: selectedMonth,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2040),
-                  );
-                  if (picked != null) {
-                    ref.read(selectedMonthProvider.notifier).setMonth(picked);
-                  }
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_month_rounded, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        monthTitle,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedMonth,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2040),
+                    );
+                    if (picked != null) {
+                      ref.read(selectedMonthProvider.notifier).setMonth(picked);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_month_rounded, size: 18),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            monthTitle,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -228,9 +236,13 @@ class MonthlyBudgetsTab extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Category Budgets (${categoryStatuses.length})',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              Expanded(
+                child: Text(
+                  'Category Budgets (${categoryStatuses.length})',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
               if (categoryStatuses.isNotEmpty)
                 TextButton.icon(

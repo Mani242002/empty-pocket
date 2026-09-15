@@ -2,12 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
-import '../../../../core/domain/entities/transaction_entity.dart';
-import '../../../savings/presentation/screens/add_edit_savings_goal_sheet.dart';
-import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
-import '../../../transactions/presentation/state/transactions_provider.dart';
-import '../screens/add_recurring_sheet.dart';
-import '../screens/set_budget_sheet.dart';
 import '../widgets/monthly_budgets_tab.dart';
 import '../widgets/recurring_bills_tab.dart';
 import '../widgets/savings_goals_tab.dart';
@@ -70,22 +64,6 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
           RecurringBillsTab(),
           SharedSplitsTab(),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'budgets_fab',
-        onPressed: () {
-          if (_tabController.index == 0) {
-            SetBudgetSheet.show(context, targetMonth: ref.read(selectedMonthProvider));
-          } else if (_tabController.index == 1) {
-            AddEditSavingsGoalSheet.show(context);
-          } else if (_tabController.index == 2) {
-            AddRecurringSheet.show(context);
-          } else {
-            AddEditTransactionSheet.show(context, initialType: TransactionType.expense);
-          }
-        },
-        tooltip: 'Add Budget, Goal, Recurring or Shared Expense',
-        child: const Icon(Icons.add_rounded, size: 28),
       ),
     );
   }

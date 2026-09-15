@@ -130,20 +130,28 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        activePoint.isForecast ? Icons.auto_awesome_rounded : Icons.event_note_rounded,
-                        size: 15,
-                        color: activePoint.isForecast ? AppColors.primaryTeal : financialColors.textMuted,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        DateFormat('MMMM yyyy').format(activePoint.month),
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                      ),
-                    ],
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          activePoint.isForecast ? Icons.auto_awesome_rounded : Icons.event_note_rounded,
+                          size: 15,
+                          color: activePoint.isForecast ? AppColors.primaryTeal : financialColors.textMuted,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            DateFormat('MMMM yyyy').format(activePoint.month),
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
