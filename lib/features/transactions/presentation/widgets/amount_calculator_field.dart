@@ -53,7 +53,7 @@ class AmountCalculatorField extends StatelessWidget {
           autofocus: autofocus,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9\.\+\-\*\/\(\)\s]')),
           ],
           style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w800,
@@ -104,9 +104,13 @@ class AmountCalculatorField extends StatelessWidget {
                     color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                   ),
                   onPressed: () {
-                    final current = double.tryParse(controller.text) ?? 0;
+                    final current = MathExpressionParser.tryEvaluate(controller.text) ??
+                        (double.tryParse(controller.text) ?? 0.0);
                     final next = current + quickAdd;
-                    controller.text = next.toStringAsFixed(0);
+                    controller.text = next == next.roundToDouble()
+                        ? next.toInt().toString()
+                        : next.toStringAsFixed(2);
+                    controller.selection = TextSelection.collapsed(offset: controller.text.length);
                     onChanged?.call(controller.text);
                   },
                 ),

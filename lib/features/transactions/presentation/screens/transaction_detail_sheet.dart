@@ -678,7 +678,7 @@ class TransactionDetailSheet extends ConsumerWidget {
                 'Expected Interest',
                 loan.expectedInterest > 0
                     ? '+ ${CurrencyFormatter.format(loan.expectedInterest)}${loan.interestRate != null ? ' (${loan.interestRate}%)' : ''}'
-                    : '₹0 (None)',
+                    : '${CurrencyFormatter.format(0)} (None)',
               ),
             ],
           ),
@@ -945,19 +945,19 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
                     fontWeight: FontWeight.w800,
                     color: AppColors.primaryEmerald,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     prefixIcon: Padding(
-                      padding: EdgeInsets.only(left: 16, right: 8),
+                      padding: const EdgeInsets.only(left: 16, right: 8),
                       child: Text(
-                        '₹',
-                        style: TextStyle(
+                        CurrencyFormatter.activeCurrency.symbol,
+                        style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
                           color: AppColors.primaryEmerald,
                         ),
                       ),
                     ),
-                    prefixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                   ),
                 ),
                 const SizedBox(height: 16),

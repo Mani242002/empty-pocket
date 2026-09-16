@@ -49,6 +49,8 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
     final newVal = cur * (1.0 + multiplier);
     setState(() {
       _currentValueController.text = newVal.round().toString();
+      _currentValueController.selection =
+          TextSelection.collapsed(offset: _currentValueController.text.length);
     });
   }
 
@@ -223,8 +225,8 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                       fontWeight: FontWeight.w800,
                       color: isProfit ? financialColors.income : financialColors.expense,
                     ),
-                    decoration: const InputDecoration(
-                      prefixText: '₹ ',
+                    decoration: InputDecoration(
+                      prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                       hintText: '75,000',
                     ),
                     onChanged: (_) => setState(() {}),

@@ -417,8 +417,8 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                       prefixIcon: Padding(
                         padding: const EdgeInsets.only(left: 16, right: 8),
                         child: Text(
-                          '₹',
-                          style: TextStyle(
+                          CurrencyFormatter.activeCurrency.symbol,
+                          style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
                             color: AppColors.primaryEmerald,
@@ -444,7 +444,7 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ActionChip(
-                            label: Text('+₹$add'),
+                            label: Text('+${CurrencyFormatter.activeCurrency.symbol}$add'),
                             labelStyle: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -454,6 +454,7 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                               final curr = double.tryParse(_amountController.text) ?? 0;
                               final next = curr + add;
                               _amountController.text = next.toStringAsFixed(0);
+                              _amountController.selection = TextSelection.collapsed(offset: _amountController.text.length);
                             },
                           ),
                         );

@@ -40,7 +40,8 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
 
   Future<void> _testKey(AiProviderType provider) async {
     final isGemini = provider == AiProviderType.gemini;
-    final key = isGemini ? _geminiKeyController.text.trim() : _groqKeyController.text.trim();
+    final rawKey = isGemini ? _geminiKeyController.text : _groqKeyController.text;
+    final key = rawKey.trim().replaceAll(RegExp(r'["\x27\r\n]'), '');
 
     if (key.isEmpty) {
       setState(() {

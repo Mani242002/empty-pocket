@@ -349,8 +349,8 @@ class _AddEditSavingsGoalSheetState
                                 fontWeight: FontWeight.w800,
                                 color: financialColors.savings,
                               ),
-                              decoration: const InputDecoration(
-                                prefixText: '₹ ',
+                              decoration: InputDecoration(
+                                prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                 hintText: '1,00,000',
                               ),
                               validator: (val) =>
@@ -382,8 +382,8 @@ class _AddEditSavingsGoalSheetState
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
-                              decoration: const InputDecoration(
-                                prefixText: '₹ ',
+                              decoration: InputDecoration(
+                                prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                 hintText: '0',
                               ),
                             ),

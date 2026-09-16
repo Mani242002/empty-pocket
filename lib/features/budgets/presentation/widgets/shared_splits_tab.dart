@@ -1213,17 +1213,17 @@ class _SettlePersonBottomSheetState extends ConsumerState<_SettlePersonBottomShe
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'I OWED (₹)',
+                                'I OWED (${CurrencyFormatter.activeCurrency.symbol})',
                                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: financialColors.textMuted),
                               ),
                               const SizedBox(height: 4),
                               TextFormField(
                                 controller: _offsetController,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   hintText: 'e.g. 250',
                                   isDense: true,
-                                  prefixText: '₹ ',
+                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                 ),
                                 onChanged: (val) {
                                   final offset = double.tryParse(val.trim()) ?? 0.0;
@@ -1275,7 +1275,7 @@ class _SettlePersonBottomSheetState extends ConsumerState<_SettlePersonBottomShe
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Net Received: ₹${widget.totalPending.toStringAsFixed(0)} - ₹${(double.tryParse(_offsetController.text.trim()) ?? 0.0).toStringAsFixed(0)} = ₹${_amountController.text}',
+                      'Net Received: ${CurrencyFormatter.format(widget.totalPending)} - ${CurrencyFormatter.format(double.tryParse(_offsetController.text.trim()) ?? 0.0)} = ${CurrencyFormatter.activeCurrency.symbol}${_amountController.text}',
                       style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: financialColors.textMuted),
                     ),
                   ],
@@ -1292,7 +1292,7 @@ class _SettlePersonBottomSheetState extends ConsumerState<_SettlePersonBottomShe
               controller: _amountController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: financialColors.income),
-              decoration: const InputDecoration(prefixText: '₹ '),
+              decoration: InputDecoration(prefixText: '${CurrencyFormatter.activeCurrency.symbol} '),
             ),
             const SizedBox(height: 16),
             Text(

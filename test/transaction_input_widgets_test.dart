@@ -131,6 +131,50 @@ void main() {
       expect(formKey.currentState!.validate(), isTrue);
       await tester.pumpAndSettle();
       expect(find.text('Invalid number'), findsNothing);
+
+      // Valid math expression
+      controller.text = '120 + 45';
+      expect(formKey.currentState!.validate(), isTrue);
+      await tester.pumpAndSettle();
+      expect(find.text('Invalid number'), findsNothing);
+    });
+
+    testWidgets('AmountCalculatorField allows typing math expression and evaluates on quick chip tap', (tester) async {
+      final controller = TextEditingController();
+      String? lastChanged;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: Scaffold(
+            body: AmountCalculatorField(
+              controller: controller,
+              activeAccentColor: Colors.blue,
+              onChanged: (val) {
+                lastChanged = val;
+              },
+            ),
+          ),
+        ),
+      );
+
+      // Enter math expression with operators into the field
+      await tester.enterText(find.byType(TextFormField), '120 + 45');
+      await tester.pumpAndSettle();
+
+      // Operators (+, space) should be preserved by input formatters
+      expect(controller.text, '120 + 45');
+
+      // Tap +100 chip
+      final symbol = CurrencyFormatter.activeCurrency.symbol;
+      final chip100 = find.text('+$symbol' '100');
+      await tester.tap(chip100);
+      await tester.pumpAndSettle();
+
+      // (120 + 45) = 165, then + 100 = 265
+      expect(controller.text, '265');
+      expect(lastChanged, '265');
+      expect(controller.selection.baseOffset, 3);
     });
   });
 }

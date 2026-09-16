@@ -689,7 +689,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                   decoration: InputDecoration(
                     hintText: '0.00',
                     hintStyle: TextStyle(color: Colors.white.withAlpha(70)),
-                    prefixText: '₹ ',
+                    prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                     prefixStyle: TextStyle(
                       color: _type == TransactionType.income ? AppColors.income : AppColors.expense,
                       fontSize: 18,
@@ -843,13 +843,13 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                               controller: _myShareController,
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               style: const TextStyle(fontSize: 12, color: Colors.white),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 isDense: true,
                                 border: InputBorder.none,
-                                prefixText: 'My Share: ₹',
-                                prefixStyle: TextStyle(fontSize: 12, color: Colors.white70),
+                                prefixText: 'My Share: ${CurrencyFormatter.activeCurrency.symbol}',
+                                prefixStyle: const TextStyle(fontSize: 12, color: Colors.white70),
                                 hintText: '50%',
-                                hintStyle: TextStyle(fontSize: 11, color: Colors.white38),
+                                hintStyle: const TextStyle(fontSize: 11, color: Colors.white38),
                               ),
                             ),
                           ),
@@ -948,7 +948,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                             return DropdownMenuItem(
                               value: tx.id,
                               child: Text(
-                                '${tx.title} (₹${tx.pendingReimbursement.toStringAsFixed(0)} pending)',
+                                '${tx.title} (${CurrencyFormatter.format(tx.pendingReimbursement)} pending)',
                                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

@@ -334,7 +334,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     )
                   : ListView.builder(
                       physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 88),
                       itemCount: grouped.keys.length,
                       itemBuilder: (context, groupIndex) {
                         final date = grouped.keys.elementAt(groupIndex);

@@ -368,8 +368,8 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
-                                decoration: const InputDecoration(
-                                  prefixText: '₹ ',
+                                decoration: InputDecoration(
+                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '50,000',
                                 ),
                                 onChanged: (val) {
@@ -407,8 +407,8 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                                   fontWeight: FontWeight.w800,
                                   color: financialColors.income,
                                 ),
-                                decoration: const InputDecoration(
-                                  prefixText: '₹ ',
+                                decoration: InputDecoration(
+                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '62,500',
                                 ),
                               ),
@@ -466,8 +466,8 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                               TextFormField(
                                 controller: _priceController,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(
-                                  prefixText: '₹ ',
+                                decoration: InputDecoration(
+                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '245.80',
                                 ),
                                 onChanged: (_) => _onUnitsOrPriceChanged(),

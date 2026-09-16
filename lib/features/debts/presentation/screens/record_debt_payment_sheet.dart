@@ -267,8 +267,8 @@ class _RecordDebtPaymentSheetState
                       fontWeight: FontWeight.w800,
                       color: financialColors.warning,
                     ),
-                    decoration: const InputDecoration(
-                      prefixText: '₹ ',
+                    decoration: InputDecoration(
+                      prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                       hintText: '10,000',
                     ),
                     validator: (val) =>
@@ -295,6 +295,8 @@ class _RecordDebtPaymentSheetState
                                 _amountController.text = (debt.monthlyEmi == debt.monthlyEmi.roundToDouble()
                                     ? debt.monthlyEmi.toInt().toString()
                                     : debt.monthlyEmi.toString());
+                                _amountController.selection =
+                                    TextSelection.collapsed(offset: _amountController.text.length);
                               },
                             ),
                           ),
@@ -302,7 +304,7 @@ class _RecordDebtPaymentSheetState
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ActionChip(
-                              label: Text('+₹$amt'),
+                              label: Text('+${CurrencyFormatter.activeCurrency.symbol}$amt'),
                               labelStyle: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -310,6 +312,8 @@ class _RecordDebtPaymentSheetState
                               ),
                               onPressed: () {
                                 _amountController.text = amt.toString();
+                                _amountController.selection =
+                                    TextSelection.collapsed(offset: _amountController.text.length);
                               },
                             ),
                           );
@@ -327,6 +331,8 @@ class _RecordDebtPaymentSheetState
                               ),
                               onPressed: () {
                                 _amountController.text = remaining.toStringAsFixed(0);
+                                _amountController.selection =
+                                    TextSelection.collapsed(offset: _amountController.text.length);
                               },
                             ),
                           ),

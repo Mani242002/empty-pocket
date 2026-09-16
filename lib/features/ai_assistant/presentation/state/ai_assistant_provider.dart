@@ -113,7 +113,7 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
   }
 
   Future<void> updateGeminiApiKey(String apiKey) async {
-    final key = apiKey.trim();
+    final key = apiKey.trim().replaceAll(RegExp(r'["\x27\r\n]'), '');
     state = state.copyWith(geminiApiKey: key);
     try {
       if (key.isEmpty) {
@@ -128,7 +128,7 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
   }
 
   Future<void> updateGroqApiKey(String apiKey) async {
-    final key = apiKey.trim();
+    final key = apiKey.trim().replaceAll(RegExp(r'["\x27\r\n]'), '');
     state = state.copyWith(groqApiKey: key);
     try {
       if (key.isEmpty) {

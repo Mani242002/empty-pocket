@@ -345,4 +345,21 @@ void main() {
       expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 0);
     });
   });
+
+  group('FinancialCalculator - calculateDebtToIncomeRatio Tests', () {
+    test('calculates correct DTI and rounds to 2 decimal places', () {
+      final dti = FinancialCalculator.calculateDebtToIncomeRatio(1000, 3000);
+      expect(dti, 33.33);
+    });
+
+    test('returns 0.0 when monthly gross income is zero or negative', () {
+      expect(FinancialCalculator.calculateDebtToIncomeRatio(5000, 0), 0.0);
+      expect(FinancialCalculator.calculateDebtToIncomeRatio(5000, -1000), 0.0);
+    });
+
+    test('returns 0.0 when monthly debt obligations are zero or negative', () {
+      expect(FinancialCalculator.calculateDebtToIncomeRatio(0, 50000), 0.0);
+      expect(FinancialCalculator.calculateDebtToIncomeRatio(-500, 50000), 0.0);
+    });
+  });
 }

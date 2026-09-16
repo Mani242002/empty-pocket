@@ -493,7 +493,7 @@ class InvestmentsScreen extends ConsumerWidget {
                     if (inv.units != null && inv.currentPrice != null)
                       Expanded(
                         child: Text(
-                          '${inv.units} units @ ₹${inv.currentPrice}',
+                          '${inv.units} units @ ${CurrencyFormatter.activeCurrency.symbol}${inv.currentPrice}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: financialColors.textMuted,
                           ),

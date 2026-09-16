@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import '../domain/entities/recurring_expense_entity.dart';
@@ -134,6 +135,14 @@ class NotificationService {
     try {
       // Initialize timezone database
       tz_data.initializeTimeZones();
+      try {
+        final tzInfo = await FlutterTimezone.getLocalTimezone();
+        final String timeZoneName = tzInfo.identifier;
+        tz.setLocalLocation(tz.getLocation(timeZoneName));
+        LogService.debug(_tag, 'Notification local timezone configured: $timeZoneName');
+      } catch (e) {
+        LogService.debug(_tag, 'Could not determine local timezone via FlutterTimezone: $e');
+      }
 
       if (!_isSupportedPlatform) {
         LogService.debug(_tag, 'NotificationService skipped on unsupported/test platform.');

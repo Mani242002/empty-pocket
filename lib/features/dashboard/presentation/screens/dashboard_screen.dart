@@ -226,7 +226,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
 
               const SliverToBoxAdapter(
-                child: SizedBox(height: 32),
+                child: SizedBox(height: 88),
               ),
             ],
           ),

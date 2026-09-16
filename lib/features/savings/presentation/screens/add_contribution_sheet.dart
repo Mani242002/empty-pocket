@@ -261,8 +261,8 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
                     fontWeight: FontWeight.w800,
                     color: financialColors.income,
                   ),
-                  decoration: const InputDecoration(
-                    prefixText: '₹ ',
+                  decoration: InputDecoration(
+                    prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                     hintText: '5,000',
                   ),
                   validator: (val) =>
@@ -287,6 +287,8 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
                             ),
                             onPressed: () {
                               _amountController.text = amt.toString();
+                              _amountController.selection =
+                                  TextSelection.collapsed(offset: _amountController.text.length);
                             },
                           ),
                         );
@@ -304,6 +306,8 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
                             ),
                             onPressed: () {
                               _amountController.text = remaining.toStringAsFixed(0);
+                              _amountController.selection =
+                                  TextSelection.collapsed(offset: _amountController.text.length);
                             },
                           ),
                         ),

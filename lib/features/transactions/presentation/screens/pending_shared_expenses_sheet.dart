@@ -672,8 +672,8 @@ class _PendingSharedExpensesSheetState
                           fontWeight: FontWeight.w800,
                           color: financialColors.income,
                         ),
-                        decoration: const InputDecoration(
-                          prefixText: '₹ ',
+                        decoration: InputDecoration(
+                          prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                           hintText: '1,500',
                         ),
                         validator: (val) {

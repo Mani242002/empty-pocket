@@ -357,8 +357,8 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                                   fontWeight: FontWeight.w800,
                                   color: financialColors.expense,
                                 ),
-                                decoration: const InputDecoration(
-                                  prefixText: '₹ ',
+                                decoration: InputDecoration(
+                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '5,00,000',
                                 ),
                                 onChanged: (_) => _calculateEmi(),
@@ -391,8 +391,8 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
-                                decoration: const InputDecoration(
-                                  prefixText: '₹ ',
+                                decoration: InputDecoration(
+                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '5,00,000',
                                 ),
                               ),
@@ -494,8 +494,8 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                                   fontWeight: FontWeight.w800,
                                   color: financialColors.warning,
                                 ),
-                                decoration: const InputDecoration(
-                                  prefixText: '₹ ',
+                                decoration: InputDecoration(
+                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '15,780',
                                 ),
                                 validator: (val) =>

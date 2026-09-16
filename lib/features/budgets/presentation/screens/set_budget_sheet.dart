@@ -157,6 +157,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
     final isDark = theme.brightness == Brightness.dark;
     final categories = CategoryConstants.expenseCategories;
     final monthLabel = DateFormat('MMMM yyyy').format(_targetMonth);
+    final currencySymbol = CurrencyFormatter.activeCurrency.symbol;
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -253,7 +254,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
                     prefixIcon: Padding(
                       padding: const EdgeInsets.only(left: 16, right: 8),
                       child: Text(
-                        '₹',
+                        currencySymbol,
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
@@ -284,7 +285,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ActionChip(
-                          label: Text('₹$amount'),
+                          label: Text('$currencySymbol$amount'),
                           labelStyle: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -292,6 +293,8 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
                           ),
                           onPressed: () {
                             _amountController.text = amount.toString();
+                            _amountController.selection =
+                                TextSelection.collapsed(offset: _amountController.text.length);
                           },
                         ),
                       );

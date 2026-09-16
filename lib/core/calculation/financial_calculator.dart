@@ -628,8 +628,8 @@ abstract class FinancialCalculator {
 
   /// Calculate Debt-to-Income (DTI) ratio percentage: (Total Monthly EMI / Monthly Income) * 100
   static double calculateDebtToIncomeRatio(double totalMonthlyEmi, double monthlyIncome) {
-    if (monthlyIncome <= 0) return 0.0;
-    return (totalMonthlyEmi / monthlyIncome) * 100;
+    if (monthlyIncome <= 0 || totalMonthlyEmi <= 0) return 0.0;
+    return roundMoney((totalMonthlyEmi / monthlyIncome) * 100);
   }
 
   // --- Milestone 6: Investments & Asset Allocation Calculations ---

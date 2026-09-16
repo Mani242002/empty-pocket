@@ -667,7 +667,7 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
                     prefixIcon: Padding(
                       padding: const EdgeInsets.only(left: 16, right: 8),
                       child: Text(
-                        '₹',
+                        CurrencyFormatter.activeCurrency.symbol,
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,

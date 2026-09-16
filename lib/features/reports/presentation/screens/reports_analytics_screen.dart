@@ -7,7 +7,6 @@ import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/reports_entity.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
-import '../../../ai_assistant/presentation/screens/ai_assistant_screen.dart';
 import '../../../ai_assistant/presentation/screens/ai_chat_screen.dart';
 import '../../../ai_assistant/presentation/screens/ai_reports_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
@@ -54,7 +53,7 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
             tooltip: 'PocketAI Advisor',
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+                MaterialPageRoute(builder: (_) => const AiChatScreen()),
               );
             },
           ),

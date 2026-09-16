@@ -325,19 +325,19 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                       fontWeight: FontWeight.w800,
                       color: const Color(0xFF6366F1),
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       prefixIcon: Padding(
-                        padding: EdgeInsets.only(left: 16, right: 8),
+                        padding: const EdgeInsets.only(left: 16, right: 8),
                         child: Text(
-                          '₹',
-                          style: TextStyle(
+                          CurrencyFormatter.activeCurrency.symbol,
+                          style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF6366F1),
                           ),
                         ),
                       ),
-                      prefixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
+                      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                       hintText: '0.00',
                     ),
                     validator: (val) {
@@ -359,6 +359,7 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                             labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                             onPressed: () {
                               _amountController.text = selectedCard.usedAmount.toStringAsFixed(0);
+                              _amountController.selection = TextSelection.collapsed(offset: _amountController.text.length);
                             },
                           ),
                           const SizedBox(width: 8),
@@ -369,6 +370,7 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                               onPressed: () {
                                 final minDue = (selectedCard.usedAmount * 0.05).clamp(500, selectedCard.usedAmount);
                                 _amountController.text = minDue.toStringAsFixed(0);
+                                _amountController.selection = TextSelection.collapsed(offset: _amountController.text.length);
                               },
                             ),
                         ],

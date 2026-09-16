@@ -484,8 +484,8 @@ class _AddEditCreditCardSheetState
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                                 ],
-                                decoration: const InputDecoration(
-                                  prefixText: '₹ ',
+                                decoration: InputDecoration(
+                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '200000',
                                 ),
                                 validator: (val) {
@@ -519,8 +519,8 @@ class _AddEditCreditCardSheetState
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                                 ],
-                                decoration: const InputDecoration(
-                                  prefixText: '₹ ',
+                                decoration: InputDecoration(
+                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '0',
                                 ),
                                 onChanged: (_) => setState(() {}),

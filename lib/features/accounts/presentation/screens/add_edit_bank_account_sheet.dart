@@ -459,7 +459,7 @@ class _AddEditBankAccountSheetState
                       prefixIcon: Padding(
                         padding: const EdgeInsets.only(left: 16, right: 8),
                         child: Text(
-                          '₹',
+                          CurrencyFormatter.activeCurrency.symbol,
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
