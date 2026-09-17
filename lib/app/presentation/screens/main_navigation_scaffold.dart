@@ -332,12 +332,14 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
           index: _currentIndex,
           children: screens,
         ),
-        floatingActionButton: FloatingActionButton(
-          heroTag: 'main_quick_add_fab',
-          onPressed: _showQuickAddBottomSheet,
-          tooltip: 'Quick Add',
-          child: const Icon(Icons.add_rounded, size: 28),
-        ),
+        floatingActionButton: _currentIndex == 4
+            ? null
+            : FloatingActionButton(
+                heroTag: 'main_quick_add_fab',
+                onPressed: _showQuickAddBottomSheet,
+                tooltip: 'Quick Add',
+                child: const Icon(Icons.add_rounded, size: 28),
+              ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _currentIndex,
           onDestinationSelected: _onTabSelected,

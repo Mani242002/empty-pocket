@@ -417,6 +417,7 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
                       child: Row(
                         children: [
                           Expanded(
+                            flex: 5,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -434,30 +435,33 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  '${isPositive ? '+' : ''}${CurrencyFormatter.format(f.projectedNetCash)}/mo',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    color: isPositive ? financialColors.income : financialColors.expense,
+                          Flexible(
+                            flex: 4,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    '${isPositive ? '+' : ''}${CurrencyFormatter.format(f.projectedNetCash)}/mo',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: isPositive ? financialColors.income : financialColors.expense,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  'Est. Balance: ${CurrencyFormatter.format(f.projectedCumulativeBalance)}',
-                                  style: TextStyle(fontSize: 11, color: financialColors.textMuted, fontWeight: FontWeight.w600),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    'Est. Balance: ${CurrencyFormatter.format(f.projectedCumulativeBalance)}',
+                                    style: TextStyle(fontSize: 11, color: financialColors.textMuted, fontWeight: FontWeight.w600),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -577,10 +581,15 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Account-Wise Outflow Breakdown',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            Expanded(
+              child: Text(
+                'Account-Wise Outflow Breakdown',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
+            const SizedBox(width: 8),
             Text(
               '${outflows.length} Sources',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: financialColors.textMuted),
@@ -705,28 +714,35 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'CAPITAL PRESERVATION RATE',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.1,
-                          color: Color(0xFF818CF8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'CAPITAL PRESERVATION RATE',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                              color: Color(0xFF818CF8),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${wealth.wealthBuildingRate.toStringAsFixed(1)}%',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: const Color(0xFF6366F1),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${wealth.wealthBuildingRate.toStringAsFixed(1)}%',
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFF6366F1),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -940,15 +956,22 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Month-Over-Month Category Shifts',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            Text(
-              'vs Previous Month',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: financialColors.textMuted),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Month-Over-Month Category Shifts',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'vs Previous Month',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: financialColors.textMuted),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

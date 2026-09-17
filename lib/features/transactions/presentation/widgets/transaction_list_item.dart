@@ -166,61 +166,31 @@ class TransactionListItem extends StatelessWidget {
                       const SizedBox(height: 3),
                       Builder(
                         builder: (context) {
-                          final hasSource = transaction.paymentSource.trim().isNotEmpty;
+                          final source = transaction.paymentSource.trim();
                           final loan = transaction.category == 'Money Lent / Helping Friend'
                               ? LoanShareHelper.parseLoan(transaction.sharedWith)
                               : null;
 
+                          final parts = <String>[
+                            categoryItem.name,
+                            timeStr,
+                            if (source.isNotEmpty) source,
+                          ];
+
                           return Row(
                             children: [
-                              Flexible(
-                                flex: 3,
+                              Expanded(
                                 child: Text(
-                                  categoryItem.name,
+                                  parts.join(' • '),
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: financialColors.textMuted,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w500,
+                                    color: financialColors.textMuted,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '• $timeStr',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  fontSize: 11,
-                                  color: financialColors.textMuted,
-                                ),
-                              ),
-                              if (hasSource) ...[
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  flex: 4,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? AppColors.darkSurfaceVariant
-                                          : AppColors.lightSurfaceVariant,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: financialColors.cardBorder.withAlpha(90)),
-                                    ),
-                                    child: Text(
-                                      transaction.paymentSource.trim(),
-                                      style: theme.textTheme.labelSmall?.copyWith(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark
-                                            ? AppColors.darkTextSecondary
-                                            : AppColors.lightTextSecondary,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-                              ],
                               if (transaction.category == 'Money Lent / Helping Friend') ...[
                                 const SizedBox(width: 4),
                                 Icon(

@@ -111,15 +111,20 @@ class DashboardAccountsCard extends ConsumerWidget {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'BANK ACCOUNTS',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: financialColors.textMuted,
-                                      letterSpacing: 0.8,
+                                  Expanded(
+                                    child: Text(
+                                      'BANK ACCOUNTS',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: financialColors.textMuted,
+                                        letterSpacing: 0.8,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  const SizedBox(width: 4),
                                   const Icon(Icons.account_balance_rounded, size: 14, color: AppColors.primaryEmerald),
                                 ],
                               ),
@@ -172,15 +177,20 @@ class DashboardAccountsCard extends ConsumerWidget {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'CREDIT CARDS',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: financialColors.textMuted,
-                                      letterSpacing: 0.8,
+                                  Expanded(
+                                    child: Text(
+                                      'CREDIT CARDS',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: financialColors.textMuted,
+                                        letterSpacing: 0.8,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  const SizedBox(width: 4),
                                   const Icon(Icons.credit_card_rounded, size: 14, color: Color(0xFF6366F1)),
                                 ],
                               ),
