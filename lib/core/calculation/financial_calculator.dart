@@ -189,14 +189,6 @@ abstract class FinancialCalculator {
     return calculateTotalExpense(transactions, netPersonalOnly: false);
   }
 
-  /// Calculate total reimbursement funds received back from friends/roommates
-  static double calculateTotalReimbursements(List<TransactionEntity> transactions) {
-    final total = transactions
-        .where((t) => t.type == TransactionType.income && t.category == 'Shared Expense Reimbursement')
-        .fold(0.0, (sum, t) => sum + t.amount);
-    return roundMoney(total);
-  }
-
   /// Calculate total pending reimbursements yet to be collected across all active shared expenses
   static double calculatePendingReimbursements(List<TransactionEntity> transactions) {
     final total = transactions

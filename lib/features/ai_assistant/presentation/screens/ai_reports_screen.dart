@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
+import '../../../../core/utilities/currency_formatter.dart';
 import '../state/ai_assistant_provider.dart';
 import 'ai_settings_screen.dart';
 
@@ -696,9 +697,9 @@ class _NewReportBottomSheetState extends State<_NewReportBottomSheet> {
               const SizedBox(height: 8),
               TextField(
                 controller: _customPromptController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g. Can I afford to buy a ₹40,000 laptop in 2 months?',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Can I afford to buy a ${CurrencyFormatter.currentSymbol}40,000 laptop in 2 months?',
+                  border: const OutlineInputBorder(),
                 ),
                 maxLines: 2,
               ),

@@ -68,21 +68,33 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
       return;
     }
 
-    await ref.read(investmentListNotifierProvider.notifier).updateValuation(
-          investment: widget.investment,
-          newCurrentValue: newVal,
-        );
+    try {
+      await ref.read(investmentListNotifierProvider.notifier).updateValuation(
+            investment: widget.investment,
+            newCurrentValue: newVal,
+          );
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Updated "${widget.investment.name}" valuation to ${CurrencyFormatter.format(newVal)}.',
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Updated "${widget.investment.name}" valuation to ${CurrencyFormatter.format(newVal)}.',
+            ),
+            behavior: SnackBarBehavior.floating,
           ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update valuation: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 

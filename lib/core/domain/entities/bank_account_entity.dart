@@ -107,26 +107,23 @@ abstract class AccountPurposeTags {
     if (accounts.isEmpty) return null;
     final catLower = category.toLowerCase();
 
-    // 1. Insurance Premiums -> SBI (Investments & Insurance or Investments)
+    // 1. Insurance Premiums -> (Investments & Insurance or Investments)
     if (catLower.contains('insurance')) {
       final match = accounts.where((a) =>
           a.usedFor == investmentsAndInsurance ||
           a.usedFor.toLowerCase().contains('insurance') ||
-          a.bankName.toLowerCase().contains('sbi') ||
-          a.accountName.toLowerCase().contains('sbi') ||
           a.usedFor == investments ||
           a.usedFor.toLowerCase().contains('investment')).firstOrNull;
       if (match != null) return match;
     }
 
-    // 2. Investments & SIP -> SBI (Investments or Investments & Insurance)
+    // 2. Investments & SIP -> (Investments or Investments & Insurance)
     if (catLower.contains('investment') || catLower.contains('sip') || catLower.contains('mutual fund')) {
       final match = accounts.where((a) =>
           a.usedFor == investments ||
           a.usedFor == investmentsAndInsurance ||
-          a.bankName.toLowerCase().contains('sbi') ||
-          a.accountName.toLowerCase().contains('sbi') ||
-          a.usedFor.toLowerCase().contains('investment')).firstOrNull;
+          a.usedFor.toLowerCase().contains('investment') ||
+          a.usedFor.toLowerCase().contains('insurance')).firstOrNull;
       if (match != null) return match;
     }
 

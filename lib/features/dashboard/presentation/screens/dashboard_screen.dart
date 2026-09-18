@@ -65,21 +65,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.primaryEmerald,
-          backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          onRefresh: () async {
-            HapticFeedback.lightImpact();
-            ref.invalidate(transactionListNotifierProvider);
-            ref.invalidate(bankAccountListProvider);
-            ref.invalidate(creditCardListProvider);
-            ref.invalidate(budgetListNotifierProvider);
-            ref.invalidate(recurringListNotifierProvider);
-            ref.invalidate(savingsGoalsListNotifierProvider);
-            ref.invalidate(debtListNotifierProvider);
-            ref.invalidate(investmentListNotifierProvider);
-          },
-          child: CustomScrollView(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: RefreshIndicator(
+              color: AppColors.primaryEmerald,
+              backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+              onRefresh: () async {
+                HapticFeedback.lightImpact();
+                ref.invalidate(transactionListNotifierProvider);
+                ref.invalidate(bankAccountListProvider);
+                ref.invalidate(creditCardListProvider);
+                ref.invalidate(budgetListNotifierProvider);
+                ref.invalidate(recurringListNotifierProvider);
+                ref.invalidate(savingsGoalsListNotifierProvider);
+                ref.invalidate(debtListNotifierProvider);
+                ref.invalidate(investmentListNotifierProvider);
+              },
+              child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             slivers: [
               // Top App Bar Header
@@ -232,6 +235,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

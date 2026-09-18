@@ -165,30 +165,42 @@ class _AddEditSavingsGoalSheetState
       updatedAt: now,
     );
 
-    if (!_isEditMode && finalCurrent > 0 && !_autoSyncAccount) {
-      final bankAccounts = ref.read(activeBankAccountsProvider);
-      final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
-      final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
+    try {
+      if (!_isEditMode && finalCurrent > 0 && !_autoSyncAccount) {
+        final bankAccounts = ref.read(activeBankAccountsProvider);
+        final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+        final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
 
-      await ref.read(savingsGoalsListNotifierProvider.notifier).createGoalWithInitialDeposit(
-            goal: goal,
-            initialAmount: finalCurrent,
-            deductFromAccount: _deductInitialFromAccount,
-            accountId: _deductInitialFromAccount ? _selectedAccountId : null,
-            paymentSource: paymentSource,
-          );
-    } else {
-      await ref.read(savingsGoalsListNotifierProvider.notifier).saveGoal(goal);
-    }
+        await ref.read(savingsGoalsListNotifierProvider.notifier).createGoalWithInitialDeposit(
+              goal: goal,
+              initialAmount: finalCurrent,
+              deductFromAccount: _deductInitialFromAccount,
+              accountId: _deductInitialFromAccount ? _selectedAccountId : null,
+              paymentSource: paymentSource,
+            );
+      } else {
+        await ref.read(savingsGoalsListNotifierProvider.notifier).saveGoal(goal);
+      }
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Saved goal "${goal.title}" (${CurrencyFormatter.format(goal.targetAmount)} target).'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved goal "${goal.title}" (${CurrencyFormatter.format(goal.targetAmount)} target).'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save savings goal: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 
@@ -215,18 +227,30 @@ class _AddEditSavingsGoalSheetState
     );
 
     if (confirmed == true && mounted) {
-      await ref
-          .read(savingsGoalsListNotifierProvider.notifier)
-          .deleteGoal(widget.initialGoal!.id);
+      try {
+        await ref
+            .read(savingsGoalsListNotifierProvider.notifier)
+            .deleteGoal(widget.initialGoal!.id);
 
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Savings goal deleted.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Savings goal deleted.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete savings goal: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.expense,
+            ),
+          );
+        }
       }
     }
   }

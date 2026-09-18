@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
+import '../../../../core/utilities/currency_formatter.dart';
 import '../state/ai_assistant_provider.dart';
 import 'ai_settings_screen.dart';
 
@@ -584,10 +585,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 children: [
                   ActionChip(
                     avatar: const Icon(Icons.shopping_bag_outlined, size: 15),
-                    label: const Text('Can I afford ₹15k trip?'),
+                    label: Text('Can I afford ${CurrencyFormatter.currentSymbol}15k trip?'),
                     onPressed: isGenerating
                         ? null
-                        : () => _sendMessage('Based on my current cash balance, expenses, and safety runway, can I afford a ₹15,000 trip next month?'),
+                        : () => _sendMessage('Based on my current cash balance, expenses, and safety runway, can I afford a ${CurrencyFormatter.currentSymbol}15,000 trip next month?'),
                   ),
                   const SizedBox(width: 8),
                   ActionChip(

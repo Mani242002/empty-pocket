@@ -271,18 +271,30 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     onPressed: () async {
-                      // Trigger goal sync for any linked goals
-                      await ref.read(savingsGoalsListNotifierProvider.notifier).syncGoalsForAccount(widget.account.id);
-                      if (context.mounted) {
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Smart distribution applied: ${CurrencyFormatter.format(primaryAmount)} to $primaryLabel, ${CurrencyFormatter.format(secondaryAmount)} to $secondaryLabel, ${CurrencyFormatter.format(idleAmount)} idle buffer.',
+                      try {
+                        // Trigger goal sync for any linked goals
+                        await ref.read(savingsGoalsListNotifierProvider.notifier).syncGoalsForAccount(widget.account.id);
+                        if (context.mounted) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Smart distribution applied: ${CurrencyFormatter.format(primaryAmount)} to $primaryLabel, ${CurrencyFormatter.format(secondaryAmount)} to $secondaryLabel, ${CurrencyFormatter.format(idleAmount)} idle buffer.',
+                              ),
+                              behavior: SnackBarBehavior.floating,
                             ),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to apply distribution plan: $e'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: AppColors.expense,
+                            ),
+                          );
+                        }
                       }
                     },
                     child: const Text(

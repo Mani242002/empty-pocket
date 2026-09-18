@@ -586,26 +586,46 @@ class _AddEditTransactionSheetState
         updatedAt: now,
       );
 
-      // 2. Apply updated transaction impact
-      await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
-        ref,
-        updated,
-      );
-
-      await ref
-          .read(transactionListNotifierProvider.notifier)
-          .updateTransaction(updated);
-
-      AppHaptics.success();
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Updated "${updated.title}" successfully.'),
-            behavior: SnackBarBehavior.floating,
-          ),
+      try {
+        // 2. Apply updated transaction impact
+        await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
+          ref,
+          updated,
         );
+
+        await ref
+            .read(transactionListNotifierProvider.notifier)
+            .updateTransaction(updated);
+
+        AppHaptics.success();
+
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Updated "${updated.title}" successfully.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        // Rollback: restore previous transaction impact if update failed
+        try {
+          await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
+            ref,
+            prevTx,
+            isRevert: false,
+          );
+        } catch (_) {}
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update transaction: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: context.financialColors.expense,
+            ),
+          );
+        }
       }
     } else {
       // If logging income as reimbursement payback for a shared expense
@@ -621,32 +641,42 @@ class _AddEditTransactionSheetState
           return;
         }
 
-        await ref.read(transactionListNotifierProvider.notifier).settleSharedExpense(
-              transactionId: _selectedSharedExpenseToSettle!.id,
-              amountReceived: amount,
-              destinationAccountId: destAccountId,
-              notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-            );
+        try {
+          await ref.read(transactionListNotifierProvider.notifier).settleSharedExpense(
+                transactionId: _selectedSharedExpenseToSettle!.id,
+                amountReceived: amount,
+                destinationAccountId: destAccountId,
+                notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+              );
 
-        AppHaptics.success();
-        if (mounted) {
-          Navigator.of(context).pop();
-          final origCardId = _selectedSharedExpenseToSettle!.creditCardId;
-          final isCreditCard = origCardId != null;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Recorded ${CurrencyFormatter.format(amount)} reimbursement for "${_selectedSharedExpenseToSettle!.title}".'
-                '${isCreditCard ? " Deposited to bank and earmarked for credit card bill." : ""}',
+          AppHaptics.success();
+          if (mounted) {
+            Navigator.of(context).pop();
+            final origCardId = _selectedSharedExpenseToSettle!.creditCardId;
+            final isCreditCard = origCardId != null;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Recorded ${CurrencyFormatter.format(amount)} reimbursement for "${_selectedSharedExpenseToSettle!.title}".'
+                  '${isCreditCard ? " Deposited to bank and earmarked for credit card bill." : ""}',
+                ),
+                behavior: SnackBarBehavior.floating,
               ),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to record reimbursement: $e'),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: context.financialColors.expense,
+              ),
+            );
+          }
         }
         return;
       }
-
-
 
       final isExpense = _selectedType == TransactionType.expense;
       final isMoneyLent = isExpense && _selectedCategory == 'Money Lent / Helping Friend';
@@ -722,26 +752,46 @@ class _AddEditTransactionSheetState
         updatedAt: now,
       );
 
-      // Apply new transaction balance impact
-      await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
-        ref,
-        newTx,
-      );
-
-      await ref
-          .read(transactionListNotifierProvider.notifier)
-          .addTransaction(newTx);
-
-      AppHaptics.success();
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Added "${newTx.title}" (${CurrencyFormatter.format(newTx.amount)}).'),
-            behavior: SnackBarBehavior.floating,
-          ),
+      try {
+        // Apply new transaction balance impact
+        await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
+          ref,
+          newTx,
         );
+
+        await ref
+            .read(transactionListNotifierProvider.notifier)
+            .addTransaction(newTx);
+
+        AppHaptics.success();
+
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added "${newTx.title}" (${CurrencyFormatter.format(newTx.amount)}).'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        // Rollback balance impact if adding transaction failed
+        try {
+          await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
+            ref,
+            newTx,
+            isRevert: true,
+          );
+        } catch (_) {}
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to save transaction: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: context.financialColors.expense,
+            ),
+          );
+        }
       }
     }
   }
@@ -775,18 +825,30 @@ class _AddEditTransactionSheetState
 
     if (confirmed == true && mounted) {
       final tx = widget.initialTransaction!;
-      await ref
-          .read(transactionListNotifierProvider.notifier)
-          .deleteTransaction(tx.id);
+      try {
+        await ref
+            .read(transactionListNotifierProvider.notifier)
+            .deleteTransaction(tx.id);
 
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Deleted "${tx.title}" successfully.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Deleted "${tx.title}" successfully.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete transaction: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: context.financialColors.expense,
+            ),
+          );
+        }
       }
     }
   }
@@ -2344,21 +2406,30 @@ class _AddEditTransactionSheetState
                         borderRadius: BorderRadius.circular(7),
                       ),
                       alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.percent_rounded,
                             size: 15,
                             color: _isInterestPercentage ? Colors.white : financialColors.textMuted,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '% Rate (Interest)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: _isInterestPercentage ? Colors.white : financialColors.textMuted,
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '% Rate (Interest)',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _isInterestPercentage ? Colors.white : financialColors.textMuted,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -2381,21 +2452,30 @@ class _AddEditTransactionSheetState
                         borderRadius: BorderRadius.circular(7),
                       ),
                       alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.currency_rupee_rounded,
+                            Icons.payments_rounded,
                             size: 15,
                             color: !_isInterestPercentage ? Colors.white : financialColors.textMuted,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${CurrencyFormatter.activeCurrency.symbol} Flat (Fixed Extra)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: !_isInterestPercentage ? Colors.white : financialColors.textMuted,
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '${CurrencyFormatter.activeCurrency.symbol} Flat (Fixed Extra)',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: !_isInterestPercentage ? Colors.white : financialColors.textMuted,
+                                ),
+                              ),
                             ),
                           ),
                         ],

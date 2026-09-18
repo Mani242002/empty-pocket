@@ -144,25 +144,37 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
       updatedAt: now,
     );
 
-    final bankAccounts = ref.read(activeBankAccountsProvider);
-    final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
-    final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
+    try {
+      final bankAccounts = ref.read(activeBankAccountsProvider);
+      final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+      final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
 
-    await ref.read(investmentListNotifierProvider.notifier).saveInvestment(
-          investment,
-          logAsTransaction: !_isEditMode && _fundFromAccount,
-          paymentSource: paymentSource,
-          accountId: (!_isEditMode && _fundFromAccount) ? _selectedAccountId : null,
+      await ref.read(investmentListNotifierProvider.notifier).saveInvestment(
+            investment,
+            logAsTransaction: !_isEditMode && _fundFromAccount,
+            paymentSource: paymentSource,
+            accountId: (!_isEditMode && _fundFromAccount) ? _selectedAccountId : null,
+          );
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved "${investment.name}" in ${investment.assetClass.displayName}.'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
-
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Saved "${investment.name}" in ${investment.assetClass.displayName}.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save investment: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 
@@ -189,16 +201,28 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
     );
 
     if (confirmed == true && mounted) {
-      await ref.read(investmentListNotifierProvider.notifier).deleteInvestment(widget.initialInvestment!.id);
+      try {
+        await ref.read(investmentListNotifierProvider.notifier).deleteInvestment(widget.initialInvestment!.id);
 
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Investment holding removed.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Investment holding removed.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete investment: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.expense,
+            ),
+          );
+        }
       }
     }
   }

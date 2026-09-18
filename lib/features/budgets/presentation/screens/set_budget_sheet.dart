@@ -96,18 +96,30 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
       updatedAt: now,
     );
 
-    await ref.read(budgetListNotifierProvider.notifier).saveBudget(budget);
+    try {
+      await ref.read(budgetListNotifierProvider.notifier).saveBudget(budget);
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Budget limit of ${CurrencyFormatter.format(limit)} set for $_selectedCategory (${DateFormat('MMMM yyyy').format(budgetMonth)}).',
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Budget limit of ${CurrencyFormatter.format(limit)} set for $_selectedCategory (${DateFormat('MMMM yyyy').format(budgetMonth)}).',
+            ),
+            behavior: SnackBarBehavior.floating,
           ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save budget: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 
@@ -134,18 +146,30 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
     );
 
     if (confirmed == true && mounted) {
-      await ref
-          .read(budgetListNotifierProvider.notifier)
-          .deleteBudget(widget.initialBudget!.id);
+      try {
+        await ref
+            .read(budgetListNotifierProvider.notifier)
+            .deleteBudget(widget.initialBudget!.id);
 
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Budget limit deleted.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Budget limit deleted.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete budget: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.expense,
+            ),
+          );
+        }
       }
     }
   }

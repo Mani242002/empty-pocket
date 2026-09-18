@@ -79,11 +79,6 @@ class AppDatabase {
     }
   }
 
-  /// Reset initialization retry count to unblock reconnection attempts
-  void resetInitRetryCount() {
-    _initRetryCount = 0;
-  }
-
   Future<Database> _initDatabase() async {
     final databasesPath = await getDatabasesPath();
     final path = join(databasesPath, _databaseName);
@@ -92,6 +87,12 @@ class AppDatabase {
       path,
       version: _databaseVersion,
       onConfigure: (db) async {
+        try {
+          // Prevent multi-engine/isolate lock contention by waiting up to 5s
+          await db.execute('PRAGMA busy_timeout = 5000');
+        } catch (e, st) {
+          LogService.warning('AppDatabase', 'Failed to set busy_timeout pragma: $e', e, st);
+        }
         try {
           // Enforce SQLite Foreign Key constraints
           await db.execute('PRAGMA foreign_keys = ON');

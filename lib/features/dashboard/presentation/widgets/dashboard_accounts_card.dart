@@ -141,6 +141,8 @@ class DashboardAccountsCard extends ConsumerWidget {
                               const SizedBox(height: 4),
                               Text(
                                 '${bankAccounts.length} Accounts active',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: financialColors.textMuted,
@@ -209,6 +211,8 @@ class DashboardAccountsCard extends ConsumerWidget {
                                 creditCards.isNotEmpty
                                     ? '${creditSummary.overallUtilizationRatio.toStringAsFixed(0)}% limit used'
                                     : 'No cards added',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: creditCards.isNotEmpty ? creditSummary.overallHealth.color : financialColors.textMuted,
@@ -231,10 +235,14 @@ class DashboardAccountsCard extends ConsumerWidget {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                         icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-                        label: const Text('Transfer', style: TextStyle(fontSize: 12)),
+                        label: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Transfer', style: TextStyle(fontSize: 12), maxLines: 1),
+                        ),
                         onPressed: () => AccountTransferSheet.show(context),
                       ),
                     ),
@@ -243,10 +251,14 @@ class DashboardAccountsCard extends ConsumerWidget {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                         icon: const Icon(Icons.credit_score_rounded, size: 16),
-                        label: const Text('Pay Card', style: TextStyle(fontSize: 12)),
+                        label: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Pay Card', style: TextStyle(fontSize: 12), maxLines: 1),
+                        ),
                         onPressed: () => PayCreditCardSheet.show(context),
                       ),
                     ),

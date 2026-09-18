@@ -63,4 +63,48 @@ Part 2 of answer.''';
       expect(AiService.stripThinkingTags(input), equals('Hello! How can I help you?'));
     });
   });
+
+  group('AiService.parseAuditResponse', () {
+    test('extracts executive overview, strengths, risks, and recommendations accurately', () {
+      const sampleLlmResponse = '''
+EXECUTIVE OVERVIEW
+Your overall cash balance is stable with a healthy savings rate of 35%.
+
+KEY STRENGTHS
+* Consistent monthly investments in mutual funds.
+* Emergency reserve covers over 4 months of essential expenses.
+* No overdue debt or credit card rollover interest.
+
+RISK FLAGS
+- High dining out expenses exceeding monthly budget by 15%.
+- Unhedged liability balance on personal loan.
+
+ACTIONABLE RECOMMENDATIONS
+1. Automate SIP transfers on salary day.
+2. Reduce discretionary dining expenses by 10%.
+3. Prepay high-interest personal loan principal.
+''';
+
+      final report = AiService.parseAuditResponse(sampleLlmResponse);
+
+      expect(report.overview, contains('Your overall cash balance is stable'));
+      expect(report.strengths.length, equals(3));
+      expect(report.strengths.first, contains('Consistent monthly investments'));
+      expect(report.risks.length, equals(2));
+      expect(report.risks.first, contains('High dining out expenses'));
+      expect(report.recommendations.length, equals(3));
+      expect(report.recommendations.first, contains('Automate SIP transfers'));
+    });
+
+    test('falls back gracefully to safe defaults when LLM output lacks explicit headings', () {
+      const unstructuredText = 'You are doing great with your money. Keep saving consistently.';
+
+      final report = AiService.parseAuditResponse(unstructuredText);
+
+      expect(report.overview, contains('You are doing great with your money'));
+      expect(report.strengths, isNotEmpty);
+      expect(report.risks, isNotEmpty);
+      expect(report.recommendations, isNotEmpty);
+    });
+  });
 }

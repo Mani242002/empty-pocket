@@ -120,53 +120,65 @@ class _AddEditCreditCardSheetState
 
     final now = DateTime.now();
 
-    if (_isEditMode) {
-      final updated = widget.initialCard!.copyWith(
-        cardName: cardName,
-        bankName: bankName,
-        cardNetwork: _selectedNetwork,
-        creditLimit: limit,
-        usedAmount: used,
-        statementDateDay: _selectedStatementDay,
-        gracePeriodDays: _selectedGracePeriod,
-        cardTheme: _selectedTheme,
-        updatedAt: now,
-      );
-
-      await ref.read(creditCardListProvider.notifier).saveCard(updated);
-
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Updated "${updated.cardName}"'),
-            behavior: SnackBarBehavior.floating,
-          ),
+    try {
+      if (_isEditMode) {
+        final updated = widget.initialCard!.copyWith(
+          cardName: cardName,
+          bankName: bankName,
+          cardNetwork: _selectedNetwork,
+          creditLimit: limit,
+          usedAmount: used,
+          statementDateDay: _selectedStatementDay,
+          gracePeriodDays: _selectedGracePeriod,
+          cardTheme: _selectedTheme,
+          updatedAt: now,
         );
+
+        await ref.read(creditCardListProvider.notifier).saveCard(updated);
+
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Updated "${updated.cardName}"'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        final newCard = CreditCardEntity(
+          id: const Uuid().v4(),
+          cardName: cardName,
+          bankName: bankName,
+          cardNetwork: _selectedNetwork,
+          creditLimit: limit,
+          usedAmount: used,
+          statementDateDay: _selectedStatementDay,
+          gracePeriodDays: _selectedGracePeriod,
+          cardTheme: _selectedTheme,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await ref.read(creditCardListProvider.notifier).saveCard(newCard);
+
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added "${newCard.cardName}" (${CurrencyFormatter.format(newCard.creditLimit)} limit)'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
-    } else {
-      final newCard = CreditCardEntity(
-        id: const Uuid().v4(),
-        cardName: cardName,
-        bankName: bankName,
-        cardNetwork: _selectedNetwork,
-        creditLimit: limit,
-        usedAmount: used,
-        statementDateDay: _selectedStatementDay,
-        gracePeriodDays: _selectedGracePeriod,
-        cardTheme: _selectedTheme,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      await ref.read(creditCardListProvider.notifier).saveCard(newCard);
-
+    } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Added "${newCard.cardName}" (${CurrencyFormatter.format(newCard.creditLimit)} limit)'),
+            content: Text('Failed to save credit card: $e'),
             behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
           ),
         );
       }
@@ -198,15 +210,27 @@ class _AddEditCreditCardSheetState
     );
 
     if (confirmed == true && mounted) {
-      await ref.read(creditCardListProvider.notifier).deleteCard(widget.initialCard!.id);
-      if (mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Credit card removed.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      try {
+        await ref.read(creditCardListProvider.notifier).deleteCard(widget.initialCard!.id);
+        if (mounted) {
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Credit card removed.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete credit card: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.expense,
+            ),
+          );
+        }
       }
     }
   }

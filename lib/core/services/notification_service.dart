@@ -142,6 +142,9 @@ class NotificationService {
         LogService.debug(_tag, 'Notification local timezone configured: $timeZoneName');
       } catch (e) {
         LogService.debug(_tag, 'Could not determine local timezone via FlutterTimezone: $e');
+        try {
+          tz.setLocalLocation(tz.getLocation('UTC'));
+        } catch (_) {}
       }
 
       if (!_isSupportedPlatform) {

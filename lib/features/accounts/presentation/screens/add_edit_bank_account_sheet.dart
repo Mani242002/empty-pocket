@@ -99,58 +99,70 @@ class _AddEditBankAccountSheetState
 
     final now = DateTime.now();
 
-    if (_isEditMode) {
-      final updated = widget.initialAccount!.copyWith(
-        accountName: accountName,
-        bankName: bankName,
-        accountType: _selectedType,
-        usedFor: usedFor,
-        currentBalance: balance,
-        isDefault: _isDefault,
-        updatedAt: now,
-      );
-
-      await ref.read(bankAccountListProvider.notifier).saveAccount(updated);
-
-      if (_isDefault) {
-        await ref.read(bankAccountListProvider.notifier).setDefaultAccount(updated.id);
-      }
-
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Updated "${updated.accountName}"'),
-            behavior: SnackBarBehavior.floating,
-          ),
+    try {
+      if (_isEditMode) {
+        final updated = widget.initialAccount!.copyWith(
+          accountName: accountName,
+          bankName: bankName,
+          accountType: _selectedType,
+          usedFor: usedFor,
+          currentBalance: balance,
+          isDefault: _isDefault,
+          updatedAt: now,
         );
+
+        await ref.read(bankAccountListProvider.notifier).saveAccount(updated);
+
+        if (_isDefault) {
+          await ref.read(bankAccountListProvider.notifier).setDefaultAccount(updated.id);
+        }
+
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Updated "${updated.accountName}"'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        final newAcc = BankAccountEntity(
+          id: const Uuid().v4(),
+          accountName: accountName,
+          bankName: bankName,
+          accountType: _selectedType,
+          usedFor: usedFor,
+          initialBalance: balance,
+          currentBalance: balance,
+          isDefault: _isDefault,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await ref.read(bankAccountListProvider.notifier).saveAccount(newAcc);
+
+        if (_isDefault) {
+          await ref.read(bankAccountListProvider.notifier).setDefaultAccount(newAcc.id);
+        }
+
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added "${newAcc.accountName}" (${CurrencyFormatter.format(newAcc.currentBalance)})'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
-    } else {
-      final newAcc = BankAccountEntity(
-        id: const Uuid().v4(),
-        accountName: accountName,
-        bankName: bankName,
-        accountType: _selectedType,
-        usedFor: usedFor,
-        initialBalance: balance,
-        currentBalance: balance,
-        isDefault: _isDefault,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      await ref.read(bankAccountListProvider.notifier).saveAccount(newAcc);
-
-      if (_isDefault) {
-        await ref.read(bankAccountListProvider.notifier).setDefaultAccount(newAcc.id);
-      }
-
+    } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Added "${newAcc.accountName}" (${CurrencyFormatter.format(newAcc.currentBalance)})'),
+            content: Text('Failed to save account: $e'),
             behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
           ),
         );
       }
@@ -182,15 +194,27 @@ class _AddEditBankAccountSheetState
     );
 
     if (confirmed == true && mounted) {
-      await ref.read(bankAccountListProvider.notifier).deleteAccount(widget.initialAccount!.id);
-      if (mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account deleted.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      try {
+        await ref.read(bankAccountListProvider.notifier).deleteAccount(widget.initialAccount!.id);
+        if (mounted) {
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account deleted.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete account: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.expense,
+            ),
+          );
+        }
       }
     }
   }

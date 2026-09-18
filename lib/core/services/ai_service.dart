@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../domain/entities/ai_assistant_entity.dart';
+import '../utilities/currency_formatter.dart';
 import 'log_service.dart';
 
 class AiService {
@@ -31,7 +32,9 @@ class AiService {
     required AiProviderConfig config,
     required String financialSummaryText,
   }) async {
-    const systemPrompt = '''
+    final currencySymbol = CurrencyFormatter.currentSymbol;
+    final currencyCode = CurrencyFormatter.activeCurrency.code;
+    final systemPrompt = '''
 You are an expert personal finance strategist and fiduciary advisor for EmptyPocket, a privacy-focused personal finance mobile app.
 Analyze the user's offline financial numbers objectively.
 Return a structured, insightful response with clear sections:
@@ -39,7 +42,7 @@ Return a structured, insightful response with clear sections:
 2. KEY STRENGTHS (3 specific bullet points highlighting what they are doing well)
 3. RISK FLAGS (2-3 specific risks or areas needing improvement)
 4. ACTIONABLE RECOMMENDATIONS (3 concrete, prioritized steps for this month)
-Keep the tone encouraging, realistic, and practical for Indian / global personal finance standards (mention ₹ amounts where relevant).
+Keep the tone encouraging, realistic, and practical for personal finance standards (mention $currencySymbol / $currencyCode amounts where relevant).
 ''';
 
     final userPrompt = '''
@@ -55,7 +58,7 @@ Please provide my comprehensive financial audit.
       userPrompt: userPrompt,
     );
 
-    return _parseAuditResponse(text);
+    return parseAuditResponse(text);
   }
 
   /// Generate a specialized markdown financial report based on report type
@@ -65,6 +68,7 @@ Please provide my comprehensive financial audit.
     required String financialContext,
     String? customPromptText,
   }) async {
+    final currencySymbol = CurrencyFormatter.currentSymbol;
     String systemPrompt;
     String userPrompt;
 
@@ -73,7 +77,7 @@ Please provide my comprehensive financial audit.
         systemPrompt = '''
 You are an expert personal finance fiduciary advisor.
 Analyze the user's offline financial summary and output a comprehensive Markdown report.
-Format with clean Markdown headings, bullet points, bold key figures (with ₹ amounts), and clear actionable insights.
+Format with clean Markdown headings, bullet points, bold key figures (with $currencySymbol amounts), and clear actionable insights.
 Include:
 ### 📊 Executive Summary
 ### 🌟 Key Strengths & Wins
@@ -91,7 +95,7 @@ Structure your output with:
 ### 📉 Expense Category Analysis
 ### 💡 Immediate Cost Reduction Opportunities
 ### ⚖️ Recommended 50/30/20 Budget Rebalancing
-Use clear markdown bullet points and exact ₹ amount recommendations.
+Use clear markdown bullet points and exact $currencySymbol amount recommendations.
 ''';
         userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease analyze my spending and optimize my monthly budget.';
         break;
@@ -104,7 +108,7 @@ Structure your output with:
 ### 💳 Debt Portfolio Overview & Debt-to-Income
 ### 🚀 Avalanche vs. Snowball Strategy Analysis
 ### 🗓️ Accelerated Payoff Roadmap
-Provide concrete payoff timeline estimates and interest-saving tips with ₹ amounts.
+Provide concrete payoff timeline estimates and interest-saving tips with $currencySymbol amounts.
 ''';
         userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease evaluate my debt liabilities and create an accelerated payoff strategy.';
         break;
@@ -169,6 +173,7 @@ Provide a clear, helpful, and insightful Markdown response answering the user's 
     required String userMessage,
     required String financialContext,
   }) async {
+    final currencySymbol = CurrencyFormatter.currentSymbol;
     final systemPrompt = '''
 You are "PocketAI", a helpful, friendly, and analytical personal finance assistant inside EmptyPocket.
 You have access to the user's private financial metrics (Income, Expenses, Budgets, Savings Goals, Loans/Liabilities, Investments, Net Worth, Health Score).
@@ -178,7 +183,7 @@ $financialContext
 Guidelines:
 - Format your response in clean, beautiful GitHub Markdown with bold text, bullet points, and headings where helpful.
 - Give concise, highly relevant, and mathematically grounded answers.
-- Use currency formatting (₹) when discussing amounts.
+- Use currency formatting ($currencySymbol) when discussing amounts.
 - If asked whether they can afford a purchase, evaluate their liquid balance, monthly savings, and emergency buffer before answering.
 - Be supportive, practical, and clear. Avoid robotic boilerplate.
 ''';
@@ -351,20 +356,30 @@ Guidelines:
     final data = jsonDecode(response.body);
     final candidates = data['candidates'] as List?;
     if (candidates == null || candidates.isEmpty) {
+      final promptFeedback = data['promptFeedback'];
+      if (promptFeedback != null && promptFeedback['blockReason'] != null) {
+        throw Exception('Prompt was blocked by Gemini safety filters: ${promptFeedback['blockReason']}');
+      }
       throw Exception('No response generated by Gemini model.');
     }
 
-    final parts = candidates.first['content']?['parts'] as List?;
-    if (parts == null || parts.isEmpty) {
-      throw Exception('Empty content returned by Gemini.');
+    final firstCandidate = candidates.first as Map<String, dynamic>;
+    final finishReason = firstCandidate['finishReason'];
+    if (finishReason == 'SAFETY') {
+      throw Exception('Gemini response was blocked by safety settings.');
     }
 
-    final text = parts.first['text'];
-    if (text == null) {
+    final parts = firstCandidate['content']?['parts'] as List?;
+    if (parts == null || parts.isEmpty) {
+      throw Exception('Empty content returned by Gemini (finish reason: $finishReason).');
+    }
+
+    final text = parts.map((p) => (p as Map<String, dynamic>)['text'] as String? ?? '').join('');
+    if (text.trim().isEmpty) {
       throw Exception('Gemini returned an empty text response. The content may have been filtered.');
     }
 
-    return text as String;
+    return text;
   }
 
   /// Groq OpenAI-Compatible REST API Implementation
@@ -442,7 +457,8 @@ Guidelines:
     return content as String;
   }
 
-  AiAuditReport _parseAuditResponse(String text) {
+  /// Parses raw LLM text into a structured AiAuditReport
+  static AiAuditReport parseAuditResponse(String text) {
     final lines = text.split('\n');
     final List<String> strengths = [];
     final List<String> risks = [];

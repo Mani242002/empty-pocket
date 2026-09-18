@@ -73,25 +73,37 @@ class _RecordDebtPaymentSheetState
     final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
     final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
 
-    await ref.read(debtListNotifierProvider.notifier).recordPayment(
-          debt: widget.debt,
-          amount: amount,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-          logAsTransaction: _deductAndLog,
-          paymentSource: paymentSource,
-          accountId: _deductAndLog ? _selectedAccountId : null,
-        );
+    try {
+      await ref.read(debtListNotifierProvider.notifier).recordPayment(
+            debt: widget.debt,
+            amount: amount,
+            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            logAsTransaction: _deductAndLog,
+            paymentSource: paymentSource,
+            accountId: _deductAndLog ? _selectedAccountId : null,
+          );
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Recorded ${CurrencyFormatter.format(amount)} payment for "${widget.debt.title}".',
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Recorded ${CurrencyFormatter.format(amount)} payment for "${widget.debt.title}".',
+            ),
+            behavior: SnackBarBehavior.floating,
           ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to record payment: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 

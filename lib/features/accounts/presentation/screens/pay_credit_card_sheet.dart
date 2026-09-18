@@ -126,24 +126,36 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
       if (proceed != true) return;
     }
 
-    await ref.read(accountOperationsProvider).payCreditCardBill(
-          fromAccount: account,
-          creditCard: card,
-          amount: amount,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-          date: _selectedDate,
-        );
+    try {
+      await ref.read(accountOperationsProvider).payCreditCardBill(
+            fromAccount: account,
+            creditCard: card,
+            amount: amount,
+            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            date: _selectedDate,
+          );
 
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Paid ${CurrencyFormatter.format(amount)} towards "${card.cardName}". Available credit restored.',
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Paid ${CurrencyFormatter.format(amount)} towards "${card.cardName}". Available credit restored.',
+            ),
+            behavior: SnackBarBehavior.floating,
           ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pay credit card bill: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 

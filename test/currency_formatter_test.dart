@@ -61,9 +61,19 @@ void main() {
 
       CurrencyFormatter.setCurrencyByCode('GBP');
       expect(CurrencyFormatter.format(120.75), '£120.75');
+      expect(CurrencyFormatter.currentSymbol, '£');
+
+      CurrencyFormatter.setCurrencyByCode('USD');
+      expect(CurrencyFormatter.currentSymbol, '\$');
+      expect(CurrencyFormatter.format(-50.25), '-\$50.25');
+
+      CurrencyFormatter.setCurrencyByCode('CAD');
+      expect(CurrencyFormatter.currentSymbol, 'CA\$');
+      expect(CurrencyFormatter.format(-100.0), '-CA\$100.00');
 
       // Reset to INR
       CurrencyFormatter.setCurrencyByCode('INR');
+      expect(CurrencyFormatter.currentSymbol, '₹');
       expect(CurrencyFormatter.format(1250.50), '₹1,250.50');
     });
   });

@@ -216,16 +216,28 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
       updatedAt: now,
     );
 
-    await ref.read(recurringListNotifierProvider.notifier).saveRecurring(item);
+    try {
+      await ref.read(recurringListNotifierProvider.notifier).saveRecurring(item);
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Saved recurring expense "${item.title}" (${CurrencyFormatter.format(item.amount)}/${item.frequency.displayName.toLowerCase()}).'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved recurring expense "${item.title}" (${CurrencyFormatter.format(item.amount)}/${item.frequency.displayName.toLowerCase()}).'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save recurring expense: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 
@@ -252,18 +264,30 @@ class _AddRecurringSheetState extends ConsumerState<AddRecurringSheet> {
     );
 
     if (confirmed == true && mounted) {
-      await ref
-          .read(recurringListNotifierProvider.notifier)
-          .deleteRecurring(widget.initialRecurring!.id);
+      try {
+        await ref
+            .read(recurringListNotifierProvider.notifier)
+            .deleteRecurring(widget.initialRecurring!.id);
 
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Recurring expense removed.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Recurring expense removed.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete recurring expense: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.expense,
+            ),
+          );
+        }
       }
     }
   }

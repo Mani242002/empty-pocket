@@ -19,6 +19,11 @@ import 'package:empty_pocket/features/transactions/presentation/widgets/transact
 import 'package:empty_pocket/features/settings/presentation/screens/settings_screen.dart';
 import 'package:empty_pocket/features/reports/presentation/screens/reports_analytics_screen.dart';
 import 'package:empty_pocket/features/reports/presentation/state/reports_provider.dart';
+import 'package:empty_pocket/features/dashboard/presentation/widgets/dashboard_accounts_card.dart';
+import 'package:empty_pocket/features/reports/presentation/widgets/interactive_donut_chart.dart';
+import 'package:empty_pocket/core/domain/entities/bank_account_entity.dart';
+import 'package:empty_pocket/core/domain/entities/credit_card_entity.dart';
+import 'package:empty_pocket/core/calculation/financial_calculator.dart';
 import 'package:empty_pocket/app/presentation/screens/main_navigation_scaffold.dart';
 import 'package:empty_pocket/app/theme/app_theme.dart';
 
@@ -309,6 +314,112 @@ void main() {
 
       // On Settings (tab 4), FAB should be hidden so it doesn't obstruct settings cards or switches
       expect(find.byType(FloatingActionButton), findsNothing);
+    });
+
+    testWidgets('DashboardAccountsCard renders without overflow on ultra-compact 320dp width with 1.15x textScale', (tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final dummyAccount = BankAccountEntity(
+        id: 'acc-1',
+        accountName: 'Primary Salary Checking Account',
+        bankName: 'Federal Reserve Bank',
+        accountType: AccountType.savings,
+        usedFor: 'Salary',
+        initialBalance: 50000.0,
+        currentBalance: 50000.0,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+
+      final dummyCard = CreditCardEntity(
+        id: 'card-1',
+        cardName: 'Titanium Infinite Privilege Card',
+        bankName: 'Global Credit Corp',
+        cardNetwork: CardNetwork.visa,
+        creditLimit: 100000.0,
+        usedAmount: 25000.0,
+        statementDateDay: 15,
+        gracePeriodDays: 20,
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(320, 600),
+              textScaler: TextScaler.linear(1.15),
+            ),
+            child: Scaffold(
+              body: ProviderScope(
+                child: SingleChildScrollView(
+                  child: DashboardAccountsCard(
+                    bankAccounts: [dummyAccount],
+                    creditCards: [dummyCard],
+                    combinedCash: 50000.0,
+                    creditSummary: const CombinedCreditSummary(
+                      totalLimit: 100000.0,
+                      totalUsed: 25000.0,
+                      totalAvailable: 75000.0,
+                      overallUtilizationRatio: 25.0,
+                      overallHealth: CreditUtilizationHealth.optimal,
+                      activeCardsCount: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Accounts & Cards'), findsOneWidget);
+      expect(find.text('Transfer'), findsOneWidget);
+      expect(find.text('Pay Card'), findsOneWidget);
+    });
+
+    testWidgets('InteractiveDonutChart renders safely within center hole on compact screen with 1.25x textScale', (tester) async {
+      tester.view.physicalSize = const Size(300, 500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      const categories = [
+        CategorySpendingSummary(category: 'Food & Dining Out', amount: 8500.0, percentage: 55.0, count: 10),
+        CategorySpendingSummary(category: 'Entertainment & Fun', amount: 4500.0, percentage: 30.0, count: 5),
+        CategorySpendingSummary(category: 'Utilities & Bills', amount: 2000.0, percentage: 15.0, count: 2),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const MediaQuery(
+            data: MediaQueryData(
+              size: Size(300, 500),
+              textScaler: TextScaler.linear(1.25),
+            ),
+            child: Scaffold(
+              body: Center(
+                child: InteractiveDonutChart(
+                  categories: categories,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('TOTAL SPENT'), findsOneWidget);
+      expect(find.text('3 Categories'), findsOneWidget);
     });
   });
 }

@@ -156,16 +156,28 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
       updatedAt: now,
     );
 
-    await ref.read(debtListNotifierProvider.notifier).saveDebt(debt);
+    try {
+      await ref.read(debtListNotifierProvider.notifier).saveDebt(debt);
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Saved "${debt.title}" (${CurrencyFormatter.format(debt.principalAmount)} loan).'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved "${debt.title}" (${CurrencyFormatter.format(debt.principalAmount)} loan).'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save loan: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 
@@ -192,16 +204,28 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
     );
 
     if (confirmed == true && mounted) {
-      await ref.read(debtListNotifierProvider.notifier).deleteDebt(widget.initialDebt!.id);
+      try {
+        await ref.read(debtListNotifierProvider.notifier).deleteDebt(widget.initialDebt!.id);
 
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Loan record deleted.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Loan record deleted.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete loan record: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.expense,
+            ),
+          );
+        }
       }
     }
   }

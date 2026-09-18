@@ -103,12 +103,6 @@ class AiProviderConfig {
   /// Display name of the active model
   String get activeModelDisplayName => providerType.getModelDisplayName(activeModel);
 
-  /// Backwards-compatible getter for apiKey
-  String get apiKey => activeApiKey;
-
-  /// Backwards-compatible getter for selectedModel
-  String get selectedModel => activeModel;
-
   /// True if active provider has an API key configured
   bool get isConfigured => activeApiKey.trim().isNotEmpty;
 

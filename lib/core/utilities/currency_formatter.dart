@@ -31,6 +31,9 @@ class CurrencyFormatter {
 
   static CurrencyOption activeCurrency = supportedCurrencies.first;
 
+  /// Returns the symbol of the currently active currency
+  static String get currentSymbol => activeCurrency.symbol;
+
   static void setCurrency(CurrencyOption option) {
     activeCurrency = option;
   }

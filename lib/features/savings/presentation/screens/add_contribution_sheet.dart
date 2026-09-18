@@ -97,25 +97,37 @@ class _AddContributionSheetState extends ConsumerState<AddContributionSheet> {
       if (proceed != true) return;
     }
 
-    await ref.read(savingsGoalsListNotifierProvider.notifier).addFunds(
-          goal: widget.goal,
-          amount: amount,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-          logAsTransaction: _deductAndLog,
-          paymentSource: paymentSource,
-          accountId: _deductAndLog ? _selectedAccountId : null,
-        );
+    try {
+      await ref.read(savingsGoalsListNotifierProvider.notifier).addFunds(
+            goal: widget.goal,
+            amount: amount,
+            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            logAsTransaction: _deductAndLog,
+            paymentSource: paymentSource,
+            accountId: _deductAndLog ? _selectedAccountId : null,
+          );
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Added ${CurrencyFormatter.format(amount)} to "${widget.goal.title}". Keep up the great savings!',
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Added ${CurrencyFormatter.format(amount)} to "${widget.goal.title}". Keep up the great savings!',
+            ),
+            behavior: SnackBarBehavior.floating,
           ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add contribution: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 

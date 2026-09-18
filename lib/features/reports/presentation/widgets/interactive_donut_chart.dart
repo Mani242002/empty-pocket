@@ -158,108 +158,122 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
                       AnimatedBuilder(
                         animation: _animation,
                         builder: (context, child) {
-                          return CustomPaint(
-                            size: Size(chartSize, chartSize),
-                            painter: _DonutChartPainter(
-                              categories: widget.categories,
-                              selectedIndex: _internalSelectedIndex,
-                              progress: _animation.value,
-                              isDark: isDark,
-                              dividerColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                          return RepaintBoundary(
+                            child: CustomPaint(
+                              size: Size(chartSize, chartSize),
+                              painter: _DonutChartPainter(
+                                categories: widget.categories,
+                                selectedIndex: _internalSelectedIndex,
+                                progress: _animation.value,
+                                isDark: isDark,
+                                dividerColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                              ),
                             ),
                           );
                         },
                       ),
 
                       // Center Content (Total or Selected Slice Details)
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        transitionBuilder: (child, anim) => FadeTransition(
-                          opacity: anim,
-                          child: ScaleTransition(scale: anim, child: child),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: chartSize * 0.48,
+                          maxHeight: chartSize * 0.48,
                         ),
-                        child: selectedCategory != null
-                            ? Column(
-                                key: ValueKey('selected_${selectedCategory.category}'),
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: selectedColor?.withAlpha(isDark ? 50 : 30),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      selectedIcon ?? Icons.category_rounded,
-                                      size: 18,
-                                      color: selectedColor,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    selectedCategory.category,
-                                    style: theme.textTheme.labelMedium?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      CurrencyFormatter.format(selectedCategory.amount),
-                                      style: theme.textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -0.5,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    '${selectedCategory.percentage.toStringAsFixed(1)}%',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: selectedColor,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Column(
-                                key: const ValueKey('total_center'),
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'TOTAL SPENT',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.9,
-                                      color: financialColors.textMuted,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      CurrencyFormatter.format(totalAmount),
-                                      style: theme.textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -0.5,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${widget.categories.length} Categories',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: financialColors.textMuted,
-                                    ),
-                                  ),
-                                ],
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 250),
+                              transitionBuilder: (child, anim) => FadeTransition(
+                                opacity: anim,
+                                child: ScaleTransition(scale: anim, child: child),
                               ),
+                              child: selectedCategory != null
+                                  ? Column(
+                                      key: ValueKey('selected_${selectedCategory.category}'),
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: selectedColor?.withAlpha(isDark ? 50 : 30),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            selectedIcon ?? Icons.category_rounded,
+                                            size: 18,
+                                            color: selectedColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          selectedCategory.category,
+                                          style: theme.textTheme.labelMedium?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            CurrencyFormatter.format(selectedCategory.amount),
+                                            style: theme.textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: -0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          '${selectedCategory.percentage.toStringAsFixed(1)}%',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: selectedColor,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Column(
+                                      key: const ValueKey('total_center'),
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'TOTAL SPENT',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.9,
+                                            color: financialColors.textMuted,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            CurrencyFormatter.format(totalAmount),
+                                            style: theme.textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: -0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${widget.categories.length} Categories',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: financialColors.textMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

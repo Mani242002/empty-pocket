@@ -155,24 +155,36 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
       if (proceed != true) return;
     }
 
-    await ref.read(accountOperationsProvider).performTransfer(
-          fromAccount: fromAccount,
-          toAccount: toAccount,
-          amount: amount,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-          date: _selectedDate,
-        );
+    try {
+      await ref.read(accountOperationsProvider).performTransfer(
+            fromAccount: fromAccount,
+            toAccount: toAccount,
+            amount: amount,
+            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            date: _selectedDate,
+          );
 
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Transferred ${CurrencyFormatter.format(amount)} from "${fromAccount.accountName}" to "${toAccount.accountName}".',
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Transferred ${CurrencyFormatter.format(amount)} from "${fromAccount.accountName}" to "${toAccount.accountName}".',
+            ),
+            behavior: SnackBarBehavior.floating,
           ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to complete transfer: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
     }
   }
 

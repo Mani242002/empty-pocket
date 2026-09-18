@@ -8,6 +8,7 @@ import '../../../../app/theme/theme_provider.dart';
 import '../../../ai_assistant/presentation/screens/ai_settings_screen.dart';
 import '../../../ai_assistant/presentation/state/ai_assistant_provider.dart';
 import '../../../../core/presentation/widgets/app_lock_gate.dart';
+import '../../../../core/services/battery_optimization_service.dart';
 import '../../../../core/services/file_export_import_service.dart';
 import '../../../../core/services/log_service.dart';
 import '../../../../core/services/notification_service.dart';
@@ -1030,6 +1031,30 @@ class SettingsScreen extends ConsumerWidget {
                     }
                   },
                 ),
+                if (isBubbleEnabled) ...[
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 25),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.battery_charging_full_rounded, color: AppColors.primaryEmerald, size: 20),
+                    ),
+                    title: const Text('Background Battery Exemption', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    subtitle: Text(
+                      'Prevent Android from killing the 24/7 bubble',
+                      style: TextStyle(color: financialColors.textMuted, fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () async {
+                      AppHaptics.selectionClick();
+                      await BatteryOptimizationService.openBatterySettings();
+                    },
+                  ),
+                ],
               ],
             ),
           ),
