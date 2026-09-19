@@ -459,5 +459,58 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byIcon(Icons.calendar_month_rounded), findsOneWidget);
     });
+
+    testWidgets('TransactionsScreen renders date group headers without overflow on 320dp screen with 1.25x font scale', (tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final inMemoryTxRepo = InMemoryTransactionRepository();
+      final inMemoryBankRepo = InMemoryBankAccountRepository();
+      final inMemoryCardRepo = InMemoryCreditCardRepository();
+
+      final now = DateTime.now();
+      await inMemoryTxRepo.addTransaction(
+        TransactionEntity(
+          id: 'tx_today',
+          title: 'Grocery Supermarket',
+          amount: 1250.0,
+          type: TransactionType.expense,
+          category: 'Groceries',
+          date: now,
+          paymentSource: 'Cash',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transactionRepositoryProvider.overrideWithValue(inMemoryTxRepo),
+            bankAccountRepositoryProvider.overrideWithValue(inMemoryBankRepo),
+            creditCardRepositoryProvider.overrideWithValue(inMemoryCardRepo),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const MediaQuery(
+              data: MediaQueryData(
+                size: Size(320, 600),
+                textScaler: TextScaler.linear(1.25),
+              ),
+              child: Scaffold(
+                body: TransactionsScreen(),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Today'), findsOneWidget);
+      expect(find.text('Grocery Supermarket'), findsOneWidget);
+    });
   });
 }

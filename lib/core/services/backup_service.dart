@@ -25,6 +25,9 @@ import '../repositories/savings_goal_repository.dart';
 import '../repositories/transaction_repository.dart';
 
 class BackupService {
+  /// The current schema version supported by this version of EmptyPocket.
+  static const int currentSchemaVersion = 12;
+
   /// Generate a full structured JSON backup string
   String exportFullDatabaseJson({
     required List<TransactionEntity> transactions,
@@ -42,7 +45,7 @@ class BackupService {
     List<AiReportItem> aiReports = const [],
   }) {
     final metadata = BackupMetadata(
-      schemaVersion: 12,
+      schemaVersion: currentSchemaVersion,
       exportedAt: DateTime.now(),
       transactionsCount: transactions.length,
       budgetsCount: budgets.length,
@@ -84,7 +87,16 @@ class BackupService {
   FullDatabaseBackup parseBackupJson(String jsonContent) {
     try {
       final decoded = jsonDecode(jsonContent) as Map<String, dynamic>;
-      return FullDatabaseBackup.fromJson(decoded);
+      final backup = FullDatabaseBackup.fromJson(decoded);
+      if (backup.metadata.schemaVersion > currentSchemaVersion) {
+        throw FormatException(
+          'Backup schema version (${backup.metadata.schemaVersion}) is newer than supported ($currentSchemaVersion). '
+          'Please update EmptyPocket to the latest version to restore this backup.',
+        );
+      }
+      return backup;
+    } on FormatException {
+      rethrow;
     } catch (e) {
       throw FormatException('Invalid or corrupted backup JSON file: $e');
     }

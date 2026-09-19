@@ -13,6 +13,7 @@ import 'package:empty_pocket/core/repositories/debt_repository.dart';
 import 'package:empty_pocket/core/repositories/transaction_repository.dart';
 import 'package:empty_pocket/core/utilities/loan_share_helper.dart';
 import 'package:empty_pocket/core/utilities/split_helper.dart';
+import 'package:empty_pocket/core/calculation/financial_calculator.dart';
 import 'package:empty_pocket/features/accounts/presentation/state/accounts_cards_provider.dart';
 import 'package:empty_pocket/features/transactions/presentation/state/transactions_provider.dart';
 
@@ -50,6 +51,19 @@ class InMemoryTxRepo implements TransactionRepository {
     final all = _db.values.toList();
     if (offset >= all.length) return [];
     return all.skip(offset).take(limit).toList();
+  }
+
+  @override
+  Future<void> saveTransactionAtomic({
+    required TransactionEntity transaction,
+    TransactionEntity? previousTransaction,
+  }) async {
+    _db[transaction.id] = transaction;
+  }
+
+  @override
+  Future<void> deleteTransactionAtomic(String id) async {
+    _db.remove(id);
   }
 }
 
@@ -643,6 +657,139 @@ void main() {
       // Payment should be removed
       final payments = await debtRepo.getPaymentsForDebt('debt_bike');
       expect(payments.isEmpty, isTrue);
+    });
+
+    test('Deleting transaction with multiple identical payments matches candidate with closest timestamp proximity', () async {
+      final debt = DebtEntity(
+        id: 'debt_personal',
+        title: 'Personal Loan',
+        type: DebtType.personalLoan,
+        principalAmount: 50000.0,
+        remainingAmount: 30000.0,
+        monthlyEmi: 5000.0,
+        startDate: now.subtract(const Duration(days: 60)),
+        status: DebtStatus.active,
+        createdAt: now.subtract(const Duration(days: 60)),
+        updatedAt: now.subtract(const Duration(days: 60)),
+      );
+      await debtRepo.saveDebt(debt);
+
+      final olderDate = now.subtract(const Duration(days: 30));
+      final recentDate = now;
+
+      // Two payments of exact same amount ($5000) on different dates
+      final olderPayment = DebtPaymentEntity(
+        id: 'pay_older',
+        debtId: 'debt_personal',
+        amount: 5000.0,
+        date: olderDate,
+        createdAt: olderDate,
+      );
+      final recentPayment = DebtPaymentEntity(
+        id: 'pay_recent',
+        debtId: 'debt_personal',
+        amount: 5000.0,
+        date: recentDate,
+        createdAt: recentDate,
+      );
+      await debtRepo.addPayment(olderPayment);
+      await debtRepo.addPayment(recentPayment);
+
+      // Create a transaction matching the older date
+      final olderTx = TransactionEntity(
+        id: 'tx_older_emi',
+        title: 'EMI: Personal Loan',
+        amount: 5000.0,
+        type: TransactionType.expense,
+        category: 'Debt & Loan Repayment',
+        date: olderDate,
+        paymentSource: 'Kotak Bank',
+        accountId: 'acc_kotak',
+        linkedEntityId: 'debt_personal',
+        createdAt: olderDate,
+        updatedAt: olderDate,
+      );
+      await txRepo.addTransaction(olderTx);
+      await container.read(transactionListNotifierProvider.future);
+
+      // Deleting olderTx should delete 'pay_older' (closest in time), leaving 'pay_recent' intact
+      await container.read(transactionListNotifierProvider.notifier).deleteTransaction('tx_older_emi');
+
+      final remainingPayments = await debtRepo.getPaymentsForDebt('debt_personal');
+      expect(remainingPayments.length, 1);
+      expect(remainingPayments.first.id, 'pay_recent');
+    });
+
+    test('Money Lent transaction maintains myShareAmount as 0.0 so pendingReimbursement equals full loan amount', () {
+      const loan = LoanShareData(
+        borrowerName: 'Rahul',
+        principalAmount: 15000.0,
+      );
+      final loanTx = TransactionEntity(
+        id: 'tx_lent_rahul',
+        title: 'Money Lent to Rahul',
+        amount: 15000.0,
+        type: TransactionType.expense,
+        category: 'Money Lent / Helping Friend',
+        date: now,
+        paymentSource: 'HDFC Bank',
+        accountId: 'acc_hdfc',
+        isShared: true,
+        myShareAmount: 0.0,
+        sharedWith: LoanShareHelper.encodeLoan(loan),
+        reimbursedAmount: 0.0,
+        isSettled: false,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      expect(loanTx.friendsShare, 15000.0);
+      expect(loanTx.pendingReimbursement, 15000.0);
+      expect(loanTx.netPersonalAmount, 0.0);
+
+      final pendingTotal = FinancialCalculator.calculatePendingReimbursements([loanTx]);
+      expect(pendingTotal, 15000.0);
+    });
+
+    test('saveTransactionWithLedgerImpact atomically records transaction and adjusts bank account balance', () async {
+      final initialAccount = BankAccountEntity(
+        id: 'acc_salary',
+        accountName: 'Salary Account',
+        bankName: 'Salary Bank',
+        accountType: AccountType.savings,
+        initialBalance: 50000.0,
+        currentBalance: 50000.0,
+        usedFor: 'Primary',
+        createdAt: now,
+        updatedAt: now,
+      );
+      await bankRepo.saveAccount(initialAccount);
+      await container.read(bankAccountListProvider.future);
+      await container.read(transactionListNotifierProvider.future);
+
+      final expenseTx = TransactionEntity(
+        id: 'tx_shopping',
+        title: 'Shopping',
+        amount: 5000.0,
+        type: TransactionType.expense,
+        category: 'Shopping',
+        date: now,
+        paymentSource: 'Salary Account',
+        accountId: 'acc_salary',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await container.read(transactionListNotifierProvider.notifier).saveTransactionWithLedgerImpact(
+        transaction: expenseTx,
+      );
+
+      final updatedTxs = await container.read(transactionListNotifierProvider.future);
+      expect(updatedTxs.any((t) => t.id == 'tx_shopping'), isTrue);
+
+      final updatedAccounts = await container.read(bankAccountListProvider.future);
+      final acc = updatedAccounts.firstWhere((a) => a.id == 'acc_salary');
+      expect(acc.currentBalance, 45000.0);
     });
   });
 }

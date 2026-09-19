@@ -13,6 +13,15 @@ abstract class TransactionRepository {
   Future<void> updateTransaction(TransactionEntity transaction);
   Future<void> deleteTransaction(String id);
   Future<void> clearAllTransactions();
+
+  /// Atomically saves a transaction (add or edit) and syncs ledger accounts/cards in a single ACID transaction
+  Future<void> saveTransactionAtomic({
+    required TransactionEntity transaction,
+    TransactionEntity? previousTransaction,
+  });
+
+  /// Atomically deletes a transaction and reverts its ledger balance impact
+  Future<void> deleteTransactionAtomic(String id);
 }
 
 class SqliteTransactionRepository implements TransactionRepository {
@@ -56,6 +65,22 @@ class SqliteTransactionRepository implements TransactionRepository {
   @override
   Future<void> clearAllTransactions() async {
     await _db.clearAllTransactions();
+  }
+
+  @override
+  Future<void> saveTransactionAtomic({
+    required TransactionEntity transaction,
+    TransactionEntity? previousTransaction,
+  }) async {
+    await _db.saveTransactionAtomic(
+      transaction: transaction,
+      previousTransaction: previousTransaction,
+    );
+  }
+
+  @override
+  Future<void> deleteTransactionAtomic(String id) async {
+    await _db.deleteTransactionAtomic(id);
   }
 }
 
@@ -117,6 +142,23 @@ class InMemoryTransactionRepository implements TransactionRepository {
   @override
   Future<void> clearAllTransactions() async {
     _transactions.clear();
+  }
+
+  @override
+  Future<void> saveTransactionAtomic({
+    required TransactionEntity transaction,
+    TransactionEntity? previousTransaction,
+  }) async {
+    if (previousTransaction != null) {
+      await updateTransaction(transaction);
+    } else {
+      await addTransaction(transaction);
+    }
+  }
+
+  @override
+  Future<void> deleteTransactionAtomic(String id) async {
+    await deleteTransaction(id);
   }
 }
 

@@ -636,6 +636,134 @@ class AppDatabase {
     );
   }
 
+  /// Atomically saves a transaction (add or edit) and applies its linked bank account / credit card
+  /// balance impacts within a single ACID SQLite transaction.
+  Future<void> saveTransactionAtomic({
+    required TransactionEntity transaction,
+    TransactionEntity? previousTransaction,
+  }) async {
+    final client = await database;
+    await client.transaction((txn) async {
+      // 1. Revert previous transaction impact if editing
+      if (previousTransaction != null) {
+        await _applyTxBalanceImpactInTxn(txn, previousTransaction, isRevert: true);
+        await txn.update(
+          tableTransactions,
+          transaction.toMap(),
+          where: 'id = ?',
+          whereArgs: [transaction.id],
+        );
+      } else {
+        await txn.insert(
+          tableTransactions,
+          transaction.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      // 2. Apply new transaction impact
+      await _applyTxBalanceImpactInTxn(txn, transaction, isRevert: false);
+    });
+  }
+
+  /// Atomically deletes a transaction and reverts its linked bank account / credit card balance impacts.
+  Future<void> deleteTransactionAtomic(String id) async {
+    final client = await database;
+    await client.transaction((txn) async {
+      final rows = await txn.query(
+        tableTransactions,
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        final tx = TransactionEntity.fromMap(rows.first);
+        await _applyTxBalanceImpactInTxn(txn, tx, isRevert: true);
+      }
+      await txn.delete(
+        tableTransactions,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
+  }
+
+  static Future<void> _applyTxBalanceImpactInTxn(
+    DatabaseExecutor txn,
+    TransactionEntity tx, {
+    bool isRevert = false,
+  }) async {
+    final factor = isRevert ? -1.0 : 1.0;
+    if (tx.type == TransactionType.income) {
+      if (tx.accountId != null) {
+        await _adjustAccountBalanceInTxn(txn, tx.accountId!, factor * tx.amount);
+      } else if (tx.creditCardId != null) {
+        await _adjustCardUsedAmountInTxn(txn, tx.creditCardId!, -factor * tx.amount);
+      }
+    } else if (tx.type == TransactionType.expense) {
+      if (tx.creditCardId != null) {
+        await _adjustCardUsedAmountInTxn(txn, tx.creditCardId!, factor * tx.amount);
+      } else if (tx.accountId != null) {
+        await _adjustAccountBalanceInTxn(txn, tx.accountId!, -factor * tx.amount);
+      }
+    } else if (tx.type == TransactionType.transfer) {
+      if (tx.accountId != null) {
+        await _adjustAccountBalanceInTxn(txn, tx.accountId!, -factor * tx.amount);
+      }
+      if (tx.toAccountId != null) {
+        await _adjustAccountBalanceInTxn(txn, tx.toAccountId!, factor * tx.amount);
+      } else if (tx.creditCardId != null) {
+        await _adjustCardUsedAmountInTxn(txn, tx.creditCardId!, -factor * tx.amount);
+      }
+    }
+  }
+
+  static Future<void> _adjustAccountBalanceInTxn(
+    DatabaseExecutor txn,
+    String accountId,
+    double delta,
+  ) async {
+    final rows = await txn.query(
+      tableBankAccounts,
+      where: 'id = ?',
+      whereArgs: [accountId],
+      limit: 1,
+    );
+    if (rows.isNotEmpty) {
+      final acc = BankAccountEntity.fromMap(rows.first);
+      final newBalance = acc.currentBalance + delta;
+      await txn.update(
+        tableBankAccounts,
+        acc.copyWith(currentBalance: newBalance, updatedAt: DateTime.now()).toMap(),
+        where: 'id = ?',
+        whereArgs: [accountId],
+      );
+    }
+  }
+
+  static Future<void> _adjustCardUsedAmountInTxn(
+    DatabaseExecutor txn,
+    String cardId,
+    double delta,
+  ) async {
+    final rows = await txn.query(
+      tableCreditCards,
+      where: 'id = ?',
+      whereArgs: [cardId],
+      limit: 1,
+    );
+    if (rows.isNotEmpty) {
+      final card = CreditCardEntity.fromMap(rows.first);
+      final newUsed = card.usedAmount + delta;
+      await txn.update(
+        tableCreditCards,
+        card.copyWith(usedAmount: newUsed, updatedAt: DateTime.now()).toMap(),
+        where: 'id = ?',
+        whereArgs: [cardId],
+      );
+    }
+  }
+
   Future<List<TransactionEntity>> getAllTransactions() async {
     final database = await this.database;
     final List<Map<String, dynamic>> maps = await database.query(

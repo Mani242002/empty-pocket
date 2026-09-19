@@ -6,6 +6,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
+import '../../../../core/services/log_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../../core/utilities/split_helper.dart';
@@ -40,19 +41,32 @@ class TransactionDetailSheet extends ConsumerWidget {
       updatedAt: now,
     );
 
-    // Synchronize account/card balances for the duplicated transaction
-    await LedgerBalanceSynchronizer.applyTransactionImpact(ref, cloned);
+    try {
+      // Synchronize account/card balances atomically for the duplicated transaction
+      await ref
+          .read(transactionListNotifierProvider.notifier)
+          .saveTransactionWithLedgerImpact(transaction: cloned);
+      AppHaptics.success();
 
-    await ref.read(transactionListNotifierProvider.notifier).addTransaction(cloned);
-    AppHaptics.success();
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Duplicated "${cloned.title}" (${CurrencyFormatter.format(cloned.amount)}).'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Duplicated "${cloned.title}" (${CurrencyFormatter.format(cloned.amount)}).'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e, st) {
+      LogService.error('TransactionDetailSheet', 'Failed to duplicate transaction', e, st);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to duplicate transaction: ${e.toString()}'),
+            backgroundColor: AppColors.expense,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -76,10 +90,23 @@ class TransactionDetailSheet extends ConsumerWidget {
             onPressed: () async {
               Navigator.pop(ctx); // Close dialog
               Navigator.pop(context); // Close sheet
-              await ref
-                  .read(transactionListNotifierProvider.notifier)
-                  .deleteTransaction(transaction.id);
-              AppHaptics.deleteAction();
+              try {
+                await ref
+                    .read(transactionListNotifierProvider.notifier)
+                    .deleteTransaction(transaction.id);
+                AppHaptics.deleteAction();
+              } catch (e, st) {
+                LogService.error('TransactionDetailSheet', 'Failed to delete transaction', e, st);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to delete transaction: ${e.toString()}'),
+                      backgroundColor: AppColors.expense,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Delete'),
           ),

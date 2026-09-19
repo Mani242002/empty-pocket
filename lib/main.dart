@@ -57,6 +57,8 @@ void overlayMain() async {
     if (savedCode != null) {
       CurrencyFormatter.setCurrencyByCode(savedCode);
     }
-  } catch (_) {}
+  } catch (e) {
+    LogService.debug('MainOverlay', 'Failed to pre-load currency preference: $e');
+  }
   runApp(const FloatingBubbleOverlayApp());
 }

@@ -10,6 +10,7 @@ import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/domain/entities/split_person_share.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
+import '../../../../core/services/log_service.dart';
 import '../../../../core/services/saved_friends_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/category_matcher.dart';
@@ -486,13 +487,6 @@ class _AddEditTransactionSheetState
     if (_isEditMode) {
       final prevTx = widget.initialTransaction!;
 
-      // 1. Revert previous transaction impact
-      await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
-        ref,
-        prevTx,
-        isRevert: true,
-      );
-
       final isExpense = _selectedType == TransactionType.expense;
       final isMoneyLent = isExpense && _selectedCategory == 'Money Lent / Helping Friend';
       final isSharedExpense = isExpense && (_isShared || isMoneyLent);
@@ -518,11 +512,11 @@ class _AddEditTransactionSheetState
         );
 
         sharedWith = LoanShareHelper.encodeLoan(loanData);
-        myShare = 0.0;
-        isSettled = loanData.isRepaid;
         if (borrower.isNotEmpty) {
           ref.read(savedFriendsProvider.notifier).addFriend(borrower);
         }
+        myShare = 0.0;
+        isSettled = loanData.isRepaid;
       } else if (isSharedExpense) {
         final parsedShare = MathExpressionParser.tryEvaluate(_myShareController.text.trim());
         myShare = (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
@@ -563,6 +557,7 @@ class _AddEditTransactionSheetState
       }
 
       final friendShare = isSharedExpense ? (amount - (myShare ?? 0.0)).clamp(0.0, amount) : 0.0;
+
       final updated = prevTx.copyWith(
         title: title,
         amount: amount,
@@ -587,15 +582,13 @@ class _AddEditTransactionSheetState
       );
 
       try {
-        // 2. Apply updated transaction impact
-        await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
-          ref,
-          updated,
-        );
-
+        // Apply updated transaction atomically inside a single ACID SQLite transaction
         await ref
             .read(transactionListNotifierProvider.notifier)
-            .updateTransaction(updated);
+            .saveTransactionWithLedgerImpact(
+              transaction: updated,
+              previousTransaction: prevTx,
+            );
 
         AppHaptics.success();
 
@@ -608,15 +601,8 @@ class _AddEditTransactionSheetState
             ),
           );
         }
-      } catch (e) {
-        // Rollback: restore previous transaction impact if update failed
-        try {
-          await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
-            ref,
-            prevTx,
-            isRevert: false,
-          );
-        } catch (_) {}
+      } catch (e, stack) {
+        LogService.error('AddEditTransactionSheet', 'Failed to update transaction', e, stack);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -664,7 +650,8 @@ class _AddEditTransactionSheetState
               ),
             );
           }
-        } catch (e) {
+        } catch (e, stack) {
+          LogService.error('AddEditTransactionSheet', 'Failed to record reimbursement', e, stack);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -753,15 +740,12 @@ class _AddEditTransactionSheetState
       );
 
       try {
-        // Apply new transaction balance impact
-        await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
-          ref,
-          newTx,
-        );
-
+        // Save new transaction and synchronize account/card balances atomically
         await ref
             .read(transactionListNotifierProvider.notifier)
-            .addTransaction(newTx);
+            .saveTransactionWithLedgerImpact(
+              transaction: newTx,
+            );
 
         AppHaptics.success();
 
@@ -774,15 +758,8 @@ class _AddEditTransactionSheetState
             ),
           );
         }
-      } catch (e) {
-        // Rollback balance impact if adding transaction failed
-        try {
-          await LedgerBalanceSynchronizer.applyTransactionImpactFromWidgetRef(
-            ref,
-            newTx,
-            isRevert: true,
-          );
-        } catch (_) {}
+      } catch (e, stack) {
+        LogService.error('AddEditTransactionSheet', 'Failed to save transaction', e, stack);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -839,7 +816,8 @@ class _AddEditTransactionSheetState
             ),
           );
         }
-      } catch (e) {
+      } catch (e, stack) {
+        LogService.error('AddEditTransactionSheet', 'Failed to delete transaction', e, stack);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -971,9 +949,7 @@ class _AddEditTransactionSheetState
                     return null;
                   },
                   onChanged: (val) {
-                    if (_isShared || _isIncomeReimbursement) {
-                      setState(() {});
-                    }
+                    setState(() {});
                   },
                 ),
                 const SizedBox(height: 20),
@@ -1404,6 +1380,52 @@ class _AddEditTransactionSheetState
             });
           },
         ),
+        Builder(
+          builder: (context) {
+            final fromAcc = bankAccounts.where((a) => a.id == fromVal).firstOrNull;
+            final rawTransferAmt = MathExpressionParser.tryEvaluate(_amountController.text.trim()) ?? 0.0;
+            final prevDeduction = (_isEditMode &&
+                    widget.initialTransaction?.accountId == fromAcc?.id &&
+                    widget.initialTransaction?.type == TransactionType.transfer)
+                ? widget.initialTransaction!.amount
+                : 0.0;
+            final effectiveBalance = (fromAcc?.currentBalance ?? 0.0) + prevDeduction;
+            final isFromOverdraft = fromAcc != null && rawTransferAmt > 0 && (effectiveBalance - rawTransferAmt < 0);
+            if (!isFromOverdraft) return const SizedBox.shrink();
+
+            return Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withAlpha(25),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.warning.withAlpha(80)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 1),
+                      child: Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Notice: Transfer amount exceeds available balance in "${fromAcc.accountName}" (${CurrencyFormatter.format(effectiveBalance - rawTransferAmt)}).',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.warning : const Color(0xFFB45309),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
         const SizedBox(height: 12),
 
         // Transfer Direction Indicator
@@ -1540,34 +1562,89 @@ class _AddEditTransactionSheetState
         final currentValid = bankAccounts.any((a) => a.id == _selectedAccountId);
         final selectedVal = currentValid ? _selectedAccountId : (bankAccounts.isNotEmpty ? bankAccounts.first.id : null);
 
-        return DropdownButtonFormField<String>(
-          key: ValueKey('bank_acc_$selectedVal'),
-          initialValue: selectedVal,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.account_balance_rounded, size: 18),
-          ),
-          items: bankAccounts.map((acc) {
-            return DropdownMenuItem<String>(
-              value: acc.id,
-              child: Text(
-                '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              key: ValueKey('bank_acc_$selectedVal'),
+              initialValue: selectedVal,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.account_balance_rounded, size: 18),
               ),
-            );
-          }).toList(),
-          onChanged: (accId) {
-            if (accId == null) return;
-            setState(() {
-              _userManuallySelectedAccount = true;
-              _selectedAccountId = accId;
-              _selectedCreditCardId = null;
-              final acc = bankAccounts.firstWhere((a) => a.id == accId);
-              _selectedPaymentSource = acc.accountName;
-              _autoSelectedReason = null;
-            });
-          },
+              items: bankAccounts.map((acc) {
+                return DropdownMenuItem<String>(
+                  value: acc.id,
+                  child: Text(
+                    '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: (accId) {
+                if (accId == null) return;
+                setState(() {
+                  _userManuallySelectedAccount = true;
+                  _selectedAccountId = accId;
+                  _selectedCreditCardId = null;
+                  final acc = bankAccounts.firstWhere((a) => a.id == accId);
+                  _selectedPaymentSource = acc.accountName;
+                  _autoSelectedReason = null;
+                });
+              },
+            ),
+            Builder(
+              builder: (context) {
+                final matchedAccount = bankAccounts.where((a) => a.id == selectedVal).firstOrNull;
+                final rawAmount = MathExpressionParser.tryEvaluate(_amountController.text.trim()) ?? 0.0;
+                final prevDeduction = (_isEditMode &&
+                        widget.initialTransaction?.accountId == matchedAccount?.id &&
+                        widget.initialTransaction?.type == TransactionType.expense)
+                    ? widget.initialTransaction!.amount
+                    : 0.0;
+                final effectiveBalance = (matchedAccount?.currentBalance ?? 0.0) + prevDeduction;
+                final isOverdraft = _selectedType == TransactionType.expense &&
+                    matchedAccount != null &&
+                    rawAmount > 0 &&
+                    (effectiveBalance - rawAmount < 0);
+                if (!isOverdraft) return const SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withAlpha(25),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.warning.withAlpha(80)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 1),
+                          child: Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Notice: This expense will cause balance to fall below zero (${CurrencyFormatter.format(effectiveBalance - rawAmount)}).',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.warning : const Color(0xFFB45309),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         );
 
       case PaymentMode.creditCard:

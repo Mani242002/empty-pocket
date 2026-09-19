@@ -6,6 +6,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
+import '../../../../core/services/log_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../screens/add_edit_transaction_sheet.dart';
@@ -39,9 +40,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final checkDate = DateTime(date.year, date.month, date.day);
 
     if (checkDate == today) {
-      return 'Today';
+      return 'Today, ${DateFormat('d MMMM').format(date)}';
     } else if (checkDate == yesterday) {
-      return 'Yesterday';
+      return 'Yesterday, ${DateFormat('d MMMM').format(date)}';
     } else {
       return DateFormat('EEE, d MMMM yyyy').format(date);
     }
@@ -58,22 +59,33 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       isSettled: tx.isShared ? false : tx.isSettled,
     );
 
-    // Apply balance impact for cloned transaction
-    await LedgerBalanceSynchronizer.applyTransactionImpact(ref, cloned);
+    try {
+      // Apply balance impact atomically for cloned transaction
+      await ref
+          .read(transactionListNotifierProvider.notifier)
+          .saveTransactionWithLedgerImpact(transaction: cloned);
 
-    await ref
-        .read(transactionListNotifierProvider.notifier)
-        .addTransaction(cloned);
+      AppHaptics.success();
 
-    AppHaptics.success();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Duplicated "${cloned.title}" (${CurrencyFormatter.format(cloned.amount)}).'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Duplicated "${cloned.title}" (${CurrencyFormatter.format(cloned.amount)}).'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e, st) {
+      LogService.error('TransactionsScreen', 'Failed to duplicate transaction', e, st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to duplicate transaction: ${e.toString()}'),
+            backgroundColor: AppColors.expense,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -365,13 +377,18 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    _formatDateHeader(date),
-                                    style: theme.textTheme.labelMedium?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: financialColors.textMuted,
+                                  Expanded(
+                                    child: Text(
+                                      _formatDateHeader(date),
+                                      style: theme.textTheme.labelMedium?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: financialColors.textMuted,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Row(
                                     children: [
                                       if (dayIncome > 0)
@@ -409,9 +426,25 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                     transaction: tx,
                                   ),
                                   onDuplicate: () => _duplicateTransaction(tx),
-                                  onDelete: () => ref
-                                      .read(transactionListNotifierProvider.notifier)
-                                      .deleteTransaction(tx.id),
+                                  onDelete: () async {
+                                    try {
+                                      await ref
+                                          .read(transactionListNotifierProvider.notifier)
+                                          .deleteTransaction(tx.id);
+                                      AppHaptics.deleteAction();
+                                    } catch (e, st) {
+                                      LogService.error('TransactionsScreen', 'Failed to delete transaction', e, st);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Failed to delete transaction: ${e.toString()}'),
+                                            backgroundColor: AppColors.expense,
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
                                 ),
                               );
                             }),

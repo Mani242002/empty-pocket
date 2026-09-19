@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:empty_pocket/core/domain/entities/budget_entity.dart';
 import 'package:empty_pocket/core/domain/entities/debt_entity.dart';
@@ -139,6 +140,31 @@ void main() {
       expect(parsed.debts.length, 1);
       expect(parsed.investments.length, 1);
       expect(parsed.recurringExpenses.length, 1);
+    });
+
+    test('parseBackupJson throws FormatException when schema version is newer than current', () {
+      final validJson = backupService.exportFullDatabaseJson(
+        transactions: [],
+        budgets: [],
+        savingsGoals: [],
+        savingsContributions: [],
+        debts: [],
+        debtPayments: [],
+        investments: [],
+        recurringExpenses: [],
+      );
+      final decoded = jsonDecode(validJson) as Map<String, dynamic>;
+      (decoded['metadata'] as Map<String, dynamic>)['schemaVersion'] = 999;
+      final futureJson = jsonEncode(decoded);
+
+      expect(
+        () => backupService.parseBackupJson(futureJson),
+        throwsA(isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('newer than supported'),
+        )),
+      );
     });
 
     test('restoreAll and wipeAllData work accurately with repositories', () async {

@@ -144,7 +144,9 @@ class NotificationService {
         LogService.debug(_tag, 'Could not determine local timezone via FlutterTimezone: $e');
         try {
           tz.setLocalLocation(tz.getLocation('UTC'));
-        } catch (_) {}
+        } catch (utcErr) {
+          LogService.warning(_tag, 'Failed to fallback to UTC timezone: $utcErr');
+        }
       }
 
       if (!_isSupportedPlatform) {

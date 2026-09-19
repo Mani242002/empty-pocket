@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'log_service.dart';
 
 class FileExportImportResult {
   final String content;
@@ -47,14 +48,16 @@ class FileExportImportService {
         return savePath;
       }
     } catch (e) {
-      debugPrint('[FileExportImportService] FilePicker saveFile fallback: $e');
+      LogService.debug('FileExportImportService', 'FilePicker saveFile fallback: $e');
     }
 
     // 2. Fallback: Save to app documents or downloads directory
     Directory? targetDir;
     try {
       targetDir = await getDownloadsDirectory();
-    } catch (_) {}
+    } catch (e) {
+      LogService.debug('FileExportImportService', 'Downloads directory not available, using documents directory: $e');
+    }
     targetDir ??= await getApplicationDocumentsDirectory();
 
     final fallbackFile = File('${targetDir.path}/$fileName');
@@ -140,13 +143,15 @@ class FileExportImportService {
         return savePath;
       }
     } catch (e) {
-      debugPrint('[FileExportImportService] CSV FilePicker saveFile fallback: $e');
+      LogService.debug('FileExportImportService', 'CSV FilePicker saveFile fallback: $e');
     }
 
     Directory? targetDir;
     try {
       targetDir = await getDownloadsDirectory();
-    } catch (_) {}
+    } catch (e) {
+      LogService.debug('FileExportImportService', 'Downloads directory not available for CSV, using documents directory: $e');
+    }
     targetDir ??= await getApplicationDocumentsDirectory();
 
     final fallbackFile = File('${targetDir.path}/$fileName');

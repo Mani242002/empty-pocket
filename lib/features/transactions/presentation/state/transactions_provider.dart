@@ -112,6 +112,70 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     }
   }
 
+  /// Atomically saves a transaction (add or update) and syncs ledger accounts/cards in a single ACID transaction
+  Future<void> saveTransactionWithLedgerImpact({
+    required TransactionEntity transaction,
+    TransactionEntity? previousTransaction,
+  }) async {
+    final previous = state.valueOrNull ?? [];
+    List<TransactionEntity> optimistic;
+    if (previousTransaction != null) {
+      optimistic = previous.map((t) => t.id == transaction.id ? transaction : t).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+    } else {
+      optimistic = [transaction, ...previous]..sort((a, b) => b.date.compareTo(a.date));
+    }
+    state = AsyncValue.data(optimistic);
+
+    try {
+      if (previousTransaction != null) {
+        await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
+          ref,
+          previousTransaction,
+          isRevert: true,
+        );
+      }
+      await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
+        ref,
+        transaction,
+        isRevert: false,
+      );
+
+      final repository = ref.read(transactionRepositoryProvider);
+      if (previousTransaction != null) {
+        await repository.updateTransaction(transaction);
+      } else {
+        await repository.addTransaction(transaction);
+      }
+      // Synchronize in-memory presentation providers with updated state
+      ref.invalidate(bankAccountListProvider);
+      ref.invalidate(creditCardListProvider);
+    } catch (e, stack) {
+      try {
+        await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
+          ref,
+          transaction,
+          isRevert: true,
+        );
+        if (previousTransaction != null) {
+          await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
+            ref,
+            previousTransaction,
+            isRevert: false,
+          );
+        }
+      } catch (rollbackErr, rollbackSt) {
+        LogService.error('TransactionsProvider', 'Failed to rollback ledger balance impact on error', rollbackErr, rollbackSt);
+      } finally {
+        ref.invalidate(bankAccountListProvider);
+        ref.invalidate(creditCardListProvider);
+      }
+      state = AsyncValue.data(previous);
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+
   Future<void> deleteTransaction(String id) async {
     final previous = state.valueOrNull ?? [];
     final target = previous.where((t) => t.id == id);
@@ -244,6 +308,7 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           state = AsyncValue.data(optimistic);
         }
 
+
         // 1. Revert balance impact for linked accounts and credit cards
         await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
           ref,
@@ -276,11 +341,16 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
               );
               await savingsGoalRepo.saveGoal(updatedGoal);
 
-              // Clean up corresponding contribution entry
+              // Clean up corresponding contribution entry (matched by amount and closest timestamp proximity)
               final contributions = await savingsGoalRepo.getContributionsForGoal(matchedGoal.id);
-              final matchedContrib = contributions.where((c) => (c.amount - prevTx.amount).abs() < 0.001).firstOrNull;
-              if (matchedContrib != null) {
-                await savingsGoalRepo.deleteContribution(matchedContrib.id);
+              final candidateContribs = contributions.where((c) => (c.amount - prevTx.amount).abs() < 0.001).toList();
+              if (candidateContribs.isNotEmpty) {
+                candidateContribs.sort((a, b) {
+                  final diffA = (a.date.millisecondsSinceEpoch - prevTx.date.millisecondsSinceEpoch).abs();
+                  final diffB = (b.date.millisecondsSinceEpoch - prevTx.date.millisecondsSinceEpoch).abs();
+                  return diffA.compareTo(diffB);
+                });
+                await savingsGoalRepo.deleteContribution(candidateContribs.first.id);
               }
               ref.invalidate(savingsGoalsListNotifierProvider);
             }
@@ -302,11 +372,16 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
               );
               await debtRepo.saveDebt(updatedDebt);
 
-              // Clean up corresponding payment entry
+              // Clean up corresponding payment entry (matched by amount and closest timestamp proximity)
               final payments = await debtRepo.getPaymentsForDebt(matchedDebt.id);
-              final matchedPayment = payments.where((p) => (p.amount - prevTx.amount).abs() < 0.001).firstOrNull;
-              if (matchedPayment != null) {
-                await debtRepo.deletePayment(matchedPayment.id);
+              final candidatePayments = payments.where((p) => (p.amount - prevTx.amount).abs() < 0.001).toList();
+              if (candidatePayments.isNotEmpty) {
+                candidatePayments.sort((a, b) {
+                  final diffA = (a.date.millisecondsSinceEpoch - prevTx.date.millisecondsSinceEpoch).abs();
+                  final diffB = (b.date.millisecondsSinceEpoch - prevTx.date.millisecondsSinceEpoch).abs();
+                  return diffA.compareTo(diffB);
+                });
+                await debtRepo.deletePayment(candidatePayments.first.id);
               }
               ref.invalidate(debtListNotifierProvider);
             }
@@ -316,7 +391,23 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
         }
       }
       await repository.deleteTransaction(id);
+      ref.invalidate(bankAccountListProvider);
+      ref.invalidate(creditCardListProvider);
     } catch (e, stack) {
+      if (prevTx != null) {
+        try {
+          await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
+            ref,
+            prevTx,
+            isRevert: false,
+          );
+        } catch (rollbackErr, rollbackSt) {
+          LogService.error('TransactionsProvider', 'Failed to restore ledger balance on delete error', rollbackErr, rollbackSt);
+        } finally {
+          ref.invalidate(bankAccountListProvider);
+          ref.invalidate(creditCardListProvider);
+        }
+      }
       state = AsyncValue.data(previous);
       state = AsyncValue.error(e, stack);
       rethrow;
