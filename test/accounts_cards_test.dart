@@ -129,11 +129,19 @@ void main() {
       expect(card.utilizationRatio, 20.0);
       expect(card.utilizationHealth, CreditUtilizationHealth.optimal);
 
-      final nextStatement = card.getNextStatementDate();
-      expect(nextStatement.day, 15);
+      // On Sept 1: previous statement (Aug 15) is due in 3 days (Sept 4)
+      final baseDate1 = DateTime(2026, 9, 1);
+      final nextDue1 = card.getNextDueDate(baseDate1);
+      expect(nextDue1, DateTime(2026, 9, 4));
 
-      final nextDue = card.getNextDueDate();
-      expect(nextDue.isAfter(nextStatement), isTrue);
+      // On Sept 5: previous bill (Sept 4) has passed.
+      // Next statement is Sept 15, and its bill is due on Oct 5
+      final baseDate2 = DateTime(2026, 9, 5);
+      final nextStatement2 = card.getNextStatementDate(baseDate2);
+      expect(nextStatement2, DateTime(2026, 9, 15));
+      final nextDue2 = card.getNextDueDate(baseDate2);
+      expect(nextDue2, DateTime(2026, 10, 5));
+      expect(nextDue2.isAfter(nextStatement2), isTrue);
 
       final map = card.toMap();
       expect(map['id'], 'card-1');
@@ -331,18 +339,49 @@ void main() {
         creditCards: [card],
       );
 
-      expect(jsonStr, contains('"schemaVersion": 11'));
+      expect(jsonStr, contains('"schemaVersion": 12'));
       expect(jsonStr, contains('"bankAccountsCount": 1'));
       expect(jsonStr, contains('"creditCardsCount": 1'));
       expect(jsonStr, contains('Main Hub'));
       expect(jsonStr, contains('Tata Neu Infinity'));
 
       final parsed = backupService.parseBackupJson(jsonStr);
-      expect(parsed.metadata.schemaVersion, 11);
+      expect(parsed.metadata.schemaVersion, 12);
       expect(parsed.bankAccounts.length, 1);
       expect(parsed.bankAccounts.first.accountName, 'Main Hub');
       expect(parsed.creditCards.length, 1);
       expect(parsed.creditCards.first.cardName, 'Tata Neu Infinity');
+    });
+
+    test('Credit card initialUsedAmount is preserved during computed balance reconciliation', () async {
+      final now = DateTime.now();
+      final cardRepo = InMemoryCreditCardRepository();
+      final card = CreditCardEntity(
+        id: 'card-reconcile-test',
+        cardName: 'Axis Ace',
+        bankName: 'Axis Bank',
+        creditLimit: 100000.0,
+        usedAmount: 15000.0,
+        initialUsedAmount: 15000.0,
+        statementDateDay: 15,
+        gracePeriodDays: 20,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await cardRepo.saveCard(card);
+
+      // Reconcile starting from initialUsedAmount
+      const txAmount = 250.0;
+      final double computedUsed = card.initialUsedAmount + txAmount;
+
+      final updated = card.copyWith(usedAmount: computedUsed);
+      await cardRepo.saveCard(updated);
+
+      final retrieved = await cardRepo.getCardById(card.id);
+      expect(retrieved, isNotNull);
+      expect(retrieved!.initialUsedAmount, 15000.0);
+      expect(retrieved.usedAmount, 15250.0);
+      expect(retrieved.currentDues, 15250.0);
     });
   });
 }

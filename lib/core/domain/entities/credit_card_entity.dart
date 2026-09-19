@@ -81,6 +81,7 @@ class CreditCardEntity {
   final CardNetwork cardNetwork;
   final double creditLimit;
   final double usedAmount;
+  final double initialUsedAmount;
   final int statementDateDay; // 1 to 31
   final int gracePeriodDays; // e.g. 20 days
   final String cardTheme; // 'obsidian', 'emerald', 'midnightBlue', 'roseGold', 'royalPurple'
@@ -95,6 +96,7 @@ class CreditCardEntity {
     this.cardNetwork = CardNetwork.visa,
     required this.creditLimit,
     this.usedAmount = 0.0,
+    this.initialUsedAmount = 0.0,
     required this.statementDateDay,
     this.gracePeriodDays = 20,
     this.cardTheme = 'obsidian',
@@ -138,9 +140,28 @@ class CreditCardEntity {
     }
   }
 
-  /// Calculates upcoming bill payment due date (Statement Date + Grace Period Days)
+  DateTime _getStatementDateForMonth(int year, int month) {
+    final date = DateTime(year, month, 1);
+    final clampedDay = min(statementDateDay, _daysInMonth(date.year, date.month));
+    return DateTime(date.year, date.month, clampedDay);
+  }
+
+  /// Calculates upcoming bill payment due date (Statement Date + Grace Period Days).
+  /// Correctly evaluates candidate statement cycles (from 2 months prior to 2 months ahead)
+  /// so that bills already generated in the current active cycle are not skipped.
   DateTime getNextDueDate([DateTime? relativeTo]) {
-    final statementDate = getNextStatementDate(relativeTo);
+    final rawNow = relativeTo ?? DateTime.now();
+    final now = DateTime(rawNow.year, rawNow.month, rawNow.day);
+
+    for (int monthOffset = -2; monthOffset <= 2; monthOffset++) {
+      final stmtDate = _getStatementDateForMonth(now.year, now.month + monthOffset);
+      final dueDate = stmtDate.add(Duration(days: gracePeriodDays));
+      if (!now.isAfter(dueDate)) {
+        return dueDate;
+      }
+    }
+
+    final statementDate = getNextStatementDate(now);
     return statementDate.add(Duration(days: gracePeriodDays));
   }
 
@@ -173,6 +194,7 @@ class CreditCardEntity {
     CardNetwork? cardNetwork,
     double? creditLimit,
     double? usedAmount,
+    double? initialUsedAmount,
     int? statementDateDay,
     int? gracePeriodDays,
     String? cardTheme,
@@ -187,6 +209,7 @@ class CreditCardEntity {
       cardNetwork: cardNetwork ?? this.cardNetwork,
       creditLimit: creditLimit ?? this.creditLimit,
       usedAmount: usedAmount ?? this.usedAmount,
+      initialUsedAmount: initialUsedAmount ?? this.initialUsedAmount,
       statementDateDay: statementDateDay ?? this.statementDateDay,
       gracePeriodDays: gracePeriodDays ?? this.gracePeriodDays,
       cardTheme: cardTheme ?? this.cardTheme,
@@ -204,6 +227,7 @@ class CreditCardEntity {
       'card_network': cardNetwork.name,
       'credit_limit': creditLimit,
       'used_amount': usedAmount,
+      'initial_used_amount': initialUsedAmount,
       'statement_date_day': statementDateDay,
       'grace_period_days': gracePeriodDays,
       'card_theme': cardTheme,
@@ -221,6 +245,8 @@ class CreditCardEntity {
       cardNetwork: CardNetwork.fromString(map['card_network'] as String? ?? 'visa'),
       creditLimit: (map['credit_limit'] as num).toDouble(),
       usedAmount: (map['used_amount'] as num?)?.toDouble() ?? 0.0,
+      initialUsedAmount: (map['initial_used_amount'] as num?)?.toDouble() ??
+          ((map['used_amount'] as num?)?.toDouble() ?? 0.0),
       statementDateDay: (map['statement_date_day'] as num?)?.toInt() ?? 1,
       gracePeriodDays: (map['grace_period_days'] as num?)?.toInt() ?? 20,
       cardTheme: map['card_theme'] as String? ?? 'obsidian',
@@ -241,6 +267,7 @@ class CreditCardEntity {
           cardNetwork == other.cardNetwork &&
           creditLimit == other.creditLimit &&
           usedAmount == other.usedAmount &&
+          initialUsedAmount == other.initialUsedAmount &&
           statementDateDay == other.statementDateDay &&
           gracePeriodDays == other.gracePeriodDays &&
           cardTheme == other.cardTheme &&
@@ -254,6 +281,7 @@ class CreditCardEntity {
         cardNetwork,
         creditLimit,
         usedAmount,
+        initialUsedAmount,
         statementDateDay,
         gracePeriodDays,
         cardTheme,

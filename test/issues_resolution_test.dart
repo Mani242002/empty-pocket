@@ -4,8 +4,12 @@ import 'package:empty_pocket/core/domain/entities/bank_account_entity.dart';
 import 'package:empty_pocket/core/domain/entities/credit_card_entity.dart';
 import 'package:empty_pocket/core/domain/entities/split_person_share.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
+import 'package:empty_pocket/core/domain/entities/savings_goal_entity.dart';
+import 'package:empty_pocket/core/domain/entities/debt_entity.dart';
 import 'package:empty_pocket/core/repositories/bank_account_repository.dart';
 import 'package:empty_pocket/core/repositories/credit_card_repository.dart';
+import 'package:empty_pocket/core/repositories/savings_goal_repository.dart';
+import 'package:empty_pocket/core/repositories/debt_repository.dart';
 import 'package:empty_pocket/core/repositories/transaction_repository.dart';
 import 'package:empty_pocket/core/utilities/loan_share_helper.dart';
 import 'package:empty_pocket/core/utilities/split_helper.dart';
@@ -55,6 +59,8 @@ void main() {
   late InMemoryTxRepo txRepo;
   late InMemoryBankAccountRepository bankRepo;
   late InMemoryCreditCardRepository cardRepo;
+  late InMemorySavingsGoalRepository savingsRepo;
+  late InMemoryDebtRepository debtRepo;
   late ProviderContainer container;
 
   final now = DateTime.now();
@@ -63,12 +69,16 @@ void main() {
     txRepo = InMemoryTxRepo();
     bankRepo = InMemoryBankAccountRepository();
     cardRepo = InMemoryCreditCardRepository();
+    savingsRepo = InMemorySavingsGoalRepository();
+    debtRepo = InMemoryDebtRepository();
 
     container = ProviderContainer(
       overrides: [
         transactionRepositoryProvider.overrideWithValue(txRepo),
         bankAccountRepositoryProvider.overrideWithValue(bankRepo),
         creditCardRepositoryProvider.overrideWithValue(cardRepo),
+        savingsGoalRepositoryProvider.overrideWithValue(savingsRepo),
+        debtRepositoryProvider.overrideWithValue(debtRepo),
       ],
     );
 
@@ -524,6 +534,115 @@ void main() {
     test('JSON save and format roundtrip succeeds', () async {
       const sampleJson = '{"schemaVersion": 10, "transactions": []}';
       expect(sampleJson.isNotEmpty, isTrue);
+    });
+  });
+
+  group('Linked Entity Rollback on Transaction Deletion Tests', () {
+    test('Deleting transaction linked to a Savings Goal rolls back goal amount and deletes contribution', () async {
+      final goal = SavingsGoalEntity(
+        id: 'goal_car',
+        title: 'New Car',
+        targetAmount: 500000.0,
+        currentAmount: 50000.0,
+        category: 'Vehicle',
+        targetDate: now.add(const Duration(days: 365)),
+        status: GoalStatus.active,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await savingsRepo.saveGoal(goal);
+
+      final contribution = GoalContributionEntity(
+        id: 'contrib_1',
+        goalId: 'goal_car',
+        amount: 50000.0,
+        date: now,
+        createdAt: now,
+      );
+      await savingsRepo.addContribution(contribution);
+
+      final tx = TransactionEntity(
+        id: 'tx_goal_contrib',
+        title: 'Goal: New Car',
+        amount: 50000.0,
+        type: TransactionType.expense,
+        category: 'Savings & Investments',
+        date: now,
+        paymentSource: 'Kotak Bank',
+        accountId: 'acc_kotak',
+        linkedEntityId: 'goal_car',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await txRepo.addTransaction(tx);
+      await container.read(transactionListNotifierProvider.future);
+
+      // Now delete the transaction
+      await container.read(transactionListNotifierProvider.notifier).deleteTransaction('tx_goal_contrib');
+
+      // Goal currentAmount should be reduced from 50,000 back to 0
+      final updatedGoals = await savingsRepo.getAllGoals();
+      final updatedGoal = updatedGoals.firstWhere((g) => g.id == 'goal_car');
+      expect(updatedGoal.currentAmount, 0.0);
+
+      // Contribution should be removed
+      final contributions = await savingsRepo.getContributionsForGoal('goal_car');
+      expect(contributions.isEmpty, isTrue);
+    });
+
+    test('Deleting transaction linked to a Debt rolls back debt remaining amount and deletes payment', () async {
+      final debt = DebtEntity(
+        id: 'debt_bike',
+        title: 'Bike Loan',
+        type: DebtType.carLoan,
+        principalAmount: 80000.0,
+        remainingAmount: 70000.0, // Reduced from 80k after a 10k payment
+        monthlyEmi: 5000.0,
+        startDate: now,
+        status: DebtStatus.active,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await debtRepo.saveDebt(debt);
+
+      final payment = DebtPaymentEntity(
+        id: 'pay_1',
+        debtId: 'debt_bike',
+        amount: 10000.0,
+        date: now,
+        createdAt: now,
+      );
+      await debtRepo.addPayment(payment);
+
+      final tx = TransactionEntity(
+        id: 'tx_debt_pay',
+        title: 'EMI: Bike Loan',
+        amount: 10000.0,
+        type: TransactionType.expense,
+        category: 'Debt & Loan Repayment',
+        date: now,
+        paymentSource: 'Kotak Bank',
+        accountId: 'acc_kotak',
+        linkedEntityId: 'debt_bike',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await txRepo.addTransaction(tx);
+      await container.read(transactionListNotifierProvider.future);
+
+      // Now delete the transaction
+      await container.read(transactionListNotifierProvider.notifier).deleteTransaction('tx_debt_pay');
+
+      // Debt remainingAmount should roll back from 70,000 up to 80,000
+      final updatedDebts = await debtRepo.getAllDebts();
+      final updatedDebt = updatedDebts.firstWhere((d) => d.id == 'debt_bike');
+      expect(updatedDebt.remainingAmount, 80000.0);
+
+      // Payment should be removed
+      final payments = await debtRepo.getPaymentsForDebt('debt_bike');
+      expect(payments.isEmpty, isTrue);
     });
   });
 }

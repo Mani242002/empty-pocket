@@ -275,12 +275,14 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      CurrencyFormatter.format(cat.amount),
-                                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        CurrencyFormatter.format(cat.amount),
+                                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),

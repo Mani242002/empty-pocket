@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/domain/entities/transaction_entity.dart';
+import '../../../core/services/log_service.dart';
 import '../../../core/utilities/app_haptics.dart';
 import '../../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../features/transactions/presentation/screens/add_edit_transaction_sheet.dart';
@@ -324,7 +325,10 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
           });
         } else {
           // Smoothly minimize the app to background instead of killing process
-          _overlayChannel.invokeMethod('minimizeApp');
+          _overlayChannel.invokeMethod('minimizeApp').catchError((e) {
+            LogService.warning('MainNavigationScaffold', 'minimizeApp channel failed: $e');
+            SystemNavigator.pop();
+          });
         }
       },
       child: Scaffold(

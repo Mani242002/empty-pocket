@@ -8,6 +8,7 @@ abstract class DebtRepository {
   Future<void> saveDebt(DebtEntity debt);
   Future<void> deleteDebt(String id);
   Future<void> addPayment(DebtPaymentEntity payment);
+  Future<void> deletePayment(String id);
   Future<List<DebtPaymentEntity>> getPaymentsForDebt(String debtId);
 }
 
@@ -34,6 +35,11 @@ class SqliteDebtRepository implements DebtRepository {
   @override
   Future<void> addPayment(DebtPaymentEntity payment) async {
     await _db.insertDebtPayment(payment);
+  }
+
+  @override
+  Future<void> deletePayment(String id) async {
+    await _db.deleteDebtPayment(id);
   }
 
   @override
@@ -74,6 +80,11 @@ class InMemoryDebtRepository implements DebtRepository {
   @override
   Future<void> addPayment(DebtPaymentEntity payment) async {
     _payments.add(payment);
+  }
+
+  @override
+  Future<void> deletePayment(String id) async {
+    _payments.removeWhere((p) => p.id == id);
   }
 
   @override

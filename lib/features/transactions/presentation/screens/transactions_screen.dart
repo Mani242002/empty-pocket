@@ -148,32 +148,40 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     },
                     visualDensity: VisualDensity.compact,
                   ),
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedMonth,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2040),
-                      );
-                      if (picked != null) {
-                        ref.read(selectedMonthProvider.notifier).setMonth(picked);
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_month_rounded, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            monthTitle,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedMonth,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2040),
+                        );
+                        if (picked != null) {
+                          ref.read(selectedMonthProvider.notifier).setMonth(picked);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_month_rounded, size: 18),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                monthTitle,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -278,57 +286,62 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             // Transactions Grouped List or Empty State
             Expanded(
               child: grouped.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 72,
-                              height: 72,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isDark
-                                    ? AppColors.darkSurfaceVariant
-                                    : AppColors.lightSurfaceVariant,
-                                border: Border.all(
-                                  color: financialColors.cardBorder,
-                                  width: 1,
+                  ? SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDark
+                                      ? AppColors.darkSurfaceVariant
+                                      : AppColors.lightSurfaceVariant,
+                                  border: Border.all(
+                                    color: financialColors.cardBorder,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.receipt_rounded,
+                                  size: 36,
+                                  color: financialColors.textMuted,
                                 ),
                               ),
-                              child: Icon(
-                                Icons.receipt_rounded,
-                                size: 36,
-                                color: financialColors.textMuted,
+                              const SizedBox(height: 20),
+                              Text(
+                                _searchController.text.isNotEmpty
+                                    ? 'No Matching Transactions'
+                                    : 'No Transactions in $monthTitle',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              _searchController.text.isNotEmpty
-                                  ? 'No Matching Transactions'
-                                  : 'No Transactions in $monthTitle',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
+                              const SizedBox(height: 8),
+                              Text(
+                                _searchController.text.isNotEmpty
+                                    ? 'Try modifying your search or filter keywords.'
+                                    : 'Tap below to add an income or expense for this month.',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: financialColors.textMuted,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _searchController.text.isNotEmpty
-                                  ? 'Try modifying your search or filter keywords.'
-                                  : 'Tap below to add an income or expense for this month.',
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: financialColors.textMuted,
+                              const SizedBox(height: 24),
+                              FilledButton.icon(
+                                onPressed: () => AddEditTransactionSheet.show(context),
+                                icon: const Icon(Icons.add_rounded, size: 18),
+                                label: const Text('Add Transaction'),
                               ),
-                            ),
-                            const SizedBox(height: 24),
-                            FilledButton.icon(
-                              onPressed: () => AddEditTransactionSheet.show(context),
-                              icon: const Icon(Icons.add_rounded, size: 18),
-                              label: const Text('Add Transaction'),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     )

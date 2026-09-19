@@ -86,7 +86,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           ),
         ],
       ),
-    );
+    ).whenComplete(() => controller.dispose());
   }
 
   void _showDeleteSessionDialog(BuildContext context, AiChatSession session) {

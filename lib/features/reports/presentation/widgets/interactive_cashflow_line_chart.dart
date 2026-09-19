@@ -243,13 +243,15 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
               onTapDown: (details) {
                 _handleTouch(details.localPosition, chartWidth, points.length);
               },
-              child: CustomPaint(
-                size: Size(chartWidth, chartHeight),
-                painter: _BezierCashflowPainter(
-                  points: points,
-                  selectedIndex: activeIndex,
-                  isDark: isDark,
-                  financialColors: financialColors,
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  size: Size(chartWidth, chartHeight),
+                  painter: _BezierCashflowPainter(
+                    points: points,
+                    selectedIndex: activeIndex,
+                    isDark: isDark,
+                    financialColors: financialColors,
+                  ),
                 ),
               ),
             );

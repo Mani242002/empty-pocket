@@ -16,6 +16,7 @@ import 'package:empty_pocket/core/repositories/debt_repository.dart';
 import 'package:empty_pocket/core/repositories/investment_repository.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
 import 'package:empty_pocket/features/transactions/presentation/widgets/transaction_list_item.dart';
+import 'package:empty_pocket/features/transactions/presentation/screens/transactions_screen.dart';
 import 'package:empty_pocket/features/settings/presentation/screens/settings_screen.dart';
 import 'package:empty_pocket/features/reports/presentation/screens/reports_analytics_screen.dart';
 import 'package:empty_pocket/features/reports/presentation/state/reports_provider.dart';
@@ -420,6 +421,43 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('TOTAL SPENT'), findsOneWidget);
       expect(find.text('3 Categories'), findsOneWidget);
+    });
+
+    testWidgets('TransactionsScreen month selector renders without overflow on compact 320dp width screen with 1.25x font scale', (tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final inMemoryTxRepo = InMemoryTransactionRepository();
+      final inMemoryBankRepo = InMemoryBankAccountRepository();
+      final inMemoryCardRepo = InMemoryCreditCardRepository();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transactionRepositoryProvider.overrideWithValue(inMemoryTxRepo),
+            bankAccountRepositoryProvider.overrideWithValue(inMemoryBankRepo),
+            creditCardRepositoryProvider.overrideWithValue(inMemoryCardRepo),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const MediaQuery(
+              data: MediaQueryData(
+                size: Size(320, 600),
+                textScaler: TextScaler.linear(1.25),
+              ),
+              child: Scaffold(
+                body: TransactionsScreen(),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byIcon(Icons.calendar_month_rounded), findsOneWidget);
     });
   });
 }

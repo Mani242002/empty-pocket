@@ -153,6 +153,7 @@ class _AddEditCreditCardSheetState
           cardNetwork: _selectedNetwork,
           creditLimit: limit,
           usedAmount: used,
+          initialUsedAmount: used,
           statementDateDay: _selectedStatementDay,
           gracePeriodDays: _selectedGracePeriod,
           cardTheme: _selectedTheme,

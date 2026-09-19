@@ -18,7 +18,7 @@ import '../services/log_service.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 11;
+  static const int _databaseVersion = 12;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
@@ -340,6 +340,14 @@ class AppDatabase {
     if (oldVersion < 11) {
       await _createAiReportsTable(db);
     }
+    if (oldVersion < 12) {
+      try {
+        await db.execute('ALTER TABLE $tableCreditCards ADD COLUMN initial_used_amount REAL NOT NULL DEFAULT 0.0');
+        await db.execute('UPDATE $tableCreditCards SET initial_used_amount = used_amount WHERE initial_used_amount = 0.0');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'initial_used_amount column migration: $e');
+      }
+    }
   }
 
   Future<void> _createAiReportsTable(Database db) async {
@@ -393,6 +401,7 @@ class AppDatabase {
         card_network TEXT NOT NULL,
         credit_limit REAL NOT NULL,
         used_amount REAL NOT NULL,
+        initial_used_amount REAL NOT NULL DEFAULT 0.0,
         statement_date_day INTEGER NOT NULL,
         grace_period_days INTEGER NOT NULL,
         card_theme TEXT NOT NULL,
@@ -913,6 +922,15 @@ class AppDatabase {
     return maps.map((map) => GoalContributionEntity.fromMap(map)).toList();
   }
 
+  Future<int> deleteGoalContribution(String id) async {
+    final database = await this.database;
+    return await database.delete(
+      tableGoalContributions,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   // --- Debts & Liabilities ---
 
   Future<int> insertDebt(DebtEntity debt) async {
@@ -1014,6 +1032,15 @@ class AppDatabase {
     );
 
     return maps.map((map) => DebtPaymentEntity.fromMap(map)).toList();
+  }
+
+  Future<int> deleteDebtPayment(String id) async {
+    final database = await this.database;
+    return await database.delete(
+      tableDebtPayments,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   // --- Investments ---

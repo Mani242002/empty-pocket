@@ -295,9 +295,8 @@ class AccountOperationsNotifier {
     // 2. Reconcile Credit Cards
     for (final card in cards) {
       final cardTxs = allTxs.where((tx) => tx.creditCardId == card.id).toList();
-      if (cardTxs.isEmpty) continue; // Preserve initial usedAmount if no transactions recorded yet
 
-      double computedUsed = 0.0;
+      double computedUsed = card.initialUsedAmount;
       for (final tx in cardTxs) {
         if (tx.type == TransactionType.expense) {
           computedUsed += tx.amount;

@@ -8,6 +8,7 @@ abstract class SavingsGoalRepository {
   Future<void> saveGoal(SavingsGoalEntity goal);
   Future<void> deleteGoal(String id);
   Future<void> addContribution(GoalContributionEntity contribution);
+  Future<void> deleteContribution(String id);
   Future<List<GoalContributionEntity>> getContributionsForGoal(String goalId);
 }
 
@@ -34,6 +35,11 @@ class SqliteSavingsGoalRepository implements SavingsGoalRepository {
   @override
   Future<void> addContribution(GoalContributionEntity contribution) async {
     await _db.insertGoalContribution(contribution);
+  }
+
+  @override
+  Future<void> deleteContribution(String id) async {
+    await _db.deleteGoalContribution(id);
   }
 
   @override
@@ -74,6 +80,11 @@ class InMemorySavingsGoalRepository implements SavingsGoalRepository {
   @override
   Future<void> addContribution(GoalContributionEntity contribution) async {
     _contributions.add(contribution);
+  }
+
+  @override
+  Future<void> deleteContribution(String id) async {
+    _contributions.removeWhere((c) => c.id == id);
   }
 
   @override

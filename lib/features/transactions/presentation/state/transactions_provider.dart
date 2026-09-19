@@ -8,7 +8,14 @@ import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/transaction_repository.dart';
 import '../../../../core/utilities/split_helper.dart';
 import '../../../../core/utilities/loan_share_helper.dart';
+import '../../../../core/domain/entities/savings_goal_entity.dart';
+import '../../../../core/domain/entities/debt_entity.dart';
+import '../../../../core/repositories/savings_goal_repository.dart';
+import '../../../../core/repositories/debt_repository.dart';
+import '../../../../core/services/log_service.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
+import '../../../savings/presentation/state/savings_goals_provider.dart';
+import '../../../debts/presentation/state/debts_provider.dart';
 
 /// Monthly Financial Summary model
 class MonthlyFinancialSummary {
@@ -243,6 +250,70 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           prevTx,
           isRevert: true,
         );
+
+        // 2. Synchronize linked Savings Goals or Debts if this transaction was linked
+        if (prevTx.category != 'Shared Expense Reimbursement' &&
+            prevTx.category != 'Loan Repayment Received' &&
+            prevTx.linkedEntityId != null &&
+            prevTx.linkedEntityId!.trim().isNotEmpty) {
+          try {
+            final linkedId = prevTx.linkedEntityId!.trim();
+
+            // Check Savings Goals
+            final savingsGoalRepo = ref.read(savingsGoalRepositoryProvider);
+            final goals = await savingsGoalRepo.getAllGoals();
+            final matchedGoal = goals.where((g) => g.id == linkedId).firstOrNull;
+
+            if (matchedGoal != null) {
+              final newAmount = (matchedGoal.currentAmount - prevTx.amount).clamp(0.0, double.infinity).toDouble();
+              final newStatus = (newAmount >= matchedGoal.targetAmount)
+                  ? GoalStatus.completed
+                  : (matchedGoal.status == GoalStatus.completed ? GoalStatus.active : matchedGoal.status);
+              final updatedGoal = matchedGoal.copyWith(
+                currentAmount: newAmount,
+                status: newStatus,
+                updatedAt: DateTime.now(),
+              );
+              await savingsGoalRepo.saveGoal(updatedGoal);
+
+              // Clean up corresponding contribution entry
+              final contributions = await savingsGoalRepo.getContributionsForGoal(matchedGoal.id);
+              final matchedContrib = contributions.where((c) => (c.amount - prevTx.amount).abs() < 0.001).firstOrNull;
+              if (matchedContrib != null) {
+                await savingsGoalRepo.deleteContribution(matchedContrib.id);
+              }
+              ref.invalidate(savingsGoalsListNotifierProvider);
+            }
+
+            // Check Debts
+            final debtRepo = ref.read(debtRepositoryProvider);
+            final debts = await debtRepo.getAllDebts();
+            final matchedDebt = debts.where((d) => d.id == linkedId).firstOrNull;
+
+            if (matchedDebt != null) {
+              final newRemaining = (matchedDebt.remainingAmount + prevTx.amount).clamp(0.0, matchedDebt.principalAmount).toDouble();
+              final newStatus = newRemaining <= 0
+                  ? DebtStatus.paidOff
+                  : (matchedDebt.status == DebtStatus.paidOff ? DebtStatus.active : matchedDebt.status);
+              final updatedDebt = matchedDebt.copyWith(
+                remainingAmount: newRemaining,
+                status: newStatus,
+                updatedAt: DateTime.now(),
+              );
+              await debtRepo.saveDebt(updatedDebt);
+
+              // Clean up corresponding payment entry
+              final payments = await debtRepo.getPaymentsForDebt(matchedDebt.id);
+              final matchedPayment = payments.where((p) => (p.amount - prevTx.amount).abs() < 0.001).firstOrNull;
+              if (matchedPayment != null) {
+                await debtRepo.deletePayment(matchedPayment.id);
+              }
+              ref.invalidate(debtListNotifierProvider);
+            }
+          } catch (e, st) {
+            LogService.error('TransactionsProvider', 'Failed to roll back linked entity for tx $id', e, st);
+          }
+        }
       }
       await repository.deleteTransaction(id);
     } catch (e, stack) {

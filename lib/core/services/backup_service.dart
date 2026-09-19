@@ -42,7 +42,7 @@ class BackupService {
     List<AiReportItem> aiReports = const [],
   }) {
     final metadata = BackupMetadata(
-      schemaVersion: 11,
+      schemaVersion: 12,
       exportedAt: DateTime.now(),
       transactionsCount: transactions.length,
       budgetsCount: budgets.length,

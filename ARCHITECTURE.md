@@ -19,9 +19,9 @@ EmptyPocket adheres to **Clean Architecture** principles combined with a **Featu
 
 ```
 lib/
-├── app/                              # Application Bootstrap & Configuration
-│   ├── app.dart                      # MaterialApp, Top-Level Routes & Riverpod Scope
-│   ├── routes.dart                   # Declarative Named Routes
+├── app/                              # Application Bootstrap & Root Navigation
+│   ├── app.dart                      # MaterialApp, Theme Configuration & Riverpod Scope
+│   ├── presentation/screens/         # Main Navigation Scaffold (Adaptive Tab Bar & Floating Action)
 │   └── theme/                        # Emerald Design System (Dark & Light tokens)
 │
 ├── core/                             # Cross-Cutting Shared Kernel
@@ -30,7 +30,7 @@ lib/
 │   │                                 # Budgets, Savings, Debts, Investments, Health Score & AI Context
 │   │
 │   ├── database/                     # SQLite Engine & Migrations
-│   │   └── app_database.dart         # Singleton Database, Schema v11 DDL & Alter logic
+│   │   └── app_database.dart         # Singleton Database, Schema v12 DDL & Alter logic
 │   │
 │   ├── domain/entities/              # Enterprise Domain Entities
 │   │   ├── transaction_entity.dart   # TransactionType, Split parameters

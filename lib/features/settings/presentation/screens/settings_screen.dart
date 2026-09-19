@@ -405,7 +405,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ).whenComplete(() => textController.dispose());
   }
 
   void _showCurrencySelectorDialog(BuildContext context, WidgetRef ref) {
@@ -692,7 +692,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ).whenComplete(() => textController.dispose());
   }
 
   void _showFactoryResetDialog(BuildContext context, WidgetRef ref) {
@@ -773,7 +773,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ).whenComplete(() => confirmController.dispose());
   }
 
   @override
