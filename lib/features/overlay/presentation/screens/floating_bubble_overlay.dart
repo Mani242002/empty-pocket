@@ -344,16 +344,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         );
 
         if (_selectedAccountId != null) {
-          final matching = _bankAccounts.where((a) => a.id == _selectedAccountId);
-          if (matching.isNotEmpty) {
-            final acc = matching.first;
-            await db.updateBankAccount(
-              acc.copyWith(
-                currentBalance: acc.currentBalance + amount,
-                updatedAt: now,
-              ),
-            );
-          }
+          await db.adjustBankAccountBalance(_selectedAccountId!, amount);
         }
 
         final settlementTx = TransactionEntity(
@@ -396,54 +387,18 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         return;
       }
 
-      // Balance & Limit adjustments
+      // Atomic Balance & Limit adjustments directly at the database engine level
       if (_type == TransactionType.income) {
         if (_selectedAccountId != null) {
-          final matching = _bankAccounts.where((a) => a.id == _selectedAccountId);
-          if (matching.isNotEmpty) {
-            final acc = matching.first;
-            await db.updateBankAccount(
-              acc.copyWith(
-                currentBalance: acc.currentBalance + amount,
-                updatedAt: now,
-              ),
-            );
-          }
+          await db.adjustBankAccountBalance(_selectedAccountId!, amount);
         } else if (_selectedCreditCardId != null) {
-          final matching = _creditCards.where((c) => c.id == _selectedCreditCardId);
-          if (matching.isNotEmpty) {
-            final card = matching.first;
-            await db.updateCreditCard(
-              card.copyWith(
-                usedAmount: (card.usedAmount - amount).clamp(0.0, double.infinity),
-                updatedAt: now,
-              ),
-            );
-          }
+          await db.adjustCreditCardUsedAmount(_selectedCreditCardId!, -amount);
         }
       } else if (_type == TransactionType.expense) {
         if (_selectedCreditCardId != null) {
-          final matching = _creditCards.where((c) => c.id == _selectedCreditCardId);
-          if (matching.isNotEmpty) {
-            final card = matching.first;
-            await db.updateCreditCard(
-              card.copyWith(
-                usedAmount: card.usedAmount + amount,
-                updatedAt: now,
-              ),
-            );
-          }
+          await db.adjustCreditCardUsedAmount(_selectedCreditCardId!, amount);
         } else if (_selectedAccountId != null) {
-          final matching = _bankAccounts.where((a) => a.id == _selectedAccountId);
-          if (matching.isNotEmpty) {
-            final acc = matching.first;
-            await db.updateBankAccount(
-              acc.copyWith(
-                currentBalance: acc.currentBalance - amount,
-                updatedAt: now,
-              ),
-            );
-          }
+          await db.adjustBankAccountBalance(_selectedAccountId!, -amount);
         }
       }
 

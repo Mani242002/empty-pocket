@@ -88,6 +88,36 @@ void main() {
       expect(MathExpressionParser.tryEvaluate('10,000 * 2'), 20000.0);
       expect(MathExpressionParser.tryEvaluate('1,25,000 - 25,000'), 100000.0);
     });
+
+    test('Evaluates parenthesized expressions with correct precedence', () {
+      expect(MathExpressionParser.tryEvaluate('(150 + 50) * 2'), 400.0);
+      expect(MathExpressionParser.tryEvaluate('(1200 - 200) / 5'), 200.0);
+      expect(MathExpressionParser.tryEvaluate('((10 + 20) * 3) / 2'), 45.0);
+      expect(MathExpressionParser.tryEvaluate('100 + (50 * 2) - (30 / 3)'), 190.0);
+      expect(MathExpressionParser.tryEvaluate('((500 + 500))'), 1000.0);
+    });
+
+    test('Supports implicit multiplication with parentheses', () {
+      expect(MathExpressionParser.tryEvaluate('2(300 + 50)'), 700.0);
+      expect(MathExpressionParser.tryEvaluate('(100 + 50)2'), 300.0);
+      expect(MathExpressionParser.tryEvaluate('(2 + 3)(4 + 1)'), 25.0);
+    });
+
+    test('Safely rejects malformed parentheses, division by zero, or negative results', () {
+      expect(MathExpressionParser.tryEvaluate('(150 + 50'), isNull); // unclosed
+      expect(MathExpressionParser.tryEvaluate('150 + 50)'), isNull); // unopened
+      expect(MathExpressionParser.tryEvaluate(')('), isNull);
+      expect(MathExpressionParser.tryEvaluate('()'), isNull); // empty
+      expect(MathExpressionParser.tryEvaluate('100 / (10 - 10)'), isNull); // div by zero
+      expect(MathExpressionParser.tryEvaluate('(100 - 200)'), isNull); // negative result
+      expect(MathExpressionParser.tryEvaluate('*(50)'), isNull);
+      expect(MathExpressionParser.tryEvaluate('(50)*'), isNull);
+    });
+
+    test('Handles spaces and formatted commas inside parenthesized expressions', () {
+      expect(MathExpressionParser.tryEvaluate('( 1,000 + 500 ) * 2'), 3000.0);
+      expect(MathExpressionParser.tryEvaluate(' ( 2,500 - 500 ) / 2 '), 1000.0);
+    });
   });
 
   group('FinancialCalculator Daily Safe to Spend Tests', () {

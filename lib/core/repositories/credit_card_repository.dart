@@ -8,6 +8,7 @@ abstract class CreditCardRepository {
   Future<CreditCardEntity?> getCardById(String id);
   Future<void> saveCard(CreditCardEntity card);
   Future<void> updateCard(CreditCardEntity card);
+  Future<void> adjustUsedAmount(String id, double delta);
   Future<void> deleteCard(String id);
 }
 
@@ -34,6 +35,11 @@ class SqliteCreditCardRepository implements CreditCardRepository {
   @override
   Future<void> updateCard(CreditCardEntity card) async {
     await _db.updateCreditCard(card);
+  }
+
+  @override
+  Future<void> adjustUsedAmount(String id, double delta) async {
+    await _db.adjustCreditCardUsedAmount(id, delta);
   }
 
   @override
@@ -75,6 +81,15 @@ class InMemoryCreditCardRepository implements CreditCardRepository {
       _cards[index] = card;
     } else {
       _cards.add(card);
+    }
+  }
+
+  @override
+  Future<void> adjustUsedAmount(String id, double delta) async {
+    final index = _cards.indexWhere((c) => c.id == id);
+    if (index != -1) {
+      final old = _cards[index];
+      _cards[index] = old.copyWith(usedAmount: old.usedAmount + delta);
     }
   }
 

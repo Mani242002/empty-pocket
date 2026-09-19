@@ -19,7 +19,11 @@ import '../../../../core/services/log_service.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-final aiServiceProvider = Provider<AiService>((ref) => AiService());
+final aiServiceProvider = Provider<AiService>((ref) {
+  final service = AiService();
+  ref.onDispose(() => service.close());
+  return service;
+});
 
 class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
   static const String _keyProvider = 'ai_provider_type';

@@ -364,25 +364,27 @@ class _SharedSplitsTabState extends ConsumerState<SharedSplitsTab> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: (isSettled ? financialColors.income : financialColors.warning).withAlpha(25),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: (isSettled ? financialColors.income : financialColors.warning).withAlpha(60),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isSettled ? financialColors.income : financialColors.warning).withAlpha(25),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: (isSettled ? financialColors.income : financialColors.warning).withAlpha(60),
+                          ),
                         ),
-                      ),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          isSettled
-                              ? 'Settled'
-                              : '${CurrencyFormatter.format(tx.pendingReimbursement)} Pending',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: isSettled ? financialColors.income : financialColors.warning,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            isSettled
+                                ? 'Settled'
+                                : '${CurrencyFormatter.format(tx.pendingReimbursement)} Pending',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: isSettled ? financialColors.income : financialColors.warning,
+                            ),
                           ),
                         ),
                       ),
@@ -400,21 +402,33 @@ class _SharedSplitsTabState extends ConsumerState<SharedSplitsTab> {
                         color: AppColors.primaryEmerald.withAlpha(isDark ? 80 : 50),
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        const Icon(Icons.handshake_rounded, size: 15, color: AppColors.primaryEmerald),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Lent to ${loan.borrowerName}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primaryEmerald,
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              const WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: 5),
+                                  child: Icon(Icons.handshake_rounded, size: 15, color: AppColors.primaryEmerald),
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'Lent to ${loan.borrowerName}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryEmerald,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        if (loan.expectedInterest > 0) ...[
-                          const SizedBox(width: 6),
+                        if (loan.expectedInterest > 0)
                           Text(
                             '(+${CurrencyFormatter.format(loan.expectedInterest)} interest)',
                             style: TextStyle(
@@ -423,9 +437,7 @@ class _SharedSplitsTabState extends ConsumerState<SharedSplitsTab> {
                               color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                             ),
                           ),
-                        ],
-                        if (loan.expectedReturnDate != null) ...[
-                          const SizedBox(width: 6),
+                        if (loan.expectedReturnDate != null)
                           Text(
                             '• Due ${DateFormat('dd MMM').format(loan.expectedReturnDate!)}',
                             style: TextStyle(
@@ -434,7 +446,6 @@ class _SharedSplitsTabState extends ConsumerState<SharedSplitsTab> {
                               color: financialColors.textMuted,
                             ),
                           ),
-                        ],
                       ],
                     ),
                   ),

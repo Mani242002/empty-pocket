@@ -1393,6 +1393,15 @@ class AppDatabase {
     );
   }
 
+  /// Atomically adjust bank account balance at the SQLite engine level to prevent race conditions
+  Future<int> adjustBankAccountBalance(String accountId, double delta) async {
+    final database = await this.database;
+    return await database.rawUpdate(
+      'UPDATE $tableBankAccounts SET current_balance = current_balance + ?, updated_at = ? WHERE id = ?',
+      [delta, DateTime.now().millisecondsSinceEpoch, accountId],
+    );
+  }
+
   Future<int> deleteBankAccount(String id) async {
     final database = await this.database;
     return await database.delete(
@@ -1458,6 +1467,15 @@ class AppDatabase {
       card.toMap(),
       where: 'id = ?',
       whereArgs: [card.id],
+    );
+  }
+
+  /// Atomically adjust credit card used amount at the SQLite engine level to prevent race conditions
+  Future<int> adjustCreditCardUsedAmount(String cardId, double delta) async {
+    final database = await this.database;
+    return await database.rawUpdate(
+      'UPDATE $tableCreditCards SET used_amount = CASE WHEN used_amount + ? < 0 THEN 0.0 ELSE used_amount + ? END, updated_at = ? WHERE id = ?',
+      [delta, delta, DateTime.now().millisecondsSinceEpoch, cardId],
     );
   }
 

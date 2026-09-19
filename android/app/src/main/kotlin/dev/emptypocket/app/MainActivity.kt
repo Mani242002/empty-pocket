@@ -58,16 +58,11 @@ class MainActivity : FlutterFragmentActivity() {
                         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
                         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
                             try {
-                                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                    data = Uri.parse("package:$packageName")
-                                }
+                                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                                 startActivity(intent)
                                 result.success(true)
                             } catch (e: Exception) {
-                                // Fallback to general battery settings if direct intent fails
-                                val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                                startActivity(fallbackIntent)
-                                result.success(true)
+                                result.error("INTENT_FAILED", "Could not open battery settings", e.message)
                             }
                         } else {
                             result.success(true)

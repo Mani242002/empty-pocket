@@ -10,6 +10,11 @@ class AiService {
 
   AiService({http.Client? httpClient}) : _httpClient = httpClient ?? http.Client();
 
+  /// Closes the underlying HTTP client and releases network resources
+  void close() {
+    _httpClient.close();
+  }
+
   /// Test connection with user-provided API key
   Future<bool> testConnection(AiProviderConfig config) async {
     if (!config.isConfigured) return false;

@@ -262,12 +262,39 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                       style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                     ),
                     onPressed: () async {
-                      await ref.read(appLockProvider.notifier).toggleAppLock(false);
-                      if (mounted) {
-                        setState(() {
-                          isSessionUnlocked = true;
-                          _isHardwareUnavailable = false;
-                        });
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Disable Vault Lock?'),
+                          content: const Text(
+                            'No biometric credentials or device PIN were detected on this device.\n\n'
+                            'Disabling vault lock will remove authentication protection until you re-enable it in Settings.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.warning,
+                                foregroundColor: Colors.black,
+                              ),
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: const Text('Confirm Disable'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed == true) {
+                        await ref.read(appLockProvider.notifier).toggleAppLock(false);
+                        if (mounted) {
+                          setState(() {
+                            isSessionUnlocked = true;
+                            _isHardwareUnavailable = false;
+                          });
+                        }
                       }
                     },
                   ),

@@ -176,5 +176,46 @@ void main() {
       expect(lastChanged, '265');
       expect(controller.selection.baseOffset, 3);
     });
+
+    testWidgets('AmountCalculatorField supports parentheses in expressions', (tester) async {
+      final formKey = GlobalKey<FormState>();
+      final controller = TextEditingController();
+      String? lastChanged;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: Scaffold(
+            body: Form(
+              key: formKey,
+              child: AmountCalculatorField(
+                controller: controller,
+                activeAccentColor: Colors.blue,
+                onChanged: (val) {
+                  lastChanged = val;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Enter expression with parentheses
+      await tester.enterText(find.byType(TextFormField), '(50 + 25) * 4');
+      await tester.pumpAndSettle();
+
+      expect(controller.text, '(50 + 25) * 4');
+      expect(formKey.currentState!.validate(), isTrue);
+
+      // Tap +100 quick chip
+      final symbol = CurrencyFormatter.activeCurrency.symbol;
+      final chip100 = find.text('+$symbol' '100');
+      await tester.tap(chip100);
+      await tester.pumpAndSettle();
+
+      // (50 + 25) * 4 = 300, + 100 = 400
+      expect(controller.text, '400');
+      expect(lastChanged, '400');
+    });
   });
 }

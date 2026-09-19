@@ -8,6 +8,7 @@ abstract class BankAccountRepository {
   Future<BankAccountEntity?> getAccountById(String id);
   Future<void> saveAccount(BankAccountEntity account);
   Future<void> updateAccount(BankAccountEntity account);
+  Future<void> adjustBalance(String id, double delta);
   Future<void> deleteAccount(String id);
 }
 
@@ -34,6 +35,11 @@ class SqliteBankAccountRepository implements BankAccountRepository {
   @override
   Future<void> updateAccount(BankAccountEntity account) async {
     await _db.updateBankAccount(account);
+  }
+
+  @override
+  Future<void> adjustBalance(String id, double delta) async {
+    await _db.adjustBankAccountBalance(id, delta);
   }
 
   @override
@@ -75,6 +81,15 @@ class InMemoryBankAccountRepository implements BankAccountRepository {
       _accounts[index] = account;
     } else {
       _accounts.add(account);
+    }
+  }
+
+  @override
+  Future<void> adjustBalance(String id, double delta) async {
+    final index = _accounts.indexWhere((a) => a.id == id);
+    if (index != -1) {
+      final old = _accounts[index];
+      _accounts[index] = old.copyWith(currentBalance: old.currentBalance + delta);
     }
   }
 

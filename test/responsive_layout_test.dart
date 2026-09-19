@@ -22,9 +22,13 @@ import 'package:empty_pocket/features/reports/presentation/screens/reports_analy
 import 'package:empty_pocket/features/reports/presentation/state/reports_provider.dart';
 import 'package:empty_pocket/features/dashboard/presentation/widgets/dashboard_accounts_card.dart';
 import 'package:empty_pocket/features/reports/presentation/widgets/interactive_donut_chart.dart';
+import 'dart:convert';
 import 'package:empty_pocket/core/domain/entities/bank_account_entity.dart';
 import 'package:empty_pocket/core/domain/entities/credit_card_entity.dart';
 import 'package:empty_pocket/core/calculation/financial_calculator.dart';
+import 'package:empty_pocket/core/utilities/loan_share_helper.dart';
+import 'package:empty_pocket/features/transactions/presentation/screens/transaction_detail_sheet.dart';
+import 'package:empty_pocket/features/budgets/presentation/widgets/shared_splits_tab.dart';
 import 'package:empty_pocket/app/presentation/screens/main_navigation_scaffold.dart';
 import 'package:empty_pocket/app/theme/app_theme.dart';
 
@@ -317,6 +321,51 @@ void main() {
       expect(find.byType(FloatingActionButton), findsNothing);
     });
 
+    testWidgets('MainNavigationScaffold renders navigation destinations cleanly on 320dp width with 1.35x textScale', (tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final inMemoryBudgetRepo = InMemoryBudgetRepository();
+      final inMemoryRecurringRepo = InMemoryRecurringRepository();
+      final inMemorySavingsRepo = InMemorySavingsGoalRepository();
+      final inMemoryTxRepo = InMemoryTransactionRepository();
+      final inMemoryBankRepo = InMemoryBankAccountRepository();
+      final inMemoryCardRepo = InMemoryCreditCardRepository();
+      final inMemoryDebtRepo = InMemoryDebtRepository();
+      final inMemoryInvestmentRepo = InMemoryInvestmentRepository();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            budgetRepositoryProvider.overrideWithValue(inMemoryBudgetRepo),
+            recurringRepositoryProvider.overrideWithValue(inMemoryRecurringRepo),
+            savingsGoalRepositoryProvider.overrideWithValue(inMemorySavingsRepo),
+            transactionRepositoryProvider.overrideWithValue(inMemoryTxRepo),
+            bankAccountRepositoryProvider.overrideWithValue(inMemoryBankRepo),
+            creditCardRepositoryProvider.overrideWithValue(inMemoryCardRepo),
+            debtRepositoryProvider.overrideWithValue(inMemoryDebtRepo),
+            investmentRepositoryProvider.overrideWithValue(inMemoryInvestmentRepo),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const MediaQuery(
+              data: MediaQueryData(
+                size: Size(320, 600),
+                textScaler: TextScaler.linear(1.35),
+              ),
+              child: MainNavigationScaffold(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Dashboard'), findsOneWidget);
+    });
+
     testWidgets('DashboardAccountsCard renders without overflow on ultra-compact 320dp width with 1.15x textScale', (tester) async {
       tester.view.physicalSize = const Size(320, 600);
       tester.view.devicePixelRatio = 1.0;
@@ -511,6 +560,117 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.textContaining('Today'), findsOneWidget);
       expect(find.text('Grocery Supermarket'), findsOneWidget);
+    });
+
+    testWidgets('TransactionDetailSheet scales large amounts gracefully without overflow on 320dp width with 1.35x font scale', (tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final inMemoryTxRepo = InMemoryTransactionRepository();
+      final inMemoryBankRepo = InMemoryBankAccountRepository();
+      final inMemoryCardRepo = InMemoryCreditCardRepository();
+
+      final now = DateTime.now();
+      final largeTx = TransactionEntity(
+        id: 'large_tx_1',
+        title: 'Emergency Medical Surgery Bill Super Long Name',
+        amount: 99999999.99,
+        type: TransactionType.expense,
+        category: 'Health & Medical',
+        date: now,
+        paymentSource: 'HDFC Salary Account',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transactionRepositoryProvider.overrideWithValue(inMemoryTxRepo),
+            bankAccountRepositoryProvider.overrideWithValue(inMemoryBankRepo),
+            creditCardRepositoryProvider.overrideWithValue(inMemoryCardRepo),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: MediaQuery(
+              data: const MediaQueryData(
+                size: Size(320, 600),
+                textScaler: TextScaler.linear(1.35),
+              ),
+              child: Scaffold(
+                body: TransactionDetailSheet(transaction: largeTx),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Emergency Medical Surgery Bill Super Long Name'), findsOneWidget);
+    });
+
+    testWidgets('SharedSplitsTab with loan card wraps gracefully without overflow on 320dp width with 1.35x font scale', (tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final inMemoryTxRepo = InMemoryTransactionRepository();
+      final inMemoryBankRepo = InMemoryBankAccountRepository();
+      final inMemoryCardRepo = InMemoryCreditCardRepository();
+
+      final now = DateTime.now();
+      final loan = LoanShareData(
+        borrowerName: 'Suresh Kumar Sharma Junior',
+        principalAmount: 50000.0,
+        expectedInterest: 2500.0,
+        expectedReturnDate: now.add(const Duration(days: 30)),
+      );
+
+      await inMemoryTxRepo.addTransaction(
+        TransactionEntity(
+          id: 'tx_loan_1',
+          title: 'Money Lent to Suresh',
+          amount: 50000.0,
+          type: TransactionType.expense,
+          category: 'Money Lent / Helping Friend',
+          date: now,
+          paymentSource: 'Cash',
+          isShared: true,
+          sharedWith: jsonEncode(loan.toMap()),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transactionRepositoryProvider.overrideWithValue(inMemoryTxRepo),
+            bankAccountRepositoryProvider.overrideWithValue(inMemoryBankRepo),
+            creditCardRepositoryProvider.overrideWithValue(inMemoryCardRepo),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const MediaQuery(
+              data: MediaQueryData(
+                size: Size(320, 600),
+                textScaler: TextScaler.linear(1.35),
+              ),
+              child: Scaffold(
+                body: SharedSplitsTab(),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Suresh'), findsAtLeastNWidgets(1));
     });
   });
 }

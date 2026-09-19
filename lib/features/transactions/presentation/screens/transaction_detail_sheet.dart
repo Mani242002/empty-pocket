@@ -184,33 +184,43 @@ class TransactionDetailSheet extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: amountColor.withAlpha(isDark ? 40 : 25),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      transaction.type.displayName.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        color: amountColor,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: amountColor.withAlpha(isDark ? 40 : 25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        transaction.type.displayName.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: amountColor,
+                        ),
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.copy_rounded, size: 20),
+                        icon: const Icon(Icons.copy_rounded, size: 19),
                         tooltip: 'Duplicate',
+                        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                        padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         onPressed: () => _duplicateTransaction(context, ref),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.edit_rounded, size: 20),
+                        icon: const Icon(Icons.edit_rounded, size: 19),
                         tooltip: 'Edit Transaction',
+                        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                        padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         onPressed: () {
                           Navigator.pop(context);
@@ -221,14 +231,18 @@ class TransactionDetailSheet extends ConsumerWidget {
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.expense),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppColors.expense),
                         tooltip: 'Delete',
+                        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                        padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         onPressed: () => _confirmDelete(context, ref),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20),
+                        icon: const Icon(Icons.close_rounded, size: 19),
                         tooltip: 'Close',
+                        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                        padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         onPressed: () => Navigator.pop(context),
                       ),
@@ -282,11 +296,17 @@ class TransactionDetailSheet extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      '$sign${CurrencyFormatter.format(transaction.amount)}',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: amountColor,
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '$sign${CurrencyFormatter.format(transaction.amount)}',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: amountColor,
+                          ),
+                        ),
                       ),
                     ),
                   ],

@@ -100,6 +100,32 @@ void main() {
       expect(remaining.length, 1);
       expect(remaining.first.id, 'a1');
     });
+
+    test('BankAccountRepository adjustBalance modifies balance atomically', () async {
+      final acc = BankAccountEntity(
+        id: 'atomic_acc',
+        accountName: 'Checking',
+        bankName: 'ICICI',
+        accountType: AccountType.current,
+        usedFor: AccountPurposeTags.dailySpending,
+        initialBalance: 1000.0,
+        currentBalance: 1000.0,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await repo.saveAccount(acc);
+
+      // Debit 250 (delta = -250)
+      await repo.adjustBalance('atomic_acc', -250.0);
+      var fetched = await repo.getAccountById('atomic_acc');
+      expect(fetched?.currentBalance, 750.0);
+
+      // Credit 500 (delta = +500)
+      await repo.adjustBalance('atomic_acc', 500.0);
+      fetched = await repo.getAccountById('atomic_acc');
+      expect(fetched?.currentBalance, 1250.0);
+    });
   });
 
   group('Credit Cards Domain & Repository Tests', () {
@@ -207,6 +233,33 @@ void main() {
       await repo.deleteCard('c1');
       final remaining = await repo.getAllCards();
       expect(remaining.isEmpty, isTrue);
+    });
+
+    test('CreditCardRepository adjustUsedAmount modifies usedAmount atomically', () async {
+      final card = CreditCardEntity(
+        id: 'atomic_card',
+        cardName: 'Sapphire',
+        bankName: 'Chase',
+        cardNetwork: CardNetwork.visa,
+        creditLimit: 50000.0,
+        usedAmount: 10000.0,
+        statementDateDay: 10,
+        gracePeriodDays: 20,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await repo.saveCard(card);
+
+      // Spend 1500 (delta = +1500)
+      await repo.adjustUsedAmount('atomic_card', 1500.0);
+      var fetched = await repo.getCardById('atomic_card');
+      expect(fetched?.usedAmount, 11500.0);
+
+      // Payment of 5000 (delta = -5000)
+      await repo.adjustUsedAmount('atomic_card', -5000.0);
+      fetched = await repo.getCardById('atomic_card');
+      expect(fetched?.usedAmount, 6500.0);
     });
   });
 
