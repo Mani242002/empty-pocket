@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/services/log_service.dart';
 
 /// StateNotifier for ThemeMode with persistent local storage
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
@@ -21,8 +22,8 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       } else {
         state = ThemeMode.system;
       }
-    } catch (e) {
-      debugPrint('[ThemeModeNotifier] _load error: $e');
+    } catch (e, st) {
+      LogService.error('ThemeModeNotifier', '_load error', e, st);
     }
   }
 
@@ -30,8 +31,8 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     state = mode;
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(_key, mode.name);
-    }).catchError((e) {
-      debugPrint('[ThemeModeNotifier] setThemeMode persistence error: $e');
+    }).catchError((e, st) {
+      LogService.error('ThemeModeNotifier', 'setThemeMode persistence error', e, st);
     });
   }
 

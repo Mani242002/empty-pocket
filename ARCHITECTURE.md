@@ -50,7 +50,7 @@ lib/
 │   │   ├── backup_service.dart       # JSON Schema v11 & CSV RFC 4180 export/import
 │   │   ├── ai_service.dart           # BYOK client-side Gemini / Groq caller
 │   │   ├── overlay_service.dart      # PlatformChannel for floating quick-add
-│   │   └── biometric_service.dart    # Local biometric authentication
+│   │   └── security_service.dart     # Local biometric authentication & AppLock
 │   │
 │   └── utilities/                    # Helper Classes
 │       ├── category_matcher.dart     # Longest-keyword prediction algorithm

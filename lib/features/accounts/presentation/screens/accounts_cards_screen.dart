@@ -58,6 +58,8 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
         title: const Text('Accounts & Cards'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           indicatorColor: AppColors.primaryEmerald,
           indicatorWeight: 3,
           labelColor: isDark ? AppColors.primaryMint : AppColors.primaryTeal,

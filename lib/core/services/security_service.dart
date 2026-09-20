@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
+import 'log_service.dart';
 
 class SecurityService {
   final LocalAuthentication _auth = LocalAuthentication();
@@ -10,8 +10,8 @@ class SecurityService {
       final canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
       final canAuthenticate = canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
       return canAuthenticate;
-    } catch (e) {
-      debugPrint('[SecurityService] isBiometricsAvailable error: $e');
+    } catch (e, st) {
+      LogService.error('SecurityService', 'isBiometricsAvailable error', e, st);
       return false;
     }
   }
@@ -20,7 +20,7 @@ class SecurityService {
     try {
       final isAvailable = await isBiometricsAvailable();
       if (!isAvailable) {
-        debugPrint('[SecurityService] No biometric/PIN credentials available on device. Authentication denied.');
+        LogService.warning('SecurityService', 'No biometric/PIN credentials available on device. Authentication denied.');
         return false;
       }
 
@@ -33,11 +33,11 @@ class SecurityService {
           sensitiveTransaction: true,
         ),
       );
-    } on PlatformException catch (e) {
-      debugPrint('[SecurityService] PlatformException during authentication: $e');
+    } on PlatformException catch (e, st) {
+      LogService.error('SecurityService', 'PlatformException during authentication', e, st);
       return false;
-    } catch (e) {
-      debugPrint('[SecurityService] Unexpected error during authentication: $e');
+    } catch (e, st) {
+      LogService.error('SecurityService', 'Unexpected error during authentication', e, st);
       return false;
     }
   }

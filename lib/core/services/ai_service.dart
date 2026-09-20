@@ -297,7 +297,8 @@ Guidelines:
 
     // Conversation history (Sliding window of most recent messages)
     if (history != null && history.isNotEmpty) {
-      final recentHistory = history.length > 12 ? history.sublist(history.length - 12) : history;
+      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
+      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
       for (final msg in recentHistory) {
         contents.add({
           'role': msg.isUser ? 'user' : 'model',
@@ -406,7 +407,8 @@ Guidelines:
     ];
 
     if (history != null && history.isNotEmpty) {
-      final recentHistory = history.length > 12 ? history.sublist(history.length - 12) : history;
+      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
+      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
       for (final msg in recentHistory) {
         messages.add({
           'role': msg.isUser ? 'user' : 'assistant',

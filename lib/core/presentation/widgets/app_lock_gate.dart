@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../features/settings/presentation/state/backup_provider.dart';
+import '../../services/log_service.dart';
 import '../../services/security_service.dart';
 
 final securityServiceProvider = Provider<SecurityService>((ref) => SecurityService());
@@ -119,8 +120,8 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
           _isAuthenticating = false;
         });
       }
-    } catch (e) {
-      debugPrint('[AppLockGate] Authentication error: $e');
+    } catch (e, st) {
+      LogService.error('AppLockGate', 'Authentication error', e, st);
       await HapticFeedback.heavyImpact();
       if (mounted) {
         setState(() => _isAuthenticating = false);
@@ -145,8 +146,8 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
             : AppColors.lightBackground,
         body: const SizedBox.shrink(),
       ),
-      error: (err, _) {
-        debugPrint('[AppLockGate] App lock state error: $err');
+      error: (err, st) {
+        LogService.error('AppLockGate', 'App lock state error', err, st);
         return widget.child;
       },
     );

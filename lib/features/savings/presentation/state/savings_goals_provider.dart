@@ -74,6 +74,78 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
     }
   }
 
+  /// Applies customized smart inflow distribution slider percentages to goals linked to an account
+  Future<void> applyInflowDistribution({
+    required String accountId,
+    required double primaryPercent,
+    required double secondaryPercent,
+    String? primaryGoalId,
+    String? secondaryGoalId,
+    double? customBalance,
+  }) async {
+    final repository = ref.read(savingsGoalRepositoryProvider);
+    final currentGoals = state.valueOrNull ?? await repository.getAllGoals();
+    final accounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
+    final account = accounts.where((a) => a.id == accountId).firstOrNull;
+    if (account == null) return;
+
+    final balanceToDistribute = customBalance ?? account.currentBalance;
+    final now = DateTime.now();
+    final linkedGoals = currentGoals.where((g) => g.linkedAccountId == accountId).toList();
+
+    SavingsGoalEntity? pGoal;
+    SavingsGoalEntity? sGoal;
+
+    if (primaryGoalId != null) {
+      pGoal = linkedGoals.where((g) => g.id == primaryGoalId).firstOrNull;
+    } else if (linkedGoals.isNotEmpty) {
+      pGoal = linkedGoals.first;
+    }
+
+    if (secondaryGoalId != null) {
+      sGoal = linkedGoals.where((g) => g.id == secondaryGoalId).firstOrNull;
+    } else if (linkedGoals.length > 1) {
+      sGoal = linkedGoals[1];
+    }
+
+    bool anyChanged = false;
+    if (pGoal != null) {
+      final pAmount = (balanceToDistribute * (primaryPercent / 100.0)).clamp(0.0, double.infinity);
+      final isCompleted = pAmount >= pGoal.targetAmount;
+      final updatedP = pGoal.copyWith(
+        allocationPercentage: primaryPercent,
+        autoSyncAccount: true,
+        currentAmount: pAmount,
+        status: isCompleted
+            ? GoalStatus.completed
+            : (pGoal.status == GoalStatus.completed ? GoalStatus.active : pGoal.status),
+        updatedAt: now,
+      );
+      await repository.saveGoal(updatedP);
+      anyChanged = true;
+    }
+
+    if (sGoal != null && sGoal.id != pGoal?.id) {
+      final sAmount = (balanceToDistribute * (secondaryPercent / 100.0)).clamp(0.0, double.infinity);
+      final isCompleted = sAmount >= sGoal.targetAmount;
+      final updatedS = sGoal.copyWith(
+        allocationPercentage: secondaryPercent,
+        autoSyncAccount: true,
+        currentAmount: sAmount,
+        status: isCompleted
+            ? GoalStatus.completed
+            : (sGoal.status == GoalStatus.completed ? GoalStatus.active : sGoal.status),
+        updatedAt: now,
+      );
+      await repository.saveGoal(updatedS);
+      anyChanged = true;
+    }
+
+    if (anyChanged) {
+      state = AsyncValue.data(await repository.getAllGoals());
+    }
+  }
+
   Future<void> syncAllLinkedGoals() async {
     final currentGoals = state.valueOrNull ?? await ref.read(savingsGoalRepositoryProvider).getAllGoals();
     final accounts = ref.read(bankAccountListProvider).valueOrNull ?? [];

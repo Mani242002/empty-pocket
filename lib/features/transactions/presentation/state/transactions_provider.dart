@@ -1080,42 +1080,4 @@ class LedgerBalanceSynchronizer {
       isRevert: isRevert,
     );
   }
-
-  /// Synchronize balance impact using Flutter Riverpod [WidgetRef]
-  static Future<void> applyTransactionImpactFromWidgetRef(
-    WidgetRef ref,
-    TransactionEntity tx, {
-    bool isRevert = false,
-  }) async {
-    await _apply(
-      adjustAccountBalance: (id, amount) =>
-          ref.read(bankAccountListProvider.notifier).adjustAccountBalance(id, amount),
-      adjustUsedAmount: (id, amount) =>
-          ref.read(creditCardListProvider.notifier).adjustUsedAmount(id, amount),
-      tx: tx,
-      isRevert: isRevert,
-    );
-  }
-
-  /// Backward-compatible dispatcher supporting [Ref], [WidgetRef], or dynamic reference
-  static Future<void> applyTransactionImpact(
-    dynamic ref,
-    TransactionEntity tx, {
-    bool isRevert = false,
-  }) async {
-    if (ref is Ref) {
-      return applyTransactionImpactFromRef(ref, tx, isRevert: isRevert);
-    } else if (ref is WidgetRef) {
-      return applyTransactionImpactFromWidgetRef(ref, tx, isRevert: isRevert);
-    } else {
-      final notifierAccount = (ref as dynamic).read(bankAccountListProvider.notifier);
-      final notifierCard = (ref as dynamic).read(creditCardListProvider.notifier);
-      await _apply(
-        adjustAccountBalance: (id, amt) => notifierAccount.adjustAccountBalance(id, amt),
-        adjustUsedAmount: (id, amt) => notifierCard.adjustUsedAmount(id, amt),
-        tx: tx,
-        isRevert: isRevert,
-      );
-    }
-  }
 }

@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'log_service.dart';
 import '../database/app_database.dart';
 import '../domain/entities/ai_assistant_entity.dart';
 import '../domain/entities/backup_entity.dart';
@@ -482,15 +482,16 @@ class BackupService {
       try {
         await AppDatabase.instance.clearAllData();
         return;
-      } catch (e) {
-        debugPrint('[BackupService] Atomic clearAllData failed: $e, falling back to individual repository deletes');
+      } catch (e, st) {
+        LogService.warning('BackupService', 'Atomic clearAllData failed, falling back to individual repository deletes: $e');
+        LogService.error('BackupService', 'clearAllData failure details', e, st);
       }
     }
 
     try {
       await transactionRepo.clearAllTransactions();
-    } catch (err) {
-      debugPrint('[BackupService] clearAllTransactions error: $err');
+    } catch (err, st) {
+      LogService.error('BackupService', 'clearAllTransactions error', err, st);
     }
 
     final allBudgets = await budgetRepo.getAllBudgets();
@@ -535,16 +536,16 @@ class BackupService {
     if (aiChatRepo != null) {
       try {
         await aiChatRepo.clearAllChatHistory();
-      } catch (err) {
-        debugPrint('[BackupService] clearAllChatHistory error: $err');
+      } catch (err, st) {
+        LogService.error('BackupService', 'clearAllChatHistory error', err, st);
       }
     }
 
     if (aiReportsRepo != null) {
       try {
         await aiReportsRepo.clearAllReports();
-      } catch (err) {
-        debugPrint('[BackupService] clearAllReports error: $err');
+      } catch (err, st) {
+        LogService.error('BackupService', 'clearAllReports error', err, st);
       }
     }
   }

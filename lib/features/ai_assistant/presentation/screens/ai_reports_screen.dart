@@ -213,6 +213,8 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
           // Scrollable Reports List
           Expanded(
             child: reportsState.when(
+              skipLoadingOnReload: true,
+              skipError: true,
               data: (reports) {
                 if (reports.isEmpty) {
                   return Center(

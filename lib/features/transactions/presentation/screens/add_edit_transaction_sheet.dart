@@ -844,22 +844,15 @@ class _AddEditTransactionSheetState
     if (_selectedPaymentMode == PaymentMode.bankAccount ||
         (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null)) {
       if (_selectedAccountId == null && _selectedCreditCardId == null && bankAccounts.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          if (_selectedAccountId == null && _selectedCreditCardId == null) {
-            final matched = AccountPurposeTags.matchAccountForCategory(
-              _selectedCategory,
-              bankAccounts,
-              defaultAccount: defaultAcc,
-            );
-            final def = matched ?? (defaultAcc ?? bankAccounts.first);
-            setState(() {
-              _selectedAccountId = def.id;
-              _selectedPaymentSource = def.accountName;
-              _autoSelectedReason = '${def.accountName} (${def.usedFor})';
-            });
-          }
-        });
+        final matched = AccountPurposeTags.matchAccountForCategory(
+          _selectedCategory,
+          bankAccounts,
+          defaultAccount: defaultAcc,
+        );
+        final def = matched ?? (defaultAcc ?? bankAccounts.first);
+        _selectedAccountId = def.id;
+        _selectedPaymentSource = def.accountName;
+        _autoSelectedReason = '${def.accountName} (${def.usedFor})';
       }
     }
 

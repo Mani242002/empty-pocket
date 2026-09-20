@@ -32,6 +32,18 @@ class FloatingBubbleOverlayApp extends StatelessWidget {
           surface: Colors.transparent,
         ),
       ),
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: mediaQuery.textScaler.clamp(
+              minScaleFactor: 0.85,
+              maxScaleFactor: 1.35,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const Scaffold(
         backgroundColor: Colors.transparent,
         body: FloatingBubbleOverlayScreen(),
@@ -343,10 +355,6 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           updatedAt: now,
         );
 
-        if (_selectedAccountId != null) {
-          await db.adjustBankAccountBalance(_selectedAccountId!, amount);
-        }
-
         final settlementTx = TransactionEntity(
           id: const Uuid().v4(),
           title: title,
@@ -357,14 +365,16 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           notes: 'Payback for "${original.title}" via 24/7 Bubble',
           paymentSource: _selectedPaymentSource,
           accountId: _selectedAccountId,
-          creditCardId: original.creditCardId,
+          creditCardId: null, // Critical Fix: Bank account deposit must never attach creditCardId
           linkedEntityId: original.id,
           createdAt: now,
           updatedAt: now,
         );
 
-        await db.updateTransaction(updatedOriginal);
-        await db.insertTransaction(settlementTx);
+        await db.settleSharedExpenseAtomic(
+          updatedOriginal: updatedOriginal,
+          settlementTransaction: settlementTx,
+        );
         AppHaptics.success();
 
         if (mounted) {
@@ -385,21 +395,6 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           if (mounted) _collapse();
         }
         return;
-      }
-
-      // Atomic Balance & Limit adjustments directly at the database engine level
-      if (_type == TransactionType.income) {
-        if (_selectedAccountId != null) {
-          await db.adjustBankAccountBalance(_selectedAccountId!, amount);
-        } else if (_selectedCreditCardId != null) {
-          await db.adjustCreditCardUsedAmount(_selectedCreditCardId!, -amount);
-        }
-      } else if (_type == TransactionType.expense) {
-        if (_selectedCreditCardId != null) {
-          await db.adjustCreditCardUsedAmount(_selectedCreditCardId!, amount);
-        } else if (_selectedAccountId != null) {
-          await db.adjustBankAccountBalance(_selectedAccountId!, -amount);
-        }
       }
 
       final isShared = _type == TransactionType.expense && _isShared;
@@ -434,7 +429,8 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         updatedAt: now,
       );
 
-      await db.insertTransaction(tx);
+      // Atomically inserts transaction and synchronizes balance/credit impacts in a single SQLite transaction
+      await db.saveTransactionAtomic(transaction: tx);
       AppHaptics.success();
 
       if (mounted) {

@@ -666,6 +666,35 @@ class AppDatabase {
     });
   }
 
+  /// Atomically settles a shared expense reimbursement: updates the original transaction's
+  /// reimbursement amount and settled flag, inserts the reimbursement income transaction,
+  /// and adjusts the receiving bank account balance inside an ACID SQLite transaction.
+  Future<void> settleSharedExpenseAtomic({
+    required TransactionEntity updatedOriginal,
+    required TransactionEntity settlementTransaction,
+  }) async {
+    final client = await database;
+    await client.transaction((txn) async {
+      if (settlementTransaction.accountId != null) {
+        await txn.rawUpdate(
+          'UPDATE $tableBankAccounts SET current_balance = current_balance + ? WHERE id = ?',
+          [settlementTransaction.amount, settlementTransaction.accountId],
+        );
+      }
+      await txn.update(
+        tableTransactions,
+        updatedOriginal.toMap(),
+        where: 'id = ?',
+        whereArgs: [updatedOriginal.id],
+      );
+      await txn.insert(
+        tableTransactions,
+        settlementTransaction.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+  }
+
   /// Atomically deletes a transaction and reverts its linked bank account / credit card balance impacts.
   Future<void> deleteTransactionAtomic(String id) async {
     final client = await database;

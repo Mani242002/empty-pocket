@@ -33,6 +33,7 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
     with WidgetsBindingObserver {
   static const MethodChannel _overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
   int _currentIndex = 0;
+  DateTime? _lastPausedTime;
 
   @override
   void initState() {
@@ -49,15 +50,31 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused) {
+      _lastPausedTime = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      // Avoid firing 8 concurrent SQLite queries on rapid task-switches / notification drops
+      final pausedDuration = _lastPausedTime != null
+          ? DateTime.now().difference(_lastPausedTime!)
+          : null;
+      if (pausedDuration != null && pausedDuration.inSeconds < 2) {
+        return;
+      }
+
+      // Refresh core transactional & balance providers immediately
       ref.invalidate(transactionListNotifierProvider);
       ref.invalidate(bankAccountListProvider);
       ref.invalidate(creditCardListProvider);
-      ref.invalidate(budgetListNotifierProvider);
-      ref.invalidate(savingsGoalsListNotifierProvider);
-      ref.invalidate(debtListNotifierProvider);
-      ref.invalidate(investmentListNotifierProvider);
-      ref.invalidate(recurringListNotifierProvider);
+
+      // Refresh auxiliary secondary providers with a short staggered delay
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        ref.invalidate(budgetListNotifierProvider);
+        ref.invalidate(savingsGoalsListNotifierProvider);
+        ref.invalidate(debtListNotifierProvider);
+        ref.invalidate(investmentListNotifierProvider);
+        ref.invalidate(recurringListNotifierProvider);
+      });
     }
   }
 

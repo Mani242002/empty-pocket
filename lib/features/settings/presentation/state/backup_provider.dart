@@ -38,8 +38,8 @@ class CurrencyNotifier extends AsyncNotifier<CurrencyOption> {
       final code = prefs.getString(_keyCurrencyCode) ?? 'INR';
       CurrencyFormatter.setCurrencyByCode(code);
       return CurrencyFormatter.activeCurrency;
-    } catch (e) {
-      debugPrint('[CurrencyNotifier] build error: $e');
+    } catch (e, st) {
+      LogService.error('CurrencyNotifier', 'build error', e, st);
       return CurrencyFormatter.supportedCurrencies.first;
     }
   }
@@ -52,8 +52,8 @@ class CurrencyNotifier extends AsyncNotifier<CurrencyOption> {
         await prefs.setString(_keyCurrencyCode, option.code);
         CurrencyFormatter.setCurrency(option);
         return option;
-      } catch (e) {
-        debugPrint('[CurrencyNotifier] setCurrency error: $e');
+      } catch (e, st) {
+        LogService.error('CurrencyNotifier', 'setCurrency error', e, st);
         rethrow;
       }
     });
@@ -72,8 +72,8 @@ class AppLockNotifier extends AsyncNotifier<bool> {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_keyAppLock) ?? false;
-    } catch (e) {
-      debugPrint('[AppLockNotifier] build error: $e');
+    } catch (e, st) {
+      LogService.error('AppLockNotifier', 'build error', e, st);
       return false;
     }
   }
@@ -85,8 +85,8 @@ class AppLockNotifier extends AsyncNotifier<bool> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_keyAppLock, enabled);
         return enabled;
-      } catch (e) {
-        debugPrint('[AppLockNotifier] toggleAppLock error: $e');
+      } catch (e, st) {
+        LogService.error('AppLockNotifier', 'toggleAppLock error', e, st);
         rethrow;
       }
     });
@@ -241,16 +241,16 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       try {
         chatSessions = await chatRepo.getAllSessions();
         chatMessages = await chatRepo.getAllMessages();
-      } catch (e) {
-        debugPrint('[BackupOperationsNotifier] Chat repository query error: $e');
+      } catch (e, st) {
+        LogService.error('BackupOperationsNotifier', 'Chat repository query error', e, st);
       }
 
       List<AiReportItem> aiReports = [];
       try {
         final reportsRepo = ref.read(aiReportsRepositoryProvider);
         aiReports = await reportsRepo.getAllReports();
-      } catch (e) {
-        debugPrint('[BackupOperationsNotifier] AI reports query error: $e');
+      } catch (e, st) {
+        LogService.error('BackupOperationsNotifier', 'AI reports query error', e, st);
       }
 
       final backupService = ref.read(backupServiceProvider);

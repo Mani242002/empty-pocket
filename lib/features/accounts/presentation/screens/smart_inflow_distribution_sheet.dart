@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
+import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
 
@@ -272,14 +274,56 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                     ),
                     onPressed: () async {
                       try {
-                        // Trigger goal sync for any linked goals
-                        await ref.read(savingsGoalsListNotifierProvider.notifier).syncGoalsForAccount(widget.account.id);
+                        final totalAmount = double.tryParse(_amountController.text.trim()) ?? widget.account.currentBalance;
+                        final allGoals = ref.read(savingsGoalsListNotifierProvider).valueOrNull ?? [];
+                        final linkedGoals = allGoals.where((g) => g.linkedAccountId == widget.account.id).toList();
+
+                        if (linkedGoals.isEmpty) {
+                          // Automatically initialize primary and secondary goals for this account so the distribution is recorded and tracked
+                          final now = DateTime.now();
+                          final pGoal = SavingsGoalEntity(
+                            id: const Uuid().v4(),
+                            title: primaryLabel,
+                            targetAmount: primaryAmount > 0 ? (primaryAmount * 2).clamp(50000.0, 10000000.0) : 100000.0,
+                            currentAmount: primaryAmount,
+                            category: isMultiPurpose ? 'Investments' : 'General',
+                            targetDate: now.add(const Duration(days: 365)),
+                            linkedAccountId: widget.account.id,
+                            allocationPercentage: _primaryPercent,
+                            autoSyncAccount: true,
+                            createdAt: now,
+                            updatedAt: now,
+                          );
+                          final sGoal = SavingsGoalEntity(
+                            id: const Uuid().v4(),
+                            title: secondaryLabel,
+                            targetAmount: secondaryAmount > 0 ? (secondaryAmount * 2).clamp(50000.0, 10000000.0) : 50000.0,
+                            currentAmount: secondaryAmount,
+                            category: isMultiPurpose ? 'Insurance' : 'Emergency Fund',
+                            targetDate: now.add(const Duration(days: 365)),
+                            linkedAccountId: widget.account.id,
+                            allocationPercentage: _secondaryPercent,
+                            autoSyncAccount: true,
+                            createdAt: now,
+                            updatedAt: now,
+                          );
+                          await ref.read(savingsGoalsListNotifierProvider.notifier).saveGoal(pGoal);
+                          await ref.read(savingsGoalsListNotifierProvider.notifier).saveGoal(sGoal);
+                        } else {
+                          await ref.read(savingsGoalsListNotifierProvider.notifier).applyInflowDistribution(
+                            accountId: widget.account.id,
+                            primaryPercent: _primaryPercent,
+                            secondaryPercent: _secondaryPercent,
+                            customBalance: totalAmount,
+                          );
+                        }
+
                         if (context.mounted) {
                           Navigator.of(context).pop();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Smart distribution applied: ${CurrencyFormatter.format(primaryAmount)} to $primaryLabel, ${CurrencyFormatter.format(secondaryAmount)} to $secondaryLabel, ${CurrencyFormatter.format(idleAmount)} idle buffer.',
+                                'Smart distribution applied: ${CurrencyFormatter.format(primaryAmount)} to $primaryLabel (${_primaryPercent.toInt()}%), ${CurrencyFormatter.format(secondaryAmount)} to $secondaryLabel (${_secondaryPercent.toInt()}%), ${CurrencyFormatter.format(idleAmount)} idle buffer.',
                               ),
                               behavior: SnackBarBehavior.floating,
                             ),

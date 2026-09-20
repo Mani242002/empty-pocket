@@ -9,6 +9,7 @@ import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/services/log_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../../core/utilities/split_helper.dart';
 import '../screens/add_edit_transaction_sheet.dart';
 import '../screens/transaction_detail_sheet.dart';
 import '../state/transactions_provider.dart';
@@ -57,6 +58,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       updatedAt: now,
       reimbursedAmount: tx.isShared ? 0.0 : tx.reimbursedAmount,
       isSettled: tx.isShared ? false : tx.isSettled,
+      sharedWith: tx.isShared
+          ? SplitHelper.resetSharesForDuplication(tx.sharedWith)
+          : tx.sharedWith,
     );
 
     try {

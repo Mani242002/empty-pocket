@@ -86,6 +86,30 @@ class SplitHelper {
     return trimmed;
   }
 
+  /// Resets reimbursement and settled status for duplicated shared expenses,
+  /// properly handling both structured SplitPersonShare lists and LoanShareData objects.
+  static String? resetSharesForDuplication(String? sharedWith) {
+    if (sharedWith == null || sharedWith.trim().isEmpty) return sharedWith;
+
+    if (LoanShareHelper.isLoan(sharedWith)) {
+      final loan = LoanShareHelper.parseLoan(sharedWith);
+      if (loan != null) {
+        return LoanShareHelper.encodeLoan(
+          loan.copyWith(repaidAmount: 0.0, isRepaid: false),
+        );
+      }
+    } else {
+      final shares = parseShares(sharedWith);
+      if (shares.isNotEmpty) {
+        return encodeShares(
+          shares.map((s) => s.copyWith(reimbursedAmount: 0.0, isSettled: false)).toList(),
+        );
+      }
+    }
+
+    return sharedWith;
+  }
+
   /// Aggregates all pending reimbursement balances grouped by person name across transactions
   static List<PersonPendingSummary> groupPendingByPerson(
     List<TransactionEntity> transactions,

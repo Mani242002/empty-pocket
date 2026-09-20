@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -54,8 +53,8 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
       try {
         geminiKey = await _secureStorage.read(key: _keyGeminiApiKey);
         groqKey = await _secureStorage.read(key: _keyGroqApiKey);
-      } catch (e) {
-        debugPrint('[AiProviderConfigNotifier] Secure storage read error: $e');
+      } catch (e, st) {
+        LogService.error('AiProviderConfigNotifier', 'Secure storage read error', e, st);
       }
 
       // Fallback & Migration: Check SharedPreferences if secure storage was empty
@@ -106,8 +105,8 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
         geminiModel: geminiModel,
         groqModel: groqModel,
       );
-    } catch (e) {
-      debugPrint('[AiProviderConfigNotifier] _loadConfig failed: $e');
+    } catch (e, st) {
+      LogService.error('AiProviderConfigNotifier', '_loadConfig failed', e, st);
     }
   }
 
@@ -125,8 +124,8 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
       } else {
         await _secureStorage.write(key: _keyGeminiApiKey, value: key);
       }
-    } catch (e) {
-      debugPrint('[AiProviderConfigNotifier] Secure storage write error: $e');
+    } catch (e, st) {
+      LogService.error('AiProviderConfigNotifier', 'Secure storage write error', e, st);
     }
     await _saveConfig();
   }
@@ -140,8 +139,8 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
       } else {
         await _secureStorage.write(key: _keyGroqApiKey, value: key);
       }
-    } catch (e) {
-      debugPrint('[AiProviderConfigNotifier] Secure storage write error: $e');
+    } catch (e, st) {
+      LogService.error('AiProviderConfigNotifier', 'Secure storage write error', e, st);
     }
     await _saveConfig();
   }
@@ -178,8 +177,8 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
       await prefs.setString(_keyProvider, state.providerType.name);
       await prefs.setString(_keyGeminiModel, state.geminiModel);
       await prefs.setString(_keyGroqModel, state.groqModel);
-    } catch (e) {
-      debugPrint('[AiProviderConfigNotifier] _saveConfig failed: $e');
+    } catch (e, st) {
+      LogService.error('AiProviderConfigNotifier', '_saveConfig failed', e, st);
     }
   }
 }
@@ -271,7 +270,12 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
       // Prepend newest report
       state = AsyncValue.data([newReport, ...currentReports]);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      LogService.error('AiReportsNotifier', 'generateReport failed', e, st);
+      if (currentReports.isNotEmpty) {
+        state = AsyncValue<List<AiReportItem>>.error(e, st).copyWithPrevious(AsyncValue.data(currentReports));
+      } else {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
 
@@ -320,7 +324,12 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
       updatedList[existingIndex] = updatedReport;
       state = AsyncValue.data(updatedList);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      LogService.error('AiReportsNotifier', 'regenerateReport failed', e, st);
+      if (currentReports.isNotEmpty) {
+        state = AsyncValue<List<AiReportItem>>.error(e, st).copyWithPrevious(AsyncValue.data(currentReports));
+      } else {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
 
@@ -482,8 +491,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
           isLoadingHistory: false,
         );
       }
-    } catch (e) {
-      debugPrint('[AiChatNotifier] loadChatData error: $e');
+    } catch (e, st) {
+      LogService.error('AiChatNotifier', 'loadChatData error', e, st);
       state = state.copyWith(
         sessions: [],
         clearCurrentSession: true,
@@ -515,8 +524,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         currentSession: session,
         messages: messages.isNotEmpty ? messages : [_createWelcomeMessage(sessionId)],
       );
-    } catch (e) {
-      debugPrint('[AiChatNotifier] selectSession error: $e');
+    } catch (e, st) {
+      LogService.error('AiChatNotifier', 'selectSession error', e, st);
     }
   }
 
@@ -536,8 +545,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         sessions: updatedSessions,
         currentSession: state.currentSession?.id == sessionId ? updated : state.currentSession,
       );
-    } catch (e) {
-      debugPrint('[AiChatNotifier] renameSession error: $e');
+    } catch (e, st) {
+      LogService.error('AiChatNotifier', 'renameSession error', e, st);
     }
   }
 
@@ -565,8 +574,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       } else {
         state = state.copyWith(sessions: updatedSessions);
       }
-    } catch (e) {
-      debugPrint('[AiChatNotifier] deleteSession error: $e');
+    } catch (e, st) {
+      LogService.error('AiChatNotifier', 'deleteSession error', e, st);
     }
   }
 
@@ -578,8 +587,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         clearCurrentSession: true,
         messages: [_createWelcomeMessage()],
       );
-    } catch (e) {
-      debugPrint('[AiChatNotifier] clearAllChats error: $e');
+    } catch (e, st) {
+      LogService.error('AiChatNotifier', 'clearAllChats error', e, st);
     }
   }
 
@@ -680,7 +689,13 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       final aiService = ref.read(aiServiceProvider);
       final responseText = await aiService.sendChatMessage(
         config: config,
-        history: state.messages.where((m) => m.id != loadingMsgId && m.id != 'welcome').toList(),
+        history: state.messages
+            .where((m) =>
+                m.id != loadingMsgId &&
+                m.id != 'welcome' &&
+                !m.text.startsWith('❌') &&
+                !m.text.startsWith('⚠️'))
+            .toList(),
         userMessage: trimmedText,
         financialContext: contextText,
       );
@@ -704,7 +719,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       }).toList();
 
       state = state.copyWith(messages: nextMessages, isGenerating: false);
-    } catch (e) {
+    } catch (e, st) {
+      LogService.error('AiChatNotifier', 'Error sending chat message', e, st);
       final errorMsg = AiChatMessage(
         id: const Uuid().v4(),
         sessionId: activeSession.id,
@@ -713,8 +729,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         timestamp: DateTime.now(),
       );
 
-      await _chatRepo.saveMessage(errorMsg);
-
+      // Transient API/connection errors are kept in session UI state only
+      // and NOT persisted to SQLite database to prevent LLM history corruption.
       final nextMessages = state.messages.map((m) {
         if (m.id == loadingMsgId) {
           return errorMsg;
@@ -731,8 +747,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       await _chatRepo.deleteMessage(id);
       final filtered = state.messages.where((m) => m.id != id).toList();
       state = state.copyWith(messages: filtered);
-    } catch (e) {
-      debugPrint('[AiChatNotifier] deleteMessage error: $e');
+    } catch (e, st) {
+      LogService.error('AiChatNotifier', 'deleteMessage error', e, st);
     }
   }
 }
