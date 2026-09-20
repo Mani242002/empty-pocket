@@ -709,8 +709,10 @@ abstract class FinancialCalculator {
     final effectiveCash = cashBalance > 0 ? cashBalance : 0.0;
     final validReceivables = receivablesAmount > 0 ? receivablesAmount : 0.0;
     final totalAssets = effectiveCash + savingsGoalsAmount + investmentsAmount + validReceivables;
-    final netWorth = totalAssets - totalLiabilities;
-    final debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : (totalLiabilities > 0 ? 100.0 : 0.0);
+    final overdraftLiability = cashBalance < 0 ? cashBalance.abs() : 0.0;
+    final effectiveLiabilities = totalLiabilities + overdraftLiability;
+    final netWorth = totalAssets - effectiveLiabilities;
+    final debtRatio = totalAssets > 0 ? (effectiveLiabilities / totalAssets) * 100 : (effectiveLiabilities > 0 ? 100.0 : 0.0);
 
     return NetWorthComposition(
       cashBalance: cashBalance,
@@ -718,7 +720,7 @@ abstract class FinancialCalculator {
       investmentsAmount: investmentsAmount,
       receivablesAmount: validReceivables,
       totalAssets: roundMoney(totalAssets),
-      totalLiabilities: roundMoney(totalLiabilities),
+      totalLiabilities: roundMoney(effectiveLiabilities),
       netWorth: roundMoney(netWorth),
       debtToAssetRatio: roundMoney(debtRatio),
     );
@@ -1124,6 +1126,7 @@ abstract class FinancialCalculator {
 
     double investmentOutflow = 0.0;
     double savingsTransfer = 0.0;
+    double debtRepayment = 0.0;
     double pureExpense = 0.0;
 
     for (final tx in expenses) {
@@ -1134,6 +1137,10 @@ abstract class FinancialCalculator {
           catLower.contains('stock') ||
           catLower.contains('gold')) {
         investmentOutflow += tx.amount;
+      } else if (catLower.contains('debt') ||
+          catLower.contains('loan') ||
+          catLower.contains('emi')) {
+        debtRepayment += tx.amount;
       } else if (catLower.contains('saving') || tx.linkedEntityId != null) {
         savingsTransfer += tx.amount;
       } else {
@@ -1141,13 +1148,14 @@ abstract class FinancialCalculator {
       }
     }
 
-    final totalWealthAllocated = investmentOutflow + savingsTransfer;
+    final totalWealthAllocated = investmentOutflow + savingsTransfer + debtRepayment;
     final rate = totalInflow > 0 ? (totalWealthAllocated / totalInflow * 100).clamp(0.0, 100.0) : 0.0;
 
     return WealthBuildingSummary(
       totalInflow: roundMoney(totalInflow),
       investmentOutflow: roundMoney(investmentOutflow),
       savingsTransfer: roundMoney(savingsTransfer),
+      debtRepayment: roundMoney(debtRepayment),
       pureExpense: roundMoney(pureExpense),
       wealthBuildingRate: roundMoney(rate),
     );

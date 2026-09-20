@@ -1,3 +1,5 @@
+import 'dart:isolate';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,17 +36,46 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
   static const MethodChannel _overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
   int _currentIndex = 0;
   DateTime? _lastPausedTime;
+  ReceivePort? _crossIsolateReceivePort;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _setupOverlayListener();
+    _setupCrossIsolateSync();
+  }
+
+  void _setupCrossIsolateSync() {
+    try {
+      _crossIsolateReceivePort = ReceivePort();
+      IsolateNameServer.removePortNameMapping('empty_pocket_main_isolate');
+      IsolateNameServer.registerPortWithName(
+        _crossIsolateReceivePort!.sendPort,
+        'empty_pocket_main_isolate',
+      );
+      _crossIsolateReceivePort!.listen((message) {
+        if (message == 'refresh_ledger' && mounted) {
+          LogService.debug('MainNavigationScaffold', 'Received cross-engine refresh_ledger event');
+          ref.invalidate(transactionListNotifierProvider);
+          ref.invalidate(bankAccountListProvider);
+          ref.invalidate(creditCardListProvider);
+          ref.invalidate(budgetListNotifierProvider);
+          ref.invalidate(savingsGoalsListNotifierProvider);
+        }
+      });
+    } catch (e) {
+      LogService.debug('MainNavigationScaffold', 'Cross-engine sync setup failed: $e');
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    try {
+      IsolateNameServer.removePortNameMapping('empty_pocket_main_isolate');
+      _crossIsolateReceivePort?.close();
+    } catch (_) {}
     super.dispose();
   }
 

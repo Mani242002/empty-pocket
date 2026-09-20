@@ -1026,6 +1026,80 @@ final loggingStreakProvider = Provider<int>((ref) {
   );
 });
 
+/// Query parameter model for transaction filtering and grouping
+class TransactionFilterParams {
+  final int filterIndex;
+  final String searchQuery;
+
+  const TransactionFilterParams({
+    required this.filterIndex,
+    required this.searchQuery,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TransactionFilterParams &&
+          runtimeType == other.runtimeType &&
+          filterIndex == other.filterIndex &&
+          searchQuery == other.searchQuery;
+
+  @override
+  int get hashCode => Object.hash(filterIndex, searchQuery);
+}
+
+/// Memoized result containing filtered transaction list and date-grouped map
+class FilteredAndGroupedTransactions {
+  final List<TransactionEntity> transactions;
+  final Map<DateTime, List<TransactionEntity>> grouped;
+
+  const FilteredAndGroupedTransactions({
+    required this.transactions,
+    required this.grouped,
+  });
+
+  static const empty = FilteredAndGroupedTransactions(
+    transactions: [],
+    grouped: {},
+  );
+}
+
+/// Memoized provider caching transaction filtering and grouping logic
+/// to prevent frame drops and redundant recomputations on rebuilds.
+final filteredAndGroupedTransactionsProvider =
+    Provider.family<FilteredAndGroupedTransactions, TransactionFilterParams>((ref, params) {
+  final allTransactionsAsync = ref.watch(transactionListNotifierProvider);
+  final allTransactions = allTransactionsAsync.valueOrNull ?? [];
+  final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
+
+  final searchQuery = params.searchQuery.trim();
+  final isGlobalSearch = searchQuery.length >= 2;
+  final baseTransactions = isGlobalSearch ? allTransactions : monthlyTransactions;
+
+  TransactionType? filterType;
+  if (params.filterIndex == 1) filterType = TransactionType.expense;
+  if (params.filterIndex == 2) filterType = TransactionType.income;
+
+  var filtered = FinancialCalculator.filterByType(
+    baseTransactions,
+    filterType,
+  );
+
+  if (searchQuery.isNotEmpty) {
+    filtered = FinancialCalculator.searchTransactions(
+      filtered,
+      searchQuery,
+    );
+  }
+
+  final grouped = FinancialCalculator.groupTransactionsByDate(filtered);
+
+  return FilteredAndGroupedTransactions(
+    transactions: filtered,
+    grouped: grouped,
+  );
+});
+
 /// Centralized engine for applying ledger account and credit card balance impacts
 /// ensuring consistent balance synchronization across all presentation flows.
 class LedgerBalanceSynchronizer {

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:empty_pocket/core/calculation/financial_calculator.dart';
 import 'package:empty_pocket/core/domain/entities/financial_health_entity.dart';
+import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
 
 void main() {
   group('Net Worth & Financial Health Calculator Tests', () {
@@ -20,6 +21,93 @@ void main() {
       expect(comp.cashPercentage, 32.0); // 40,000 / 125,000 * 100
       expect(comp.savingsPercentage, 20.0); // 25,000 / 125,000 * 100
       expect(comp.investmentsPercentage, 48.0); // 60,000 / 125,000 * 100
+    });
+
+    test('calculateNetWorthComposition treats negative cash balance as overdraft liability without dropping it', () {
+      final comp = FinancialCalculator.calculateNetWorthComposition(
+        cashBalance: -10000.0, // Overdrawn bank account
+        savingsGoalsAmount: 20000.0,
+        investmentsAmount: 50000.0,
+        totalLiabilities: 30000.0,
+      );
+
+      // Effective cash is clamped to 0 in assets, so totalAssets = 20k + 50k = 70k
+      expect(comp.totalAssets, 70000.0);
+      // Overdraft is added to liabilities: 30k + 10k = 40k
+      expect(comp.totalLiabilities, 40000.0);
+      // Net worth = 70k - 40k = 30k
+      expect(comp.netWorth, 30000.0);
+      expect(comp.debtToAssetRatio, closeTo(57.14, 0.01));
+    });
+
+    test('calculateWealthBuildingSummary accurately separates debt payoffs from general savings and pure expenses', () {
+      final now = DateTime.now();
+      final txs = [
+        TransactionEntity(
+          id: '1',
+          title: 'Salary',
+          amount: 100000.0,
+          type: TransactionType.income,
+          category: 'Salary',
+          date: now,
+          paymentSource: 'Bank',
+          createdAt: now,
+          updatedAt: now,
+        ),
+        TransactionEntity(
+          id: '2',
+          title: 'Index Fund SIP',
+          amount: 20000.0,
+          type: TransactionType.expense,
+          category: 'Mutual Fund Investment',
+          date: now,
+          paymentSource: 'Bank',
+          createdAt: now,
+          updatedAt: now,
+        ),
+        TransactionEntity(
+          id: '3',
+          title: 'Home Loan EMI',
+          amount: 15000.0,
+          type: TransactionType.expense,
+          category: 'Home Loan EMI Debt',
+          date: now,
+          paymentSource: 'Bank',
+          createdAt: now,
+          updatedAt: now,
+        ),
+        TransactionEntity(
+          id: '4',
+          title: 'Emergency Fund Goal',
+          amount: 10000.0,
+          type: TransactionType.expense,
+          category: 'Savings Deposit',
+          date: now,
+          paymentSource: 'Bank',
+          createdAt: now,
+          updatedAt: now,
+        ),
+        TransactionEntity(
+          id: '5',
+          title: 'Groceries',
+          amount: 5000.0,
+          type: TransactionType.expense,
+          category: 'Food & Groceries',
+          date: now,
+          paymentSource: 'Bank',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ];
+
+      final summary = FinancialCalculator.calculateWealthBuildingSummary(txs);
+      expect(summary.totalInflow, 100000.0);
+      expect(summary.investmentOutflow, 20000.0);
+      expect(summary.debtRepayment, 15000.0);
+      expect(summary.savingsTransfer, 10000.0);
+      expect(summary.pureExpense, 5000.0);
+      // Wealth allocated = 20k + 15k + 10k = 45k -> 45%
+      expect(summary.wealthBuildingRate, 45.0);
     });
 
     test('calculateFinancialHealthSummary awards top score for excellent financial discipline', () {

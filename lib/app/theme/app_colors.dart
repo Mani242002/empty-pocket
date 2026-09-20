@@ -14,6 +14,7 @@ abstract class AppColors {
   static const Color investment = Color(0xFF6366F1); // Assets / Investments
   static const Color info = Color(0xFF0EA5E9); // Info / Planning
   static const Color savings = Color(0xFF8B5CF6); // Goals / Savings
+  static const Color debt = Color(0xFFF97316); // Debt / Liabilities
 
   // Dark Theme Palette (Obsidian / Slate)
   static const Color darkBackground = Color(0xFF0B0F17);

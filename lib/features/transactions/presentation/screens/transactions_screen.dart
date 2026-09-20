@@ -100,34 +100,18 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     final selectedMonth = ref.watch(selectedMonthProvider);
-    final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
-    final allTransactionsAsync = ref.watch(transactionListNotifierProvider);
-    final allTransactions = allTransactionsAsync.valueOrNull ?? [];
     final monthTitle = DateFormat('MMMM yyyy').format(selectedMonth);
 
     final searchQuery = _searchController.text.trim();
     final isGlobalSearch = searchQuery.length >= 2;
-    final baseTransactions = isGlobalSearch ? allTransactions : monthlyTransactions;
 
-    // Apply Filter
-    TransactionType? filterType;
-    if (_selectedFilterIndex == 1) filterType = TransactionType.expense;
-    if (_selectedFilterIndex == 2) filterType = TransactionType.income;
-
-    var filteredTransactions = FinancialCalculator.filterByType(
-      baseTransactions,
-      filterType,
+    final filterParams = TransactionFilterParams(
+      filterIndex: _selectedFilterIndex,
+      searchQuery: searchQuery,
     );
-
-    // Apply Search
-    if (searchQuery.isNotEmpty) {
-      filteredTransactions = FinancialCalculator.searchTransactions(
-        filteredTransactions,
-        searchQuery,
-      );
-    }
-
-    final grouped = FinancialCalculator.groupTransactionsByDate(filteredTransactions);
+    final filteredData = ref.watch(filteredAndGroupedTransactionsProvider(filterParams));
+    final filteredTransactions = filteredData.transactions;
+    final grouped = filteredData.grouped;
 
     return Scaffold(
       appBar: AppBar(

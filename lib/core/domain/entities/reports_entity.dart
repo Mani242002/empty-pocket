@@ -84,13 +84,15 @@ class WealthBuildingSummary {
   final double totalInflow;
   final double investmentOutflow;
   final double savingsTransfer;
+  final double debtRepayment;
   final double pureExpense;
-  final double wealthBuildingRate; // (investment + savings) / totalInflow * 100
+  final double wealthBuildingRate; // (investment + savings + debtRepayment) / totalInflow * 100
 
   const WealthBuildingSummary({
     required this.totalInflow,
     required this.investmentOutflow,
     required this.savingsTransfer,
+    this.debtRepayment = 0.0,
     required this.pureExpense,
     required this.wealthBuildingRate,
   });

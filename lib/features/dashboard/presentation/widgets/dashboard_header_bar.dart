@@ -23,41 +23,49 @@ class DashboardHeaderBar extends ConsumerWidget {
           children: [
             Text(streak > 0 ? '🔥' : '⚡', style: const TextStyle(fontSize: 24)),
             const SizedBox(width: 8),
-            Text(streak > 0 ? '$streak-Day Streak!' : 'Start Your Streak!'),
+            Flexible(
+              child: Text(
+                streak > 0 ? '$streak-Day Streak!' : 'Start Your Streak!',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              streak > 0
-                  ? 'Incredible consistency! You have actively logged your finances for $streak consecutive day${streak == 1 ? '' : 's'}.'
-                  : 'Log your first income or expense today to ignite your daily financial tracking streak!',
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primaryEmerald.withAlpha(20),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primaryEmerald.withAlpha(60)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                streak > 0
+                    ? 'Incredible consistency! You have actively logged your finances for $streak consecutive day${streak == 1 ? '' : 's'}.'
+                    : 'Log your first income or expense today to ignite your daily financial tracking streak!',
+                style: const TextStyle(fontSize: 14),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.lightbulb_outline_rounded, color: AppColors.primaryEmerald, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Daily expense tracking builds mindful spending habits and eliminates surprise month-end deficits.',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryEmerald.withAlpha(20),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primaryEmerald.withAlpha(60)),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.lightbulb_outline_rounded, color: AppColors.primaryEmerald, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Daily expense tracking builds mindful spending habits and eliminates surprise month-end deficits.',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           FilledButton(

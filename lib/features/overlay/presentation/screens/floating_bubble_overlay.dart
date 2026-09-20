@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
@@ -375,6 +376,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           updatedOriginal: updatedOriginal,
           settlementTransaction: settlementTx,
         );
+        try {
+          IsolateNameServer.lookupPortByName('empty_pocket_main_isolate')?.send('refresh_ledger');
+        } catch (_) {}
         AppHaptics.success();
 
         if (mounted) {
@@ -431,6 +435,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
 
       // Atomically inserts transaction and synchronizes balance/credit impacts in a single SQLite transaction
       await db.saveTransactionAtomic(transaction: tx);
+      try {
+        IsolateNameServer.lookupPortByName('empty_pocket_main_isolate')?.send('refresh_ledger');
+      } catch (_) {}
       AppHaptics.success();
 
       if (mounted) {

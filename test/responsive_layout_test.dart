@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:empty_pocket/features/dashboard/presentation/widgets/dashboard_quick_actions.dart';
+import 'package:empty_pocket/features/dashboard/presentation/widgets/dashboard_header_bar.dart';
+import 'package:empty_pocket/features/transactions/presentation/state/transactions_provider.dart';
 import 'package:empty_pocket/features/budgets/presentation/screens/budgets_screen.dart';
 import 'package:empty_pocket/features/reports/presentation/widgets/interactive_cashflow_line_chart.dart';
 import 'package:empty_pocket/core/domain/entities/reports_entity.dart';
@@ -671,6 +673,51 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.textContaining('Suresh'), findsAtLeastNWidgets(1));
+    });
+
+    testWidgets('DashboardHeaderBar and streak dialog render without overflow on 320dp width with 1.35x font scale', (tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            loggingStreakProvider.overrideWithValue(14),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const MediaQuery(
+              data: MediaQueryData(
+                size: Size(320, 600),
+                textScaler: TextScaler.linear(1.35),
+              ),
+              child: Scaffold(
+                body: DashboardHeaderBar(todayFormatted: 'Saturday, 20 September'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('EmptyPocket'), findsOneWidget);
+      expect(find.text('14 Days'), findsOneWidget);
+
+      // Tap streak badge to open dialog
+      await tester.tap(find.text('14 Days'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('14-Day Streak!'), findsOneWidget);
+      expect(find.text('Keep It Up'), findsOneWidget);
+
+      // Close dialog
+      await tester.tap(find.text('Keep It Up'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
     });
   });
 }

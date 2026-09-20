@@ -770,9 +770,13 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
                 children: [
                   _buildWealthMetric('Investments', wealth.investmentOutflow, const Color(0xFF6366F1)),
                   const SizedBox(width: 8),
-                  _buildWealthMetric('Savings Goals', wealth.savingsTransfer, AppColors.savings),
+                  _buildWealthMetric('Savings', wealth.savingsTransfer, AppColors.savings),
+                  if (wealth.debtRepayment > 0) ...[
+                    const SizedBox(width: 8),
+                    _buildWealthMetric('Debt Payoffs', wealth.debtRepayment, AppColors.debt),
+                  ],
                   const SizedBox(width: 8),
-                  _buildWealthMetric('Living Expenses', wealth.pureExpense, financialColors.expense),
+                  _buildWealthMetric('Expenses', wealth.pureExpense, financialColors.expense),
                 ],
               ),
             ],
