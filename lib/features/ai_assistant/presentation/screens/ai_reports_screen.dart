@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
+import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../state/ai_assistant_provider.dart';
+import 'ai_report_detail_screen.dart';
 import 'ai_settings_screen.dart';
 
 class AiReportsScreen extends ConsumerStatefulWidget {
@@ -26,6 +29,7 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
   }
 
   void _showNewReportModal(BuildContext context) {
+    AppHaptics.selectionClick();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -42,7 +46,138 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
     );
   }
 
+  void _showModelPickerSheet(BuildContext context, AiProviderConfig config) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.black12,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.tune_rounded, color: AppColors.primaryEmerald, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'AI Provider & Model',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ChoiceChip(
+                        avatar: const Icon(Icons.auto_awesome_rounded, size: 16),
+                        label: const Center(child: Text('Google Gemini')),
+                        selected: config.providerType == AiProviderType.gemini,
+                        onSelected: (sel) {
+                          if (sel) {
+                            ref.read(aiProviderConfigProvider.notifier).updateProvider(AiProviderType.gemini);
+                            Navigator.pop(ctx);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ChoiceChip(
+                        avatar: const Icon(Icons.bolt_rounded, size: 16),
+                        label: const Center(child: Text('Groq Cloud')),
+                        selected: config.providerType == AiProviderType.groq,
+                        onSelected: (sel) {
+                          if (sel) {
+                            ref.read(aiProviderConfigProvider.notifier).updateProvider(AiProviderType.groq);
+                            Navigator.pop(ctx);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'SELECT MODEL',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...config.providerType.modelOptions.map((opt) {
+                  final isSelected = config.activeModel == opt.id;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primaryEmerald : (isDark ? Colors.white10 : Colors.black12),
+                      ),
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                      title: Text(
+                        opt.displayName,
+                        style: TextStyle(
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? AppColors.primaryEmerald : null,
+                        ),
+                      ),
+                      subtitle: Text(
+                        opt.id,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryEmerald, size: 20)
+                          : null,
+                      onTap: () {
+                        ref.read(aiProviderConfigProvider.notifier).updateModel(opt.id);
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showClearAllConfirmDialog(BuildContext context) {
+    AppHaptics.warning();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -87,6 +222,42 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
     );
   }
 
+  void _shareReport(AiReportItem report) {
+    AppHaptics.selectionClick();
+    final shareText = '''
+${report.title}
+Generated by EmptyPocket PocketAI (${report.providerUsed.displayName} • ${report.modelDisplayName})
+Date: ${DateFormat('dd MMM yyyy, h:mm a').format(report.createdAt)}
+
+----------------------------------------
+
+${report.markdownContent}
+''';
+    SharePlus.instance.share(
+      ShareParams(
+        text: shareText,
+        subject: report.title,
+      ),
+    );
+  }
+
+  void _copyMarkdown(AiReportItem report) {
+    AppHaptics.selectionClick();
+    Clipboard.setData(ClipboardData(text: report.markdownContent));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 10),
+            Text('Report copied to clipboard'),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -100,40 +271,41 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 30),
-              ),
-              child: const Icon(Icons.description_outlined, color: AppColors.primaryEmerald, size: 18),
+            const Text(
+              'AI Reports',
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'AI Reports',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            InkWell(
+              onTap: () => _showModelPickerSheet(context, config),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.primaryEmerald.withAlpha(isDark ? 80 : 50),
                   ),
-                  Text(
-                    'Financial Audits',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 11,
-                      color: financialColors.textMuted,
-                      fontWeight: FontWeight.w500,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(config.providerType.icon, size: 13, color: AppColors.primaryEmerald),
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.3),
+                      child: Text(
+                        config.activeModelDisplayName,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                    const SizedBox(width: 2),
+                    const Icon(Icons.keyboard_arrow_down_rounded, size: 15),
+                  ],
+                ),
               ),
             ),
           ],
@@ -141,7 +313,7 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.tune_rounded),
-            tooltip: 'AI Model & Key Settings',
+            tooltip: 'AI Settings',
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
@@ -153,77 +325,206 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
             tooltip: 'Clear All Reports',
             onPressed: () => _showClearAllConfirmDialog(context),
           ),
+          const SizedBox(width: 4),
         ],
       ),
-      body: Column(
-        children: [
-          // Model & Provider Selection Bar
-          _buildModelBar(context, config, isDark, financialColors),
+      body: CustomScrollView(
+        controller: _scrollController,
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // Warning banner if API key is not configured
+          if (!config.isConfigured)
+            SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                color: AppColors.warning.withAlpha(25),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No API key configured for report generation.',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    TextButton(
+                      style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
+                        );
+                      },
+                      child: const Text('Configure', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-          // Quick Action Suggestion Chips
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
+          // Report Hub Section: Quick Templates Carousel
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ActionChip(
-                    avatar: const Icon(Icons.add_rounded, size: 16, color: AppColors.primaryEmerald),
-                    label: const Text('+ New Report', style: TextStyle(fontWeight: FontWeight.w700)),
-                    onPressed: () => _showNewReportModal(context),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 30),
+                        ),
+                        child: const Icon(Icons.description_outlined, color: AppColors.primaryEmerald, size: 16),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'GENERATE FINANCIAL AUDIT',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                          color: financialColors.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  ActionChip(
-                    avatar: const Icon(Icons.verified_rounded, size: 16, color: AppColors.primaryEmerald),
-                    label: const Text('Full Health Audit'),
-                    onPressed: () => ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit),
-                  ),
-                  const SizedBox(width: 8),
-                  ActionChip(
-                    avatar: const Icon(Icons.pie_chart_rounded, size: 16, color: AppColors.info),
-                    label: const Text('Budget Optimization'),
-                    onPressed: () => ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.budgetOptimization),
-                  ),
-                  const SizedBox(width: 8),
-                  ActionChip(
-                    avatar: const Icon(Icons.credit_card_off_rounded, size: 16, color: AppColors.expense),
-                    label: const Text('Debt Payoff Plan'),
-                    onPressed: () => ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.debtPayoff),
-                  ),
-                  const SizedBox(width: 8),
-                  ActionChip(
-                    avatar: const Icon(Icons.trending_up_rounded, size: 16, color: AppColors.investment),
-                    label: const Text('Investment Review'),
-                    onPressed: () => ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.investmentReview),
-                  ),
-                  const SizedBox(width: 8),
-                  ActionChip(
-                    avatar: const Icon(Icons.shield_rounded, size: 16, color: AppColors.income),
-                    label: const Text('Emergency Runway'),
-                    onPressed: () => ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.emergencyRunway),
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildTemplatePill(
+                          title: '+ New Report',
+                          icon: Icons.add_rounded,
+                          color: AppColors.primaryEmerald,
+                          onTap: () => _showNewReportModal(context),
+                          isDark: isDark,
+                          financialColors: financialColors,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTemplatePill(
+                          title: 'Full Health Audit',
+                          icon: Icons.verified_rounded,
+                          color: AppColors.primaryEmerald,
+                          onTap: () {
+                            AppHaptics.buttonPress();
+                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit);
+                          },
+                          isDark: isDark,
+                          financialColors: financialColors,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTemplatePill(
+                          title: 'Budget Optimization',
+                          icon: Icons.pie_chart_rounded,
+                          color: AppColors.info,
+                          onTap: () {
+                            AppHaptics.buttonPress();
+                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.budgetOptimization);
+                          },
+                          isDark: isDark,
+                          financialColors: financialColors,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTemplatePill(
+                          title: 'Debt Payoff Plan',
+                          icon: Icons.credit_card_off_rounded,
+                          color: AppColors.expense,
+                          onTap: () {
+                            AppHaptics.buttonPress();
+                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.debtPayoff);
+                          },
+                          isDark: isDark,
+                          financialColors: financialColors,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTemplatePill(
+                          title: 'Investment Review',
+                          icon: Icons.trending_up_rounded,
+                          color: AppColors.investment,
+                          onTap: () {
+                            AppHaptics.buttonPress();
+                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.investmentReview);
+                          },
+                          isDark: isDark,
+                          financialColors: financialColors,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTemplatePill(
+                          title: 'Emergency Runway',
+                          icon: Icons.shield_rounded,
+                          color: AppColors.income,
+                          onTap: () {
+                            AppHaptics.buttonPress();
+                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.emergencyRunway);
+                          },
+                          isDark: isDark,
+                          financialColors: financialColors,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTemplatePill(
+                          title: 'Custom Prompt',
+                          icon: Icons.edit_note_rounded,
+                          color: AppColors.primaryTeal,
+                          onTap: () => _showNewReportModal(context),
+                          isDark: isDark,
+                          financialColors: financialColors,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
 
-          const Divider(height: 1),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+              child: Divider(),
+            ),
+          ),
 
-          // Scrollable Reports List
-          Expanded(
-            child: reportsState.when(
-              skipLoadingOnReload: true,
-              skipError: true,
-              data: (reports) {
-                if (reports.isEmpty) {
-                  return Center(
+          // Reports List Header
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
+              child: Text(
+                'SAVED REPORTS & AUDITS',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                  color: financialColors.textMuted,
+                ),
+              ),
+            ),
+          ),
+
+          // Reports Content Area
+          reportsState.when(
+            skipLoadingOnReload: true,
+            skipError: true,
+            data: (reports) {
+              if (reports.isEmpty) {
+                return SliverToBoxAdapter(
+                  child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.analytics_outlined, size: 56, color: financialColors.textMuted),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 20),
+                            ),
+                            child: const Icon(Icons.analytics_outlined, size: 44, color: AppColors.primaryEmerald),
+                          ),
                           const SizedBox(height: 16),
                           const Text(
                             'No AI Reports Generated Yet',
@@ -231,67 +532,87 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Select a report category above or tap "+ New Report" to analyze your offline financial metrics.',
+                            'Choose an audit template above or tap "+ New Report" to analyze your offline financial health.',
                             textAlign: TextAlign.center,
                             style: TextStyle(color: financialColors.textMuted, fontSize: 13, height: 1.4),
                           ),
                           const SizedBox(height: 20),
                           FilledButton.icon(
-                            style: FilledButton.styleFrom(backgroundColor: AppColors.primaryEmerald, foregroundColor: Colors.black),
-                            icon: const Icon(Icons.auto_awesome_rounded),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primaryEmerald,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                            ),
+                            icon: const Icon(Icons.auto_awesome_rounded, size: 18),
                             label: const Text('Generate Full Audit Report', style: TextStyle(fontWeight: FontWeight.w700)),
-                            onPressed: () => ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit),
+                            onPressed: () {
+                              AppHaptics.buttonPress();
+                              ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit);
+                            },
                           ),
                         ],
                       ),
                     ),
-                  );
-                }
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: reports.length,
-                  itemBuilder: (context, index) {
-                    final report = reports[index];
-                    return _buildReportCard(context, report, isDark, financialColors);
-                  },
+                  ),
                 );
-              },
-              loading: () => const Center(
+              }
+
+              return SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final report = reports[index];
+                      return _buildReportSummaryCard(context, report, isDark, financialColors);
+                    },
+                    childCount: reports.length,
+                  ),
+                ),
+              );
+            },
+            loading: () => const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(strokeWidth: 3),
+                    CircularProgressIndicator(strokeWidth: 3, color: AppColors.primaryEmerald),
                     SizedBox(height: 16),
-                    Text('Analyzing offline metrics and generating report...', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text(
+                      'Analyzing offline metrics & generating audit...',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
                   ],
                 ),
               ),
-              error: (err, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.expense.withAlpha(25),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.expense.withAlpha(80)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline_rounded, color: AppColors.expense, size: 32),
-                        const SizedBox(height: 8),
-                        Text('Error generating report:\n$err', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.expense, fontSize: 13)),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
-                          onPressed: () => ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
+            ),
+            error: (err, _) => SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.expense.withAlpha(25),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.expense.withAlpha(80)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline_rounded, color: AppColors.expense, size: 32),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Error generating report:\n$err',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.expense, fontSize: 13),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
+                        onPressed: () => ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit),
+                        child: const Text('Retry'),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -302,115 +623,30 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
     );
   }
 
-  Widget _buildModelBar(
-    BuildContext context,
-    AiProviderConfig config,
-    bool isDark,
-    AppFinancialColors financialColors,
-  ) {
-    final configured = config.configuredProviders;
-
-    if (configured.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        color: AppColors.warning.withAlpha(25),
-        child: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 18),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text(
-                'No API key configured for report generation.',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
-                );
-              },
-              child: const Text('Setup Key', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        border: Border(bottom: BorderSide(color: financialColors.cardBorder)),
+  Widget _buildTemplatePill({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required bool isDark,
+    required AppFinancialColors financialColors,
+  }) {
+    return ActionChip(
+      avatar: Icon(icon, size: 15, color: color),
+      label: Text(title),
+      backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+      side: BorderSide(color: financialColors.cardBorder),
+      visualDensity: VisualDensity.compact,
+      labelStyle: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (configured.length > 1)
-            Row(
-              children: [
-                ChoiceChip(
-                  avatar: const Icon(Icons.auto_awesome_rounded, size: 14),
-                  label: const Text('Gemini', style: TextStyle(fontSize: 11)),
-                  selected: config.providerType == AiProviderType.gemini,
-                  visualDensity: VisualDensity.compact,
-                  onSelected: (sel) {
-                    if (sel) ref.read(aiProviderConfigProvider.notifier).updateProvider(AiProviderType.gemini);
-                  },
-                ),
-                const SizedBox(width: 6),
-                ChoiceChip(
-                  avatar: const Icon(Icons.bolt_rounded, size: 14),
-                  label: const Text('Groq', style: TextStyle(fontSize: 11)),
-                  selected: config.providerType == AiProviderType.groq,
-                  visualDensity: VisualDensity.compact,
-                  onSelected: (sel) {
-                    if (sel) ref.read(aiProviderConfigProvider.notifier).updateProvider(AiProviderType.groq);
-                  },
-                ),
-              ],
-            )
-          else
-            Row(
-              children: [
-                Icon(config.providerType.icon, color: AppColors.primaryEmerald, size: 16),
-                const SizedBox(width: 6),
-                Text(
-                  config.providerType.displayName,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppColors.primaryEmerald),
-                ),
-              ],
-            ),
-
-          // Model Selector Dropdown
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: config.activeModel,
-              isDense: true,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : Colors.black,
-              ),
-              items: config.providerType.modelOptions.map((opt) {
-                return DropdownMenuItem(
-                  value: opt.id,
-                  child: Text(opt.displayName),
-                );
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  ref.read(aiProviderConfigProvider.notifier).updateModel(val);
-                }
-              },
-            ),
-          ),
-        ],
-      ),
+      onPressed: onTap,
     );
   }
 
-  Widget _buildReportCard(
+  /// Modern Sleek Executive Summary Card for Feed
+  Widget _buildReportSummaryCard(
     BuildContext context,
     AiReportItem report,
     bool isDark,
@@ -418,171 +654,203 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
   ) {
     final theme = Theme.of(context);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.primaryEmerald.withAlpha(60), width: 1.2),
+    // Extract a 2-3 line plain text excerpt from markdown content
+    final cleanExcerpt = report.markdownContent
+        .replaceAll(RegExp(r'[#*`_>|]'), '')
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .take(3)
+        .join(' ');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40),
+          width: 1.2,
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Icon(report.type.icon, color: AppColors.primaryEmerald, size: 22),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+      child: InkWell(
+        onTap: () {
+          AppHaptics.selectionClick();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => AiReportDetailScreen(report: report),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 30),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(report.type.icon, color: AppColors.primaryEmerald, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          report.title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${DateFormat('dd MMM yyyy, h:mm a').format(report.createdAt)} • ${report.modelDisplayName}',
+                          style: TextStyle(
+                            color: financialColors.textMuted,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, size: 18),
+                    padding: EdgeInsets.zero,
+                    onSelected: (action) {
+                      if (action == 'share') {
+                        _shareReport(report);
+                      } else if (action == 'copy') {
+                        _copyMarkdown(report);
+                      } else if (action == 'regenerate') {
+                        AppHaptics.buttonPress();
+                        ref.read(aiReportsProvider.notifier).regenerateReport(report.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Regenerating report in background...'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } else if (action == 'delete') {
+                        AppHaptics.warning();
+                        ref.read(aiReportsProvider.notifier).deleteReport(report.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Report deleted'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(
+                        value: 'share',
+                        child: Row(
                           children: [
-                            Text(
-                              report.title,
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                            Text(
-                              '${report.providerUsed.displayName} • ${report.modelDisplayName}',
-                              style: TextStyle(color: financialColors.textMuted, fontSize: 11),
-                            ),
+                            Icon(Icons.share_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Share Report'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'copy',
+                        child: Row(
+                          children: [
+                            Icon(Icons.copy_rounded, size: 18),
+                            SizedBox(width: 8),
+                            Text('Copy Markdown'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'regenerate',
+                        child: Row(
+                          children: [
+                            Icon(Icons.refresh_rounded, size: 18, color: AppColors.primaryEmerald),
+                            SizedBox(width: 8),
+                            Text('Regenerate Report'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.expense),
+                            SizedBox(width: 8),
+                            Text('Delete Report', style: TextStyle(color: AppColors.expense)),
                           ],
                         ),
                       ),
                     ],
                   ),
-                ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert_rounded, size: 20),
-                  onSelected: (action) {
-                    if (action == 'copy') {
-                      Clipboard.setData(ClipboardData(text: report.markdownContent));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Report copied to clipboard'), behavior: SnackBarBehavior.floating),
-                      );
-                    } else if (action == 'regenerate') {
-                      ref.read(aiReportsProvider.notifier).regenerateReport(report.id);
-                    } else if (action == 'delete') {
-                      ref.read(aiReportsProvider.notifier).deleteReport(report.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Report deleted'), behavior: SnackBarBehavior.floating),
-                      );
-                    }
-                  },
-                  itemBuilder: (ctx) => [
-                    const PopupMenuItem(
-                      value: 'regenerate',
-                      child: Row(
-                        children: [
-                          Icon(Icons.refresh_rounded, size: 18, color: AppColors.primaryEmerald),
-                          SizedBox(width: 8),
-                          Text('Regenerate Report'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'copy',
-                      child: Row(
-                        children: [
-                          Icon(Icons.copy_rounded, size: 18),
-                          SizedBox(width: 8),
-                          Text('Copy Markdown'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.expense),
-                          SizedBox(width: 8),
-                          Text('Delete Report', style: TextStyle(color: AppColors.expense)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Rendered Rich Markdown Content
-            MarkdownBody(
-              data: report.markdownContent,
-              selectable: true,
-              styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-                p: TextStyle(
-                  fontSize: 13.5,
-                  height: 1.45,
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                ),
-                h3: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : Colors.black,
-                  height: 1.5,
-                ),
-                listBullet: TextStyle(
-                  color: AppColors.primaryEmerald,
-                  fontWeight: FontWeight.bold,
-                ),
-                strong: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? AppColors.primaryEmerald : const Color(0xFF047857),
-                ),
-                blockquote: TextStyle(
-                  color: financialColors.textMuted,
-                  fontStyle: FontStyle.italic,
-                ),
+                ],
               ),
-            ),
-            const SizedBox(height: 14),
+              const SizedBox(height: 10),
 
-            // Bottom Action Bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: AppColors.primaryEmerald,
+              // Executive Excerpt Preview
+              Text(
+                cleanExcerpt,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.45,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+
+              // Card Bottom Action Bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryEmerald.withAlpha(isDark ? 30 : 20),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      report.type.displayName,
+                      style: const TextStyle(
+                        color: AppColors.primaryEmerald,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 10.5,
+                      ),
+                    ),
                   ),
-                  icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text('Regenerate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                  onPressed: () => ref.read(aiReportsProvider.notifier).regenerateReport(report.id),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.copy_rounded, size: 18),
-                      tooltip: 'Copy Markdown',
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: report.markdownContent));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Report copied to clipboard'), behavior: SnackBarBehavior.floating),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.expense),
-                      tooltip: 'Delete Report',
-                      onPressed: () {
-                        ref.read(aiReportsProvider.notifier).deleteReport(report.id);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Report deleted'), behavior: SnackBarBehavior.floating),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
+                  Row(
+                    children: [
+                      Text(
+                        'Read Full Report',
+                        style: TextStyle(
+                          color: AppColors.primaryEmerald,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primaryEmerald),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -709,7 +977,10 @@ class _NewReportBottomSheetState extends State<_NewReportBottomSheet> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.primaryEmerald, foregroundColor: Colors.black),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primaryEmerald,
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () {
                     final text = _customPromptController.text.trim();
                     if (text.isNotEmpty) {

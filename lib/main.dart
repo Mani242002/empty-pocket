@@ -22,9 +22,15 @@ void main() async {
     LogService.debug('Main', 'Failed to pre-load currency preference: $e');
   }
 
-  // Initialize offline local notifications service
+  // Initialize offline local notifications service and ensure scheduled reminders are active
   try {
     await NotificationService.instance.initialize();
+    final prefs = await SharedPreferences.getInstance();
+    final streakEnabled = prefs.getBool(kPrefDailyStreakReminder) ?? true;
+    if (streakEnabled) {
+      await NotificationService.instance.requestPermission();
+      await NotificationService.instance.scheduleDailyStreakReminder();
+    }
   } catch (e) {
     LogService.debug('Main', 'Failed to initialize NotificationService: $e');
   }

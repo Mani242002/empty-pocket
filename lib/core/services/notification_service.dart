@@ -209,17 +209,26 @@ class NotificationService {
 
       const notificationDetails = NotificationDetails(android: androidDetails);
 
+      bool canExact = false;
+      if (!kIsWeb && Platform.isAndroid) {
+        final androidImplementation = _notificationsPlugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        canExact = await androidImplementation?.canScheduleExactNotifications() ?? false;
+      }
+
       await _notificationsPlugin.zonedSchedule(
         id: streakNotificationId,
         title: '🔥 Keep your financial streak alive!',
         body: 'Take 30 seconds to log today\'s expenses and review your budget limits.',
         scheduledDate: scheduledTime,
         notificationDetails: notificationDetails,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: canExact
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
       );
 
-      LogService.debug(_tag, 'Scheduled daily streak reminder for $hour:$minute repeating daily.');
+      LogService.debug(_tag, 'Scheduled daily streak reminder for $hour:$minute (exact: $canExact) repeating daily.');
     } catch (e, stack) {
       LogService.error(_tag, 'Failed to schedule streak reminder: $e', e, stack);
     }
@@ -333,6 +342,52 @@ class NotificationService {
       );
     } catch (e) {
       LogService.error(_tag, 'Failed to send test notification: $e');
+    }
+  }
+
+  /// Schedule a delayed test notification (e.g. 10 seconds from now) to verify offline background alarm scheduling
+  Future<bool> scheduleTestDelayedNotification({int seconds = 10}) async {
+    if (!_isInitialized) await initialize();
+    if (!_isSupportedPlatform) return false;
+
+    try {
+      final scheduledTime = tz.TZDateTime.now(tz.local).add(Duration(seconds: seconds));
+
+      const androidDetails = AndroidNotificationDetails(
+        streakChannelId,
+        streakChannelName,
+        channelDescription: streakChannelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+        showWhen: true,
+        icon: '@mipmap/ic_launcher',
+      );
+
+      const notificationDetails = NotificationDetails(android: androidDetails);
+
+      bool canExact = false;
+      if (!kIsWeb && Platform.isAndroid) {
+        final androidImplementation = _notificationsPlugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        canExact = await androidImplementation?.canScheduleExactNotifications() ?? false;
+      }
+
+      await _notificationsPlugin.zonedSchedule(
+        id: testNotificationId,
+        title: '⏰ Scheduled Test Notification',
+        body: 'Offline notification fired after $seconds seconds while phone was backgrounded/idle.',
+        scheduledDate: scheduledTime,
+        notificationDetails: notificationDetails,
+        androidScheduleMode: canExact
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+
+      LogService.debug(_tag, 'Scheduled test delayed notification in $seconds seconds (exact: $canExact).');
+      return true;
+    } catch (e, stack) {
+      LogService.error(_tag, 'Failed to schedule delayed test notification: $e', e, stack);
+      return false;
     }
   }
 

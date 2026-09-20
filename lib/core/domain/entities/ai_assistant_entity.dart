@@ -290,6 +290,8 @@ enum AiReportType {
         return Icons.auto_awesome_rounded;
     }
   }
+
+  String get displayName => title;
 }
 
 class AiReportItem {
@@ -301,6 +303,8 @@ class AiReportItem {
   final String modelDisplayName;
   final AiProviderType providerUsed;
   final DateTime timestamp;
+
+  DateTime get createdAt => timestamp;
 
   const AiReportItem({
     required this.id,

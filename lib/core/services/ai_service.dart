@@ -321,7 +321,7 @@ Guidelines:
       'contents': contents,
       'generationConfig': {
         'temperature': 0.7,
-        'maxOutputTokens': 2000,
+        'maxOutputTokens': 8192,
       },
     };
 
@@ -341,9 +341,9 @@ Guidelines:
       },
       body: jsonEncode(bodyPayload),
     ).timeout(
-      const Duration(seconds: 30),
+      const Duration(seconds: 60),
       onTimeout: () => throw Exception(
-        'Request timed out after 30 seconds. Check your network connection and try again.',
+        'Request timed out after 60 seconds. Check your network connection and try again.',
       ),
     );
 
@@ -429,12 +429,12 @@ Guidelines:
         'model': config.groqModel,
         'messages': messages,
         'temperature': 0.7,
-        'max_tokens': 2000,
+        'max_tokens': 4096,
       }),
     ).timeout(
-      const Duration(seconds: 30),
+      const Duration(seconds: 60),
       onTimeout: () => throw Exception(
-        'Request timed out after 30 seconds. Check your network connection and try again.',
+        'Request timed out after 60 seconds. Check your network connection and try again.',
       ),
     );
 

@@ -1123,8 +1123,8 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   icon: Icons.notifications_active_outlined,
                   iconColor: financialColors.income,
-                  title: 'Send Test Notification',
-                  subtitle: 'Verify notification display on this device',
+                  title: 'Send Instant Test Notification',
+                  subtitle: 'Verify notification display on this device immediately',
                   onTap: () async {
                     AppHaptics.buttonPress();
                     await ref.read(notificationServiceProvider).requestPermission();
@@ -1134,6 +1134,30 @@ class SettingsScreen extends ConsumerWidget {
                         const SnackBar(
                           content: Text('Test notification sent to system tray.'),
                           behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const Divider(),
+                _buildListTile(
+                  context,
+                  icon: Icons.alarm_on_rounded,
+                  iconColor: AppColors.primaryTeal,
+                  title: 'Test Offline Alarm (Fires in 10s)',
+                  subtitle: 'Schedule background alarm; close or lock phone to test delivery',
+                  onTap: () async {
+                    AppHaptics.buttonPress();
+                    await ref.read(notificationServiceProvider).requestPermission();
+                    final ok = await ref.read(notificationServiceProvider).scheduleTestDelayedNotification(seconds: 10);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(ok
+                              ? 'Alarm scheduled! Lock or background app to verify in 10 seconds.'
+                              : 'Failed to schedule alarm. Check device permissions.'),
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 4),
                         ),
                       );
                     }

@@ -378,29 +378,78 @@ class _AddEditTransactionSheetState
   }
 
   Future<void> _pickDate() async {
+    HapticFeedback.selectionClick();
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.primaryEmerald,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (pickedDate != null && mounted) {
-      final pickedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedDate),
-      );
-
       setState(() {
         _selectedDate = DateTime(
           pickedDate.year,
           pickedDate.month,
           pickedDate.day,
-          pickedTime?.hour ?? _selectedDate.hour,
-          pickedTime?.minute ?? _selectedDate.minute,
+          _selectedDate.hour,
+          _selectedDate.minute,
         );
       });
     }
+  }
+
+  Future<void> _pickTime() async {
+    HapticFeedback.selectionClick();
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedDate),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.primaryEmerald,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime != null && mounted) {
+      setState(() {
+        _selectedDate = DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+      });
+    }
+  }
+
+  void _setQuickTime(int hour, int minute) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selectedDate = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        hour,
+        minute,
+      );
+    });
   }
 
   Future<void> _saveTransaction() async {
@@ -1162,43 +1211,151 @@ class _AddEditTransactionSheetState
                 const SizedBox(height: 20),
 
                 // Date & Time Picker
-                Text(
-                  'DATE & TIME',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'DATE & TIME',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                          color: financialColors.textMuted,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      DateFormat('EEE, dd MMM • h:mm a').format(_selectedDate),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.primaryEmerald,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
-                InkWell(
-                  onTap: _pickDate,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: financialColors.cardBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today_rounded, size: 18),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            DateFormat('dd MMM yyyy, h:mm a').format(_selectedDate),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+
+                // Side-by-side decoupled Date and Time Cards
+                Row(
+                  children: [
+                    // Date Card (Direct 1-tap Date Picker)
+                    Expanded(
+                      flex: 3,
+                      child: InkWell(
+                        onTap: _pickDate,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: financialColors.cardBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primaryEmerald),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Date',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: financialColors.textMuted,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      DateFormat('dd MMM yyyy').format(_selectedDate),
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.edit_calendar_rounded, size: 16, color: Colors.grey),
+                            ],
                           ),
                         ),
-                        const Icon(Icons.access_time_rounded, size: 18),
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+
+                    // Time Card (Direct 1-tap Time Picker)
+                    Expanded(
+                      flex: 2,
+                      child: InkWell(
+                        onTap: _pickTime,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: financialColors.cardBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryTeal.withAlpha(isDark ? 40 : 25),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primaryTeal),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Time',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: financialColors.textMuted,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      DateFormat('h:mm a').format(_selectedDate),
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_drop_down_rounded, size: 18, color: Colors.grey),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
+
                 // Quick Date Shortcuts
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -1206,11 +1363,12 @@ class _AddEditTransactionSheetState
                     children: [
                       if (_isEditMode && widget.initialTransaction != null) ...[
                         _buildDateShortcutChip(
-                          'Original (${DateFormat('dd MMM').format(widget.initialTransaction!.date)})',
+                          'Original (${DateFormat('dd MMM, h:mm a').format(widget.initialTransaction!.date)})',
                           widget.initialTransaction!.date,
                           theme,
                           isDark,
                           financialColors,
+                          isOriginal: true,
                         ),
                         const SizedBox(width: 8),
                       ],
@@ -1231,6 +1389,23 @@ class _AddEditTransactionSheetState
                         isDark,
                         financialColors,
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Quick Time Presets
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildTimePresetChip('Now', 0, 0, theme, isDark, financialColors, isNow: true),
+                      const SizedBox(width: 6),
+                      _buildTimePresetChip('Morning (9 AM)', 9, 0, theme, isDark, financialColors),
+                      const SizedBox(width: 6),
+                      _buildTimePresetChip('Afternoon (2 PM)', 14, 0, theme, isDark, financialColors),
+                      const SizedBox(width: 6),
+                      _buildTimePresetChip('Evening (8 PM)', 20, 0, theme, isDark, financialColors),
                     ],
                   ),
                 ),
@@ -1483,11 +1658,14 @@ class _AddEditTransactionSheetState
     DateTime targetDate,
     ThemeData theme,
     bool isDark,
-    AppFinancialColors financialColors,
-  ) {
-    final isSelected = _selectedDate.year == targetDate.year &&
-        _selectedDate.month == targetDate.month &&
-        _selectedDate.day == targetDate.day;
+    AppFinancialColors financialColors, {
+    bool isOriginal = false,
+  }) {
+    final isSelected = isOriginal
+        ? (_selectedDate == targetDate)
+        : (_selectedDate.year == targetDate.year &&
+            _selectedDate.month == targetDate.month &&
+            _selectedDate.day == targetDate.day);
 
     return ActionChip(
       label: Text(label),
@@ -1498,8 +1676,9 @@ class _AddEditTransactionSheetState
         color: isSelected ? AppColors.primaryEmerald : financialColors.cardBorder,
         width: isSelected ? 1.5 : 1,
       ),
+      visualDensity: VisualDensity.compact,
       labelStyle: TextStyle(
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
         color: isSelected
             ? (isDark ? AppColors.primaryEmerald : const Color(0xFF047857))
@@ -1508,14 +1687,72 @@ class _AddEditTransactionSheetState
       onPressed: () {
         HapticFeedback.selectionClick();
         setState(() {
-          _selectedDate = DateTime(
-            targetDate.year,
-            targetDate.month,
-            targetDate.day,
-            _selectedDate.hour,
-            _selectedDate.minute,
-          );
+          if (isOriginal) {
+            _selectedDate = targetDate;
+          } else {
+            _selectedDate = DateTime(
+              targetDate.year,
+              targetDate.month,
+              targetDate.day,
+              _selectedDate.hour,
+              _selectedDate.minute,
+            );
+          }
         });
+      },
+    );
+  }
+
+  Widget _buildTimePresetChip(
+    String label,
+    int targetHour,
+    int targetMinute,
+    ThemeData theme,
+    bool isDark,
+    AppFinancialColors financialColors, {
+    bool isNow = false,
+  }) {
+    final now = DateTime.now();
+    final isSelected = isNow
+        ? (_selectedDate.year == now.year &&
+            _selectedDate.month == now.month &&
+            _selectedDate.day == now.day &&
+            _selectedDate.hour == now.hour &&
+            (_selectedDate.minute - now.minute).abs() <= 1)
+        : (_selectedDate.hour == targetHour && _selectedDate.minute == targetMinute);
+
+    return ActionChip(
+      avatar: Icon(
+        Icons.schedule_rounded,
+        size: 13,
+        color: isSelected
+            ? (isDark ? AppColors.primaryEmerald : const Color(0xFF047857))
+            : financialColors.textMuted,
+      ),
+      label: Text(label),
+      backgroundColor: isSelected
+          ? AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40)
+          : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+      side: BorderSide(
+        color: isSelected ? AppColors.primaryEmerald : financialColors.cardBorder,
+        width: isSelected ? 1.5 : 1,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+      visualDensity: VisualDensity.compact,
+      labelStyle: TextStyle(
+        fontSize: 11,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+        color: isSelected
+            ? (isDark ? AppColors.primaryEmerald : const Color(0xFF047857))
+            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+      ),
+      onPressed: () {
+        if (isNow) {
+          final current = DateTime.now();
+          _setQuickTime(current.hour, current.minute);
+        } else {
+          _setQuickTime(targetHour, targetMinute);
+        }
       },
     );
   }
