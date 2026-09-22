@@ -189,13 +189,13 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
     _isTransitioning = true;
 
     try {
-      await OverlayService.collapseOverlay();
       if (mounted) {
         setState(() {
           _isExpanded = false;
           _validationError = null;
         });
       }
+      await OverlayService.collapseOverlay();
     } catch (e, stack) {
       LogService.error('FloatingBubble', 'Failed to collapse overlay', e, stack);
     } finally {
@@ -507,6 +507,16 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
               child: Image.asset(
                 'assets/icon/app_icon.png',
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const Center(
+                  child: Text(
+                    'EP',
+                    style: TextStyle(
+                      color: AppColors.primaryEmerald,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

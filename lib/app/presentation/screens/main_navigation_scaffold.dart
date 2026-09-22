@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/domain/entities/transaction_entity.dart';
@@ -44,6 +45,15 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
     WidgetsBinding.instance.addObserver(this);
     _setupOverlayListener();
     _setupCrossIsolateSync();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        if (!mounted) return;
+        final size = MediaQuery.of(context).size;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('device_screen_width_dp', size.width);
+        await prefs.setDouble('device_screen_height_dp', size.height);
+      } catch (_) {}
+    });
   }
 
   void _setupCrossIsolateSync() {
