@@ -25,11 +25,33 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   int _selectedFilterIndex = 0; // 0: All, 1: Expenses, 2: Income
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  int _displayLimit = 50;
 
   final List<String> _filters = ['All', 'Expenses', 'Income'];
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 250) {
+      if (mounted) {
+        setState(() {
+          _displayLimit += 50;
+        });
+        ref.read(transactionListNotifierProvider.notifier).loadMore(pageSize: 50);
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -102,6 +124,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final selectedMonth = ref.watch(selectedMonthProvider);
     final monthTitle = DateFormat('MMMM yyyy').format(selectedMonth);
 
+    // Reset pagination limit when navigating across different months
+    ref.listen(selectedMonthProvider, (prev, next) {
+      if (prev != next && mounted) {
+        setState(() {
+          _displayLimit = 50;
+        });
+      }
+    });
+
     final searchQuery = _searchController.text.trim();
     final isGlobalSearch = searchQuery.length >= 2;
 
@@ -112,6 +143,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final filteredData = ref.watch(filteredAndGroupedTransactionsProvider(filterParams));
     final filteredTransactions = filteredData.transactions;
     final grouped = filteredData.grouped;
+    final dateKeys = grouped.keys.toList();
+    final isPaginated = dateKeys.length > _displayLimit;
+    final visibleDateCount = isPaginated ? _displayLimit : dateKeys.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -210,12 +244,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           onPressed: () {
                             setState(() {
                               _searchController.clear();
+                              _displayLimit = 50;
                             });
                           },
                         )
                       : null,
                 ),
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => setState(() {
+                  _displayLimit = 50;
+                }),
               ),
             ),
 
@@ -258,6 +295,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       if (selected) {
                         setState(() {
                           _selectedFilterIndex = index;
+                          _displayLimit = 50;
                         });
                       }
                     },
@@ -346,15 +384,41 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       ),
                     )
                   : ListView.builder(
+                      controller: _scrollController,
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(20, 4, 20, 88),
-                      itemCount: grouped.keys.length,
+                      itemCount: isPaginated ? visibleDateCount + 1 : visibleDateCount,
                       itemBuilder: (context, groupIndex) {
-                        final date = grouped.keys.elementAt(groupIndex);
-                        final items = grouped[date]!;
+                            if (groupIndex == visibleDateCount && isPaginated) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  child: TextButton.icon(
+                                    onPressed: () {
+                                      setState(() {
+                                        _displayLimit += 50;
+                                      });
+                                      ref.read(transactionListNotifierProvider.notifier).loadMore(pageSize: 50);
+                                    },
+                                    icon: const Icon(Icons.expand_more_rounded, size: 18),
+                                    label: Text(
+                                      'Showing $visibleDateCount of ${dateKeys.length} dates • Load More',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: financialColors.textMuted,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
 
-                        final dayIncome = FinancialCalculator.calculateTotalIncome(items);
-                        final dayExpense = FinancialCalculator.calculateTotalExpense(items);
+                            final date = dateKeys[groupIndex];
+                            final items = grouped[date]!;
+
+                            final dayIncome = FinancialCalculator.calculateTotalIncome(items);
+                            final dayExpense = FinancialCalculator.calculateTotalExpense(items);
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

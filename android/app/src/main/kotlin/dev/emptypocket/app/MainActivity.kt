@@ -38,6 +38,40 @@ class MainActivity : FlutterFragmentActivity() {
                     moveTaskToBack(true)
                     result.success(true)
                 }
+                "startStickyOverlay" -> {
+                    try {
+                        val width = call.argument<Int>("width")
+                        val height = call.argument<Int>("height")
+                        val enableDrag = call.argument<Boolean>("enableDrag") ?: true
+                        val overlayTitle = call.argument<String>("overlayTitle") ?: "EmptyPocket Quick-Add"
+                        val overlayContent = call.argument<String>("overlayContent") ?: "Tap floating bubble to log expenses"
+
+                        val serviceIntent = Intent(this, StickyOverlayService::class.java).apply {
+                            if (width != null) putExtra("width", width)
+                            if (height != null) putExtra("height", height)
+                            putExtra("enableDrag", enableDrag)
+                            putExtra("overlayTitle", overlayTitle)
+                            putExtra("overlayContent", overlayContent)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(serviceIntent)
+                        } else {
+                            startService(serviceIntent)
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SERVICE_START_FAILED", "Failed to start StickyOverlayService: ${e.message}", null)
+                    }
+                }
+                "stopStickyOverlay" -> {
+                    try {
+                        val serviceIntent = Intent(this, StickyOverlayService::class.java)
+                        stopService(serviceIntent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SERVICE_STOP_FAILED", "Failed to stop StickyOverlayService: ${e.message}", null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -58,11 +92,20 @@ class MainActivity : FlutterFragmentActivity() {
                         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
                         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
                             try {
-                                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = Uri.parse("package:$packageName")
+                                }
                                 startActivity(intent)
                                 result.success(true)
                             } catch (e: Exception) {
-                                result.error("INTENT_FAILED", "Could not open battery settings", e.message)
+                                // Fallback to generic settings screen if direct dialog is restricted by OEM
+                                try {
+                                    val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                    startActivity(fallbackIntent)
+                                    result.success(true)
+                                } catch (fallbackEx: Exception) {
+                                    result.error("INTENT_FAILED", "Could not open battery settings", fallbackEx.message)
+                                }
                             }
                         } else {
                             result.success(true)

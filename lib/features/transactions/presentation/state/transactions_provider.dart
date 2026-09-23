@@ -75,10 +75,42 @@ final selectedMonthProvider =
 
 /// Reactive Transaction List AsyncNotifier
 class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
+  int _currentLimit = 100;
+  bool _hasMore = true;
+
+  bool get hasMore => _hasMore;
+  int get currentLimit => _currentLimit;
+
   @override
   FutureOr<List<TransactionEntity>> build() async {
     final repository = ref.watch(transactionRepositoryProvider);
-    return await repository.getAllTransactions();
+    // Load complete ledger history to maintain 100% integrity of monthly financial summaries,
+    // multi-month trend reports, unsettled shared expenses, and daily logging streaks across all derived providers.
+    final items = await repository.getAllTransactions();
+    _currentLimit = items.length;
+    _hasMore = false;
+    return items;
+  }
+
+  /// Loads more transactions into memory for infinite scroll expansion
+  Future<void> loadMore({int pageSize = 100}) async {
+    _currentLimit += pageSize;
+    final repository = ref.read(transactionRepositoryProvider);
+    final items = await repository.getTransactionsPaginated(limit: _currentLimit, offset: 0);
+    _hasMore = items.length >= _currentLimit;
+    state = AsyncValue.data(items);
+  }
+
+  /// Loads all transactions into memory (e.g. for complete export/audit)
+  Future<void> loadAll() async {
+    final repository = ref.read(transactionRepositoryProvider);
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final items = await repository.getAllTransactions();
+      _hasMore = false;
+      _currentLimit = items.length;
+      return items;
+    });
   }
 
   Future<void> addTransaction(TransactionEntity transaction) async {

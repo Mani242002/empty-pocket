@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'log_service.dart';
@@ -56,25 +57,21 @@ class OverlayService {
     }
 
     try {
-      // In flutter_overlay_window plugin, showOverlay expects physical pixels for WindowManager.LayoutParams,
-      // while resizeOverlay expects density-independent pixels (DP) and converts via dpToPx(dp).
-      // We calculate initial physical pixels using the device's display pixel ratio to ensure identical sizing on launch.
       final pixelRatio = ui.PlatformDispatcher.instance.views.firstOrNull?.devicePixelRatio ?? 3.0;
       final initialPhysicalPixels = (bubbleWindowSize * pixelRatio).round();
 
-      await FlutterOverlayWindow.showOverlay(
-        enableDrag: true,
-        overlayTitle: "EmptyPocket Quick-Add",
-        overlayContent: "Tap to record expense or income",
-        flag: OverlayFlag.defaultFlag,
-        visibility: NotificationVisibility.visibilityPrivate,
-        alignment: OverlayAlignment.center,
-        positionGravity: PositionGravity.none,
-        height: initialPhysicalPixels,
-        width: initialPhysicalPixels,
-      );
+      // Launch StickyOverlayService as the sole overlay service with exact bubble dimensions.
+      // This eliminates the dual-overlay service collision where both StickyOverlayService and OverlayService run simultaneously.
+      const overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
+      await overlayChannel.invokeMethod('startStickyOverlay', {
+        'width': initialPhysicalPixels,
+        'height': initialPhysicalPixels,
+        'enableDrag': true,
+        'overlayTitle': 'EmptyPocket Quick-Add',
+        'overlayContent': 'Tap floating bubble to log expenses',
+      });
 
-      LogService.info(_tag, 'Floating bubble overlay opened ($bubbleWindowSize dp / $initialPhysicalPixels px).');
+      LogService.info(_tag, 'Floating bubble overlay opened via StickyOverlayService ($bubbleWindowSize dp / $initialPhysicalPixels px).');
     } catch (e, stack) {
       LogService.error(_tag, 'showFloatingBubble error', e, stack);
     }
@@ -174,6 +171,12 @@ class OverlayService {
   /// Close the overlay completely
   static Future<void> closeOverlay() async {
     try {
+      try {
+        const overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
+        await overlayChannel.invokeMethod('stopStickyOverlay');
+      } catch (nativeEx) {
+        LogService.warning(_tag, 'Could not stop StickyOverlayService via method channel', nativeEx);
+      }
       await FlutterOverlayWindow.closeOverlay();
       LogService.info(_tag, 'Overlay closed.');
     } catch (e, stack) {

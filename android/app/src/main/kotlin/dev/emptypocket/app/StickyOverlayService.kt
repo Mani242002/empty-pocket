@@ -7,7 +7,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.util.Log
 import flutter.overlay.window.flutter_overlay_window.OverlayService
+import io.flutter.FlutterInjector
+import io.flutter.embedding.engine.FlutterEngineCache
+import io.flutter.embedding.engine.FlutterEngineGroup
+import io.flutter.embedding.engine.dart.DartExecutor
 
 /**
  * Enhanced StickyOverlayService extending flutter_overlay_window's OverlayService.
@@ -15,17 +20,26 @@ import flutter.overlay.window.flutter_overlay_window.OverlayService
  * 24/7 floating bubble overlay stays alive even when the app is swiped from Recent Apps.
  * Ensures immediate foreground promotion in onCreate to prevent Android 14+
  * ForegroundServiceDidNotStartInTimeException on cold boot.
+ * Pre-warms the FlutterEngine for overlayMain if null to prevent NullPointerException
+ * on cold boot or device restart.
  */
 class StickyOverlayService : OverlayService() {
 
     companion object {
-        private const val CHANNEL_ID = "emptypocket_sticky_overlay"
-        private const val NOTIFICATION_ID = 1002
+        private const val TAG = "StickyOverlayService"
+        // Unified with flutter_overlay_window internal constants to prevent dual notifications
+        private const val CHANNEL_ID = "Overlay Channel"
+        private const val NOTIFICATION_ID = 4579
+        private const val CACHED_TAG = "myCachedEngine"
+        private const val DEFAULT_XY = -6
     }
 
     override fun onCreate() {
-        super.onCreate()
+        // Android 14+ requirement: promote to foreground with FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        // BEFORE calling super.onCreate() or pre-warming engines to prevent ForegroundServiceDidNotStartInTimeException.
         promoteToForegroundSafely()
+        ensureFlutterEngineInitialized()
+        super.onCreate()
     }
 
     private fun promoteToForegroundSafely() {
@@ -58,29 +72,98 @@ class StickyOverlayService : OverlayService() {
                 } else {
                     startForeground(NOTIFICATION_ID, notification)
                 }
-            } catch (_: Exception) {
-                // Defensive fallback: flutter_overlay_window will also attempt startForeground
+            } catch (e: Exception) {
+                Log.w(TAG, "Promote to foreground fallback: ${e.message}")
             }
+        }
+    }
+
+    private fun ensureFlutterEngineInitialized() {
+        try {
+            if (FlutterEngineCache.getInstance().get(CACHED_TAG) == null) {
+                Log.i(TAG, "Pre-warming FlutterEngine for overlayMain on cold start")
+                val flutterLoader = FlutterInjector.instance().flutterLoader()
+                if (!flutterLoader.initialized()) {
+                    flutterLoader.startInitialization(applicationContext)
+                }
+                flutterLoader.ensureInitializationComplete(applicationContext, null)
+
+                val engineGroup = FlutterEngineGroup(applicationContext)
+                val entrypoint = DartExecutor.DartEntrypoint(
+                    flutterLoader.findAppBundlePath(),
+                    "overlayMain"
+                )
+                val engine = engineGroup.createAndRunEngine(applicationContext, entrypoint)
+                FlutterEngineCache.getInstance().put(CACHED_TAG, engine)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error warming FlutterEngine for overlay: ${e.message}", e)
+        }
+    }
+
+    private fun applyWindowSetup(intent: Intent?) {
+        try {
+            val windowSetupClass = Class.forName("flutter.overlay.window.flutter_overlay_window.WindowSetup")
+            val heightField = windowSetupClass.getDeclaredField("height").apply { isAccessible = true }
+            val widthField = windowSetupClass.getDeclaredField("width").apply { isAccessible = true }
+            val enableDragField = windowSetupClass.getDeclaredField("enableDrag").apply { isAccessible = true }
+            val titleField = windowSetupClass.getDeclaredField("overlayTitle").apply { isAccessible = true }
+            val contentField = windowSetupClass.getDeclaredField("overlayContent").apply { isAccessible = true }
+
+            val density = resources.displayMetrics.density
+            val defaultSizePx = (60 * density).toInt()
+
+            val w = intent?.getIntExtra("width", defaultSizePx) ?: defaultSizePx
+            val h = intent?.getIntExtra("height", defaultSizePx) ?: defaultSizePx
+            val drag = intent?.getBooleanExtra("enableDrag", true) ?: true
+            val title = intent?.getStringExtra("overlayTitle") ?: "EmptyPocket Quick-Add"
+            val content = intent?.getStringExtra("overlayContent") ?: "Tap floating bubble to log expenses"
+
+            widthField.setInt(null, if (w > 0) w else defaultSizePx)
+            heightField.setInt(null, if (h > 0) h else defaultSizePx)
+            enableDragField.setBoolean(null, drag)
+            titleField.set(null, title)
+            contentField.set(null, content)
+        } catch (e: Exception) {
+            Log.w(TAG, "WindowSetup reflection initialization fallback: ${e.message}")
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         promoteToForegroundSafely()
-        super.onStartCommand(intent, flags, startId)
+        ensureFlutterEngineInitialized()
+        applyWindowSetup(intent)
+
+        // Guard against null intent on OS START_STICKY recovery so super.onStartCommand does not crash
+        // and correctly adds the flutterView to the WindowManager with default coordinates.
+        val safeIntent = intent ?: Intent(this, StickyOverlayService::class.java).apply {
+            putExtra("startX", DEFAULT_XY)
+            putExtra("startY", DEFAULT_XY)
+        }
+
+        try {
+            super.onStartCommand(safeIntent, flags, startId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in super.onStartCommand: ${e.message}", e)
+        }
         return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         try {
-            val restartIntent = Intent(applicationContext, StickyOverlayService::class.java)
-            restartIntent.setPackage(packageName)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(restartIntent)
-            } else {
-                startService(restartIntent)
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val bubbleEnabled = prefs.getBoolean("flutter.floating_bubble_enabled", false)
+            if (bubbleEnabled) {
+                val restartIntent = Intent(applicationContext, StickyOverlayService::class.java)
+                restartIntent.setPackage(packageName)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(restartIntent)
+                } else {
+                    startService(restartIntent)
+                }
             }
-        } catch (_: Exception) {
-            // Ignored - system handles restart via sticky flag
+        } catch (e: Exception) {
+            Log.w(TAG, "Sticky restart on task removed failed: ${e.message}")
         }
         super.onTaskRemoved(rootIntent)
     }

@@ -94,11 +94,11 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
     if (state == AppLifecycleState.paused) {
       _lastPausedTime = DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
-      // Avoid firing 8 concurrent SQLite queries on rapid task-switches / notification drops
+      // Avoid firing redundant queries on sub-second flicker (e.g. quick notification shade pulls)
       final pausedDuration = _lastPausedTime != null
           ? DateTime.now().difference(_lastPausedTime!)
           : null;
-      if (pausedDuration != null && pausedDuration.inSeconds < 2) {
+      if (pausedDuration != null && pausedDuration.inMilliseconds < 500) {
         return;
       }
 
