@@ -52,17 +52,26 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+        return Consumer(
+          builder: (modalCtx, ref, _) {
+            final liveConfig = ref.watch(aiProviderConfigProvider);
+
+            return SafeArea(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.75,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(
                   child: Container(
@@ -86,40 +95,53 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ChoiceChip(
-                        avatar: const Icon(Icons.auto_awesome_rounded, size: 16),
-                        label: const Center(child: Text('Google Gemini')),
-                        selected: config.providerType == AiProviderType.gemini,
-                        onSelected: (sel) {
-                          if (sel) {
-                            ref.read(aiProviderConfigProvider.notifier).updateProvider(AiProviderType.gemini);
-                            Navigator.pop(ctx);
-                          }
-                        },
+
+                // Provider switcher chips in responsive Wrap
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: AiProviderType.values.map((provider) {
+                    final isSelected = liveConfig.providerType == provider;
+                    final isConfigured = liveConfig.isProviderConfigured(provider);
+
+                    return ChoiceChip(
+                      avatar: Icon(provider.icon, size: 16),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            provider.displayName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            ),
+                          ),
+                          if (isConfigured) ...[
+                            const SizedBox(width: 4),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: AppColors.income,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ChoiceChip(
-                        avatar: const Icon(Icons.bolt_rounded, size: 16),
-                        label: const Center(child: Text('Groq Cloud')),
-                        selected: config.providerType == AiProviderType.groq,
-                        onSelected: (sel) {
-                          if (sel) {
-                            ref.read(aiProviderConfigProvider.notifier).updateProvider(AiProviderType.groq);
-                            Navigator.pop(ctx);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
+                      selected: isSelected,
+                      onSelected: (sel) {
+                        if (sel) {
+                          ref.read(aiProviderConfigProvider.notifier).updateProvider(provider);
+                        }
+                      },
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 16),
+
                 Text(
-                  'SELECT MODEL',
+                  'SELECT MODEL (${liveConfig.providerType.displayName.toUpperCase()})',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -128,49 +150,61 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...config.providerType.modelOptions.map((opt) {
-                  final isSelected = config.activeModel == opt.id;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? AppColors.primaryEmerald : (isDark ? Colors.white10 : Colors.black12),
-                      ),
-                    ),
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                      title: Text(
-                        opt.displayName,
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                          color: isSelected ? AppColors.primaryEmerald : null,
+
+                // Scrollable Model Options
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: liveConfig.activeModelOptions.map((opt) {
+                      final isSelected = liveConfig.activeModel == opt.id;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primaryEmerald
+                                : (isDark ? Colors.white10 : Colors.black12),
+                          ),
                         ),
-                      ),
-                      subtitle: Text(
-                        opt.id,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                          title: Text(
+                            opt.displayName,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected ? AppColors.primaryEmerald : null,
+                            ),
+                          ),
+                          subtitle: Text(
+                            opt.id,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryEmerald, size: 20)
+                              : null,
+                          onTap: () {
+                            ref.read(aiProviderConfigProvider.notifier).updateModel(opt.id);
+                            Navigator.pop(ctx);
+                          },
                         ),
-                      ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryEmerald, size: 20)
-                          : null,
-                      onTap: () {
-                        ref.read(aiProviderConfigProvider.notifier).updateModel(opt.id);
-                        Navigator.pop(ctx);
-                      },
-                    ),
-                  );
-                }),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ],
             ),
-          ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -276,35 +310,37 @@ ${report.markdownContent}
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(width: 8),
-            InkWell(
-              onTap: () => _showModelPickerSheet(context, config),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppColors.primaryEmerald.withAlpha(isDark ? 80 : 50),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(config.providerType.icon, size: 13, color: AppColors.primaryEmerald),
-                    const SizedBox(width: 4),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.3),
-                      child: Text(
-                        config.activeModelDisplayName,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+            Flexible(
+              child: InkWell(
+                onTap: () => _showModelPickerSheet(context, config),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.primaryEmerald.withAlpha(isDark ? 80 : 50),
                     ),
-                    const SizedBox(width: 2),
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 15),
-                  ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(config.providerType.icon, size: 13, color: AppColors.primaryEmerald),
+                      const SizedBox(width: 4),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.3),
+                        child: Text(
+                          config.activeModelDisplayName,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.keyboard_arrow_down_rounded, size: 15),
+                    ],
+                  ),
                 ),
               ),
             ),

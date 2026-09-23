@@ -257,7 +257,7 @@ Guidelines:
     return trimmed.isNotEmpty ? trimmed : (text.trim().isNotEmpty ? text.trim() : '');
   }
 
-  /// Generic LLM dispatch router for Gemini & Groq
+  /// Generic LLM dispatch router for all supported AI providers
   Future<String> _generateRawText({
     required AiProviderConfig config,
     required String systemPrompt,
@@ -269,8 +269,23 @@ Guidelines:
       case AiProviderType.gemini:
         rawText = await _callGemini(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
         break;
+      case AiProviderType.openAi:
+        rawText = await _callOpenAi(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        break;
+      case AiProviderType.anthropic:
+        rawText = await _callAnthropic(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        break;
       case AiProviderType.groq:
         rawText = await _callGroq(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        break;
+      case AiProviderType.openRouter:
+        rawText = await _callOpenRouter(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        break;
+      case AiProviderType.deepSeek:
+        rawText = await _callDeepSeek(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        break;
+      case AiProviderType.custom:
+        rawText = await _callCustom(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
         break;
     }
     return stripThinkingTags(rawText);
@@ -388,6 +403,185 @@ Guidelines:
     return text;
   }
 
+  /// OpenAI REST API Implementation
+  Future<String> _callOpenAi({
+    required AiProviderConfig config,
+    required String systemPrompt,
+    required String userPrompt,
+    List<AiChatMessage>? history,
+  }) async {
+    final key = config.openAiApiKey.trim();
+    if (key.isEmpty) {
+      throw Exception('OpenAI API Key is missing. Please configure it in AI Settings.');
+    }
+
+    final url = Uri.parse('https://api.openai.com/v1/chat/completions');
+
+    final isReasoningModel = config.openAiModel.startsWith('o1') ||
+        config.openAiModel.startsWith('o3') ||
+        config.openAiModel.startsWith('o4');
+
+    final List<Map<String, String>> messages = [];
+    if (systemPrompt.trim().isNotEmpty) {
+      // Reasoning models (o1, o3, o4) prefer developer role or standard system
+      messages.add({'role': isReasoningModel ? 'developer' : 'system', 'content': systemPrompt.trim()});
+    }
+
+    if (history != null && history.isNotEmpty) {
+      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
+      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      for (final msg in recentHistory) {
+        messages.add({
+          'role': msg.isUser ? 'user' : 'assistant',
+          'content': msg.text,
+        });
+      }
+    }
+
+    messages.add({'role': 'user', 'content': userPrompt});
+
+    final payload = <String, dynamic>{
+      'model': config.openAiModel,
+      'messages': messages,
+    };
+
+    if (isReasoningModel) {
+      payload['max_completion_tokens'] = 4096;
+    } else {
+      payload['temperature'] = 0.7;
+      payload['max_completion_tokens'] = 4096;
+    }
+
+    final response = await _httpClient.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $key',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(payload),
+    ).timeout(
+      const Duration(seconds: 60),
+      onTimeout: () => throw Exception(
+        'Request timed out after 60 seconds. Check your network connection and try again.',
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      String message;
+      try {
+        final errorBody = jsonDecode(response.body);
+        message = errorBody['error']?['message'] ?? 'OpenAI API call failed (${response.statusCode})';
+      } on FormatException {
+        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        message = 'OpenAI API call failed (${response.statusCode}): $preview';
+      }
+      throw Exception(message);
+    }
+
+    final data = jsonDecode(response.body);
+    final choices = data['choices'] as List?;
+    if (choices == null || choices.isEmpty) {
+      throw Exception('No response choices returned by OpenAI.');
+    }
+
+    final content = choices.first['message']?['content'];
+    if (content == null) {
+      throw Exception('OpenAI returned an empty content response.');
+    }
+
+    return content as String;
+  }
+
+  /// Anthropic Claude REST API Implementation
+  Future<String> _callAnthropic({
+    required AiProviderConfig config,
+    required String systemPrompt,
+    required String userPrompt,
+    List<AiChatMessage>? history,
+  }) async {
+    final key = config.anthropicApiKey.trim();
+    if (key.isEmpty) {
+      throw Exception('Anthropic API Key is missing. Please configure it in AI Settings.');
+    }
+
+    final url = Uri.parse('https://api.anthropic.com/v1/messages');
+
+    final List<Map<String, String>> messages = [];
+
+    if (history != null && history.isNotEmpty) {
+      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
+      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+
+      // Anthropic requires strictly alternating roles starting with 'user'
+      String? lastRole;
+      for (final msg in recentHistory) {
+        final role = msg.isUser ? 'user' : 'assistant';
+        if (messages.isEmpty && role != 'user') continue;
+        if (role != lastRole) {
+          messages.add({'role': role, 'content': msg.text});
+          lastRole = role;
+        }
+      }
+    }
+
+    // Ensure user message is appended cleanly
+    messages.add({'role': 'user', 'content': userPrompt});
+
+    final payload = <String, dynamic>{
+      'model': config.anthropicModel,
+      'max_tokens': 4096,
+      'messages': messages,
+    };
+
+    if (systemPrompt.trim().isNotEmpty) {
+      payload['system'] = systemPrompt.trim();
+    }
+
+    final response = await _httpClient.post(
+      url,
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(payload),
+    ).timeout(
+      const Duration(seconds: 60),
+      onTimeout: () => throw Exception(
+        'Request timed out after 60 seconds. Check your network connection and try again.',
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      String message;
+      try {
+        final errorBody = jsonDecode(response.body);
+        message = errorBody['error']?['message'] ?? 'Anthropic API call failed (${response.statusCode})';
+      } on FormatException {
+        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        message = 'Anthropic API call failed (${response.statusCode}): $preview';
+      }
+      throw Exception(message);
+    }
+
+    final data = jsonDecode(response.body);
+    final contentList = data['content'] as List?;
+    if (contentList == null || contentList.isEmpty) {
+      throw Exception('No response content returned by Anthropic.');
+    }
+
+    final textBlocks = contentList
+        .where((b) => (b as Map<String, dynamic>)['type'] == 'text')
+        .map((b) => (b as Map<String, dynamic>)['text'] as String? ?? '')
+        .join('');
+
+    if (textBlocks.trim().isEmpty) {
+      throw Exception('Anthropic returned an empty text response.');
+    }
+
+    return textBlocks;
+  }
+
   /// Groq OpenAI-Compatible REST API Implementation
   Future<String> _callGroq({
     required AiProviderConfig config,
@@ -462,6 +656,258 @@ Guidelines:
     }
 
     return content as String;
+  }
+
+  /// OpenRouter / Meta REST API Implementation
+  Future<String> _callOpenRouter({
+    required AiProviderConfig config,
+    required String systemPrompt,
+    required String userPrompt,
+    List<AiChatMessage>? history,
+  }) async {
+    final key = config.openRouterApiKey.trim();
+    if (key.isEmpty) {
+      throw Exception('OpenRouter API Key is missing. Please configure it in AI Settings.');
+    }
+
+    final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
+
+    final List<Map<String, String>> messages = [
+      {'role': 'system', 'content': systemPrompt},
+    ];
+
+    if (history != null && history.isNotEmpty) {
+      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
+      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      for (final msg in recentHistory) {
+        messages.add({
+          'role': msg.isUser ? 'user' : 'assistant',
+          'content': msg.text,
+        });
+      }
+    }
+
+    messages.add({'role': 'user', 'content': userPrompt});
+
+    final response = await _httpClient.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $key',
+        'HTTP-Referer': 'https://emptypocket.dev',
+        'X-Title': 'EmptyPocket',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'model': config.openRouterModel,
+        'messages': messages,
+        'temperature': 0.7,
+        'max_tokens': 4096,
+      }),
+    ).timeout(
+      const Duration(seconds: 60),
+      onTimeout: () => throw Exception(
+        'Request timed out after 60 seconds. Check your network connection and try again.',
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      String message;
+      try {
+        final errorBody = jsonDecode(response.body);
+        message = errorBody['error']?['message'] ?? 'OpenRouter API call failed (${response.statusCode})';
+      } on FormatException {
+        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        message = 'OpenRouter API call failed (${response.statusCode}): $preview';
+      }
+      throw Exception(message);
+    }
+
+    final data = jsonDecode(response.body);
+    final choices = data['choices'] as List?;
+    if (choices == null || choices.isEmpty) {
+      throw Exception('No choices returned by OpenRouter.');
+    }
+
+    final content = choices.first['message']?['content'];
+    if (content == null) {
+      throw Exception('OpenRouter returned an empty content response.');
+    }
+
+    return content as String;
+  }
+
+  /// DeepSeek REST API Implementation
+  Future<String> _callDeepSeek({
+    required AiProviderConfig config,
+    required String systemPrompt,
+    required String userPrompt,
+    List<AiChatMessage>? history,
+  }) async {
+    final key = config.deepSeekApiKey.trim();
+    if (key.isEmpty) {
+      throw Exception('DeepSeek API Key is missing. Please configure it in AI Settings.');
+    }
+
+    final url = Uri.parse('https://api.deepseek.com/chat/completions');
+
+    final List<Map<String, String>> messages = [
+      {'role': 'system', 'content': systemPrompt},
+    ];
+
+    if (history != null && history.isNotEmpty) {
+      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
+      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      for (final msg in recentHistory) {
+        messages.add({
+          'role': msg.isUser ? 'user' : 'assistant',
+          'content': msg.text,
+        });
+      }
+    }
+
+    messages.add({'role': 'user', 'content': userPrompt});
+
+    final response = await _httpClient.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $key',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'model': config.deepSeekModel,
+        'messages': messages,
+        'temperature': 0.7,
+        'max_tokens': 4096,
+      }),
+    ).timeout(
+      const Duration(seconds: 60),
+      onTimeout: () => throw Exception(
+        'Request timed out after 60 seconds. Check your network connection and try again.',
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      String message;
+      try {
+        final errorBody = jsonDecode(response.body);
+        message = errorBody['error']?['message'] ?? 'DeepSeek API call failed (${response.statusCode})';
+      } on FormatException {
+        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        message = 'DeepSeek API call failed (${response.statusCode}): $preview';
+      }
+      throw Exception(message);
+    }
+
+    final data = jsonDecode(response.body);
+    final choices = data['choices'] as List?;
+    if (choices == null || choices.isEmpty) {
+      throw Exception('No choices returned by DeepSeek.');
+    }
+
+    final content = choices.first['message']?['content'];
+    if (content == null) {
+      throw Exception('DeepSeek returned an empty content response.');
+    }
+
+    return content as String;
+  }
+
+  /// Custom OpenAI-Compatible REST API Implementation (Ollama, LM Studio, vLLM, etc.)
+  Future<String> _callCustom({
+    required AiProviderConfig config,
+    required String systemPrompt,
+    required String userPrompt,
+    List<AiChatMessage>? history,
+  }) async {
+    var rawUrl = config.customBaseUrl.trim();
+    if (rawUrl.isEmpty) {
+      throw Exception('Custom Endpoint Base URL is missing. Please configure it in AI Settings.');
+    }
+
+    // Normalize endpoint URL
+    if (rawUrl.endsWith('/')) {
+      rawUrl = rawUrl.substring(0, rawUrl.length - 1);
+    }
+    if (!rawUrl.endsWith('/chat/completions')) {
+      rawUrl = '$rawUrl/chat/completions';
+    }
+
+    final url = Uri.parse(rawUrl);
+
+    final List<Map<String, String>> messages = [
+      {'role': 'system', 'content': systemPrompt},
+    ];
+
+    if (history != null && history.isNotEmpty) {
+      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
+      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      for (final msg in recentHistory) {
+        messages.add({
+          'role': msg.isUser ? 'user' : 'assistant',
+          'content': msg.text,
+        });
+      }
+    }
+
+    messages.add({'role': 'user', 'content': userPrompt});
+
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+
+    // Optional API key support for local/unauthenticated instances
+    final customKey = config.customApiKey.trim();
+    if (customKey.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $customKey';
+    }
+
+    final modelName = config.customModel.trim().isNotEmpty ? config.customModel.trim() : 'llama-4-scout';
+
+    final response = await _httpClient.post(
+      url,
+      headers: headers,
+      body: jsonEncode({
+        'model': modelName,
+        'messages': messages,
+        'temperature': 0.7,
+        'max_tokens': 4096,
+      }),
+    ).timeout(
+      const Duration(seconds: 60),
+      onTimeout: () => throw Exception(
+        'Request to custom endpoint timed out after 60 seconds. Check that your local instance (Ollama/LM Studio) is running and reachable.',
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      String message;
+      try {
+        final errorBody = jsonDecode(response.body);
+        message = errorBody['error']?['message'] ?? errorBody['message'] ?? 'Custom API call failed (${response.statusCode})';
+      } on FormatException {
+        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        message = 'Custom API call failed (${response.statusCode}): $preview';
+      }
+      throw Exception(message);
+    }
+
+    final data = jsonDecode(response.body);
+
+    // Standard OpenAI response format
+    if (data['choices'] is List && (data['choices'] as List).isNotEmpty) {
+      final content = (data['choices'] as List).first['message']?['content'];
+      if (content != null) return content as String;
+    }
+
+    // Direct message / response format (some local engines)
+    if (data['message']?['content'] != null) {
+      return data['message']['content'] as String;
+    }
+    if (data['response'] != null) {
+      return data['response'] as String;
+    }
+
+    throw Exception('Custom endpoint returned unexpected JSON response structure: ${response.body.substring(0, 200.clamp(0, response.body.length))}');
   }
 
   /// Parses raw LLM text into a structured AiAuditReport

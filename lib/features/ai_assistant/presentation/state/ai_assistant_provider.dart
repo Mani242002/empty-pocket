@@ -27,9 +27,23 @@ final aiServiceProvider = Provider<AiService>((ref) {
 class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
   static const String _keyProvider = 'ai_provider_type';
   static const String _keyGeminiApiKey = 'ai_gemini_api_key';
+  static const String _keyOpenAiApiKey = 'ai_openai_api_key';
+  static const String _keyAnthropicApiKey = 'ai_anthropic_api_key';
   static const String _keyGroqApiKey = 'ai_groq_api_key';
+  static const String _keyOpenRouterApiKey = 'ai_openrouter_api_key';
+  static const String _keyDeepSeekApiKey = 'ai_deepseek_api_key';
+  static const String _keyCustomApiKey = 'ai_custom_api_key';
+
   static const String _keyGeminiModel = 'ai_gemini_model';
+  static const String _keyOpenAiModel = 'ai_openai_model';
+  static const String _keyAnthropicModel = 'ai_anthropic_model';
   static const String _keyGroqModel = 'ai_groq_model';
+  static const String _keyOpenRouterModel = 'ai_openrouter_model';
+  static const String _keyDeepSeekModel = 'ai_deepseek_model';
+  static const String _keyCustomModel = 'ai_custom_model';
+
+  static const String _keyCustomBaseUrl = 'ai_custom_base_url';
+  static const String _keyCustomSavedModels = 'ai_custom_saved_models';
   static const String _keyLegacyApiKey = 'ai_api_key';
 
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
@@ -44,66 +58,82 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final providerStr = prefs.getString(_keyProvider) ?? 'gemini';
-      final geminiModel = prefs.getString(_keyGeminiModel) ?? 'gemini-3.7-flash';
-      final groqModel = prefs.getString(_keyGroqModel) ?? 'qwen/qwen3.6-27b';
+
+      final geminiModel = prefs.getString(_keyGeminiModel) ?? 'gemini-3.8-flash';
+      final openAiModel = prefs.getString(_keyOpenAiModel) ?? 'gpt-6-astra';
+      final anthropicModel = prefs.getString(_keyAnthropicModel) ?? 'claude-opus-5-5';
+      final groqModel = prefs.getString(_keyGroqModel) ?? 'qwen/qwen3.8-27b';
+      final openRouterModel = prefs.getString(_keyOpenRouterModel) ?? 'meta-llama/llama-4-maverick';
+      final deepSeekModel = prefs.getString(_keyDeepSeekModel) ?? 'deepseek-flash';
+      final customModel = prefs.getString(_keyCustomModel) ?? 'llama-4-scout';
+      final customBaseUrl = prefs.getString(_keyCustomBaseUrl) ?? 'http://10.0.2.2:11434/v1';
+      final customSavedModels = prefs.getStringList(_keyCustomSavedModels) ?? const [
+        'llama-4-scout',
+        'qwen3.8',
+        'deepseek-flash',
+        'llama3.3:70b',
+        'llama3.2-vision',
+        'mistral-large',
+      ];
 
       String? geminiKey;
+      String? openAiKey;
+      String? anthropicKey;
       String? groqKey;
+      String? openRouterKey;
+      String? deepSeekKey;
+      String? customKey;
 
       try {
         geminiKey = await _secureStorage.read(key: _keyGeminiApiKey);
+        openAiKey = await _secureStorage.read(key: _keyOpenAiApiKey);
+        anthropicKey = await _secureStorage.read(key: _keyAnthropicApiKey);
         groqKey = await _secureStorage.read(key: _keyGroqApiKey);
+        openRouterKey = await _secureStorage.read(key: _keyOpenRouterApiKey);
+        deepSeekKey = await _secureStorage.read(key: _keyDeepSeekApiKey);
+        customKey = await _secureStorage.read(key: _keyCustomApiKey);
       } catch (e, st) {
         LogService.error('AiProviderConfigNotifier', 'Secure storage read error', e, st);
       }
 
-      // Fallback & Migration: Check SharedPreferences if secure storage was empty
-      if (geminiKey == null || geminiKey.isEmpty) {
-        geminiKey = prefs.getString(_keyGeminiApiKey) ?? '';
-        if (geminiKey.isNotEmpty) {
-          try {
-            await _secureStorage.write(key: _keyGeminiApiKey, value: geminiKey);
-            await prefs.remove(_keyGeminiApiKey);
-          } catch (e) {
-            LogService.warning('AiProviderConfigNotifier', 'Failed to migrate gemini key to secure storage', e);
-          }
-        }
-      }
-
-      if (groqKey == null || groqKey.isEmpty) {
-        groqKey = prefs.getString(_keyGroqApiKey) ?? '';
-        if (groqKey.isNotEmpty) {
-          try {
-            await _secureStorage.write(key: _keyGroqApiKey, value: groqKey);
-            await prefs.remove(_keyGroqApiKey);
-          } catch (e) {
-            LogService.warning('AiProviderConfigNotifier', 'Failed to migrate groq key to secure storage', e);
-          }
-        }
-      }
-
-      // Migrate legacy key if present and delete stale credential
-      if ((geminiKey.isEmpty) && prefs.containsKey(_keyLegacyApiKey)) {
+      // Legacy key fallback & migration
+      if ((geminiKey == null || geminiKey.isEmpty) && prefs.containsKey(_keyLegacyApiKey)) {
         final legacyKey = prefs.getString(_keyLegacyApiKey) ?? '';
         if (legacyKey.isNotEmpty) {
           geminiKey = legacyKey;
           try {
             await _secureStorage.write(key: _keyGeminiApiKey, value: legacyKey);
-          } catch (e) {
-            LogService.warning('AiProviderConfigNotifier', 'Failed to migrate legacy key to secure storage', e);
-          }
+          } catch (_) {}
           await prefs.remove(_keyLegacyApiKey);
         }
       }
 
-      final provider = providerStr == 'groq' ? AiProviderType.groq : AiProviderType.gemini;
+      AiProviderType provider = AiProviderType.gemini;
+      for (final p in AiProviderType.values) {
+        if (p.name == providerStr) {
+          provider = p;
+          break;
+        }
+      }
 
       state = AiProviderConfig(
         providerType: provider,
-        geminiApiKey: geminiKey,
-        groqApiKey: groqKey,
+        geminiApiKey: geminiKey ?? '',
+        openAiApiKey: openAiKey ?? '',
+        anthropicApiKey: anthropicKey ?? '',
+        groqApiKey: groqKey ?? '',
+        openRouterApiKey: openRouterKey ?? '',
+        deepSeekApiKey: deepSeekKey ?? '',
+        customApiKey: customKey ?? '',
         geminiModel: geminiModel,
+        openAiModel: openAiModel,
+        anthropicModel: anthropicModel,
         groqModel: groqModel,
+        openRouterModel: openRouterModel,
+        deepSeekModel: deepSeekModel,
+        customModel: customModel,
+        customBaseUrl: customBaseUrl,
+        customSavedModels: customSavedModels,
       );
     } catch (e, st) {
       LogService.error('AiProviderConfigNotifier', '_loadConfig failed', e, st);
@@ -115,68 +145,133 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
     await _saveConfig();
   }
 
-  Future<void> updateGeminiApiKey(String apiKey) async {
+  Future<void> updateApiKeyFor(AiProviderType provider, String apiKey) async {
     final key = apiKey.trim().replaceAll(RegExp(r'["\x27\r\n]'), '');
-    state = state.copyWith(geminiApiKey: key);
+    String storageKey;
+    switch (provider) {
+      case AiProviderType.gemini:
+        storageKey = _keyGeminiApiKey;
+        state = state.copyWith(geminiApiKey: key);
+        break;
+      case AiProviderType.openAi:
+        storageKey = _keyOpenAiApiKey;
+        state = state.copyWith(openAiApiKey: key);
+        break;
+      case AiProviderType.anthropic:
+        storageKey = _keyAnthropicApiKey;
+        state = state.copyWith(anthropicApiKey: key);
+        break;
+      case AiProviderType.groq:
+        storageKey = _keyGroqApiKey;
+        state = state.copyWith(groqApiKey: key);
+        break;
+      case AiProviderType.openRouter:
+        storageKey = _keyOpenRouterApiKey;
+        state = state.copyWith(openRouterApiKey: key);
+        break;
+      case AiProviderType.deepSeek:
+        storageKey = _keyDeepSeekApiKey;
+        state = state.copyWith(deepSeekApiKey: key);
+        break;
+      case AiProviderType.custom:
+        storageKey = _keyCustomApiKey;
+        state = state.copyWith(customApiKey: key);
+        break;
+    }
+
     try {
       if (key.isEmpty) {
-        await _secureStorage.delete(key: _keyGeminiApiKey);
+        await _secureStorage.delete(key: storageKey);
       } else {
-        await _secureStorage.write(key: _keyGeminiApiKey, value: key);
+        await _secureStorage.write(key: storageKey, value: key);
       }
     } catch (e, st) {
-      LogService.error('AiProviderConfigNotifier', 'Secure storage write error', e, st);
+      LogService.error('AiProviderConfigNotifier', 'Secure storage write error ($storageKey)', e, st);
+    }
+  }
+
+  Future<void> updateModelFor(AiProviderType provider, String model) async {
+    switch (provider) {
+      case AiProviderType.gemini:
+        state = state.copyWith(geminiModel: model);
+        break;
+      case AiProviderType.openAi:
+        state = state.copyWith(openAiModel: model);
+        break;
+      case AiProviderType.anthropic:
+        state = state.copyWith(anthropicModel: model);
+        break;
+      case AiProviderType.groq:
+        state = state.copyWith(groqModel: model);
+        break;
+      case AiProviderType.openRouter:
+        state = state.copyWith(openRouterModel: model);
+        break;
+      case AiProviderType.deepSeek:
+        state = state.copyWith(deepSeekModel: model);
+        break;
+      case AiProviderType.custom:
+        state = state.copyWith(customModel: model);
+        break;
     }
     await _saveConfig();
   }
 
-  Future<void> updateGroqApiKey(String apiKey) async {
-    final key = apiKey.trim().replaceAll(RegExp(r'["\x27\r\n]'), '');
-    state = state.copyWith(groqApiKey: key);
-    try {
-      if (key.isEmpty) {
-        await _secureStorage.delete(key: _keyGroqApiKey);
-      } else {
-        await _secureStorage.write(key: _keyGroqApiKey, value: key);
-      }
-    } catch (e, st) {
-      LogService.error('AiProviderConfigNotifier', 'Secure storage write error', e, st);
-    }
+  Future<void> updateCustomBaseUrl(String url) async {
+    state = state.copyWith(customBaseUrl: url.trim());
     await _saveConfig();
   }
 
-  Future<void> updateGeminiModel(String model) async {
-    state = state.copyWith(geminiModel: model);
+  Future<void> addCustomSavedModel(String modelName) async {
+    final clean = modelName.trim();
+    if (clean.isEmpty || state.customSavedModels.contains(clean)) return;
+    final updated = [...state.customSavedModels, clean];
+    state = state.copyWith(customSavedModels: updated, customModel: clean);
     await _saveConfig();
   }
 
-  Future<void> updateGroqModel(String model) async {
-    state = state.copyWith(groqModel: model);
+  Future<void> removeCustomSavedModel(String modelName) async {
+    final updated = state.customSavedModels.where((m) => m != modelName).toList();
+    final newSelected = state.customModel == modelName
+        ? (updated.isNotEmpty ? updated.first : 'llama-4-scout')
+        : state.customModel;
+    state = state.copyWith(customSavedModels: updated, customModel: newSelected);
     await _saveConfig();
   }
 
-  Future<void> updateApiKey(String apiKey) async {
-    if (state.providerType == AiProviderType.gemini) {
-      await updateGeminiApiKey(apiKey);
-    } else {
-      await updateGroqApiKey(apiKey);
-    }
-  }
+  // Convenience methods for direct provider updates
+  Future<void> updateGeminiApiKey(String key) => updateApiKeyFor(AiProviderType.gemini, key);
+  Future<void> updateOpenAiApiKey(String key) => updateApiKeyFor(AiProviderType.openAi, key);
+  Future<void> updateAnthropicApiKey(String key) => updateApiKeyFor(AiProviderType.anthropic, key);
+  Future<void> updateGroqApiKey(String key) => updateApiKeyFor(AiProviderType.groq, key);
+  Future<void> updateOpenRouterApiKey(String key) => updateApiKeyFor(AiProviderType.openRouter, key);
+  Future<void> updateDeepSeekApiKey(String key) => updateApiKeyFor(AiProviderType.deepSeek, key);
+  Future<void> updateCustomApiKey(String key) => updateApiKeyFor(AiProviderType.custom, key);
 
-  Future<void> updateModel(String model) async {
-    if (state.providerType == AiProviderType.gemini) {
-      await updateGeminiModel(model);
-    } else {
-      await updateGroqModel(model);
-    }
-  }
+  Future<void> updateGeminiModel(String model) => updateModelFor(AiProviderType.gemini, model);
+  Future<void> updateOpenAiModel(String model) => updateModelFor(AiProviderType.openAi, model);
+  Future<void> updateAnthropicModel(String model) => updateModelFor(AiProviderType.anthropic, model);
+  Future<void> updateGroqModel(String model) => updateModelFor(AiProviderType.groq, model);
+  Future<void> updateOpenRouterModel(String model) => updateModelFor(AiProviderType.openRouter, model);
+  Future<void> updateDeepSeekModel(String model) => updateModelFor(AiProviderType.deepSeek, model);
+  Future<void> updateCustomModel(String model) => updateModelFor(AiProviderType.custom, model);
+
+  Future<void> updateApiKey(String apiKey) => updateApiKeyFor(state.providerType, apiKey);
+  Future<void> updateModel(String model) => updateModelFor(state.providerType, model);
 
   Future<void> _saveConfig() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyProvider, state.providerType.name);
       await prefs.setString(_keyGeminiModel, state.geminiModel);
+      await prefs.setString(_keyOpenAiModel, state.openAiModel);
+      await prefs.setString(_keyAnthropicModel, state.anthropicModel);
       await prefs.setString(_keyGroqModel, state.groqModel);
+      await prefs.setString(_keyOpenRouterModel, state.openRouterModel);
+      await prefs.setString(_keyDeepSeekModel, state.deepSeekModel);
+      await prefs.setString(_keyCustomModel, state.customModel);
+      await prefs.setString(_keyCustomBaseUrl, state.customBaseUrl);
+      await prefs.setStringList(_keyCustomSavedModels, state.customSavedModels);
     } catch (e, st) {
       LogService.error('AiProviderConfigNotifier', '_saveConfig failed', e, st);
     }
@@ -291,11 +386,7 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
       config = config.copyWith(providerType: provider);
     }
     if (model != null) {
-      if (config.providerType == AiProviderType.gemini) {
-        config = config.copyWith(geminiModel: model);
-      } else {
-        config = config.copyWith(groqModel: model);
-      }
+      config = config.copyWith(selectedModel: model);
     }
 
     if (!config.isConfigured) {
