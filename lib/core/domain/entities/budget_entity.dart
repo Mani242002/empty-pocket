@@ -21,14 +21,18 @@ class BudgetEntity {
   final String category;
   final double limitAmount;
   final DateTime month; // year and month indicator
+  final String? accountId; // Optional linked bank account ID
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  static const Object _sentinel = Object();
 
   const BudgetEntity({
     required this.id,
     required this.category,
     required this.limitAmount,
     required this.month,
+    this.accountId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -38,6 +42,7 @@ class BudgetEntity {
     String? category,
     double? limitAmount,
     DateTime? month,
+    Object? accountId = _sentinel,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -46,6 +51,9 @@ class BudgetEntity {
       category: category ?? this.category,
       limitAmount: limitAmount ?? this.limitAmount,
       month: month ?? this.month,
+      accountId: identical(accountId, _sentinel)
+          ? this.accountId
+          : (accountId as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -57,6 +65,7 @@ class BudgetEntity {
       'category': category,
       'limit_amount': limitAmount,
       'month': DateTime(month.year, month.month, 1).millisecondsSinceEpoch,
+      'account_id': accountId,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
@@ -68,6 +77,7 @@ class BudgetEntity {
       category: map['category'] as String,
       limitAmount: (map['limit_amount'] as num).toDouble(),
       month: DateTime.fromMillisecondsSinceEpoch(map['month'] as int),
+      accountId: map['account_id'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
     );
@@ -81,6 +91,7 @@ class BudgetEntity {
           id == other.id &&
           category == other.category &&
           limitAmount == other.limitAmount &&
+          accountId == other.accountId &&
           month.year == other.month.year &&
           month.month == other.month.month;
 
@@ -89,6 +100,7 @@ class BudgetEntity {
         id,
         category,
         limitAmount,
+        accountId,
         month.year,
         month.month,
       );

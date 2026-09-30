@@ -215,19 +215,23 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
 
     // 3. Optionally record transaction in offline ledger & adjust account balance
     if (logAsTransaction) {
-      final isSameAutoSyncAccount = goal.autoSyncAccount && goal.linkedAccountId == accountId;
-      if (accountId != null && !isSameAutoSyncAccount) {
+      final isSameAccount = goal.linkedAccountId != null && goal.linkedAccountId == accountId;
+      if (accountId != null && !isSameAccount) {
         await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(accountId, -amount);
+        if (goal.linkedAccountId != null) {
+          await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(goal.linkedAccountId!, amount);
+        }
       }
       final tx = TransactionEntity(
         id: const Uuid().v4(),
         title: 'Goal: ${goal.title}',
         amount: amount,
-        type: TransactionType.expense,
+        type: TransactionType.transfer,
         category: 'Savings & Investments',
         date: now,
         paymentSource: paymentSource,
-        accountId: isSameAutoSyncAccount ? null : accountId,
+        accountId: isSameAccount ? null : accountId,
+        toAccountId: (accountId != null && !isSameAccount) ? goal.linkedAccountId : null,
         linkedEntityId: goal.id,
         notes: notes ?? 'Savings contribution towards "${goal.title}"',
         createdAt: now,
@@ -235,6 +239,98 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
       );
       await ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
     }
+  }
+
+  /// Records a savings contribution and updates goal progress without creating
+  /// an expense or deducting from bank balance, since funds were already moved
+  /// via an account transfer or deposit.
+  Future<void> recordAllocation({
+    required SavingsGoalEntity goal,
+    required double amount,
+    required String sourceAccountId,
+    String? transactionTitle,
+    DateTime? date,
+  }) async {
+    if (amount <= 0) return;
+    final repository = ref.read(savingsGoalRepositoryProvider);
+    final now = date ?? DateTime.now();
+
+    // 1. Create contribution record (without any expense transaction)
+    final contribution = GoalContributionEntity(
+      id: const Uuid().v4(),
+      goalId: goal.id,
+      amount: amount,
+      date: now,
+      notes: transactionTitle != null
+          ? 'Allocated from: $transactionTitle'
+          : 'Allocated from linked account transfer',
+      sourceAccountId: sourceAccountId,
+      createdAt: now,
+    );
+    await repository.addContribution(contribution);
+
+    // 2. Update goal current amount
+    final updatedAmount = goal.currentAmount + amount;
+    final isCompleted = updatedAmount >= goal.targetAmount;
+    final updatedGoal = goal.copyWith(
+      currentAmount: updatedAmount,
+      status: isCompleted ? GoalStatus.completed : goal.status,
+      updatedAt: now,
+    );
+    await saveGoal(updatedGoal);
+  }
+
+  /// Automatically or interactively splits transferred/deposited money
+  /// across multiple linked savings goals without double-counting as an expense.
+  Future<void> allocateToMultipleGoals({
+    required Map<String, double> goalAllocations,
+    required String sourceAccountId,
+    String? transactionTitle,
+    DateTime? date,
+    double? newTotalAccountBalance,
+  }) async {
+    final repository = ref.read(savingsGoalRepositoryProvider);
+    final currentGoals = state.valueOrNull ?? await repository.getAllGoals();
+    final now = date ?? DateTime.now();
+
+    for (final entry in goalAllocations.entries) {
+      final goalId = entry.key;
+      final amount = entry.value;
+      if (amount <= 0) continue;
+
+      final goal = currentGoals.where((g) => g.id == goalId).firstOrNull;
+      if (goal == null) continue;
+
+      final contribution = GoalContributionEntity(
+        id: const Uuid().v4(),
+        goalId: goal.id,
+        amount: amount,
+        date: now,
+        notes: transactionTitle != null
+            ? 'Allocated from: $transactionTitle'
+            : 'Allocated from linked account transfer',
+        sourceAccountId: sourceAccountId,
+        createdAt: now,
+      );
+      await repository.addContribution(contribution);
+
+      final updatedAmount = goal.currentAmount + amount;
+      final isCompleted = updatedAmount >= goal.targetAmount;
+      double? newAllocPct;
+      if (newTotalAccountBalance != null && newTotalAccountBalance > 0) {
+        newAllocPct = (updatedAmount / newTotalAccountBalance) * 100.0;
+      }
+
+      final updatedGoal = goal.copyWith(
+        currentAmount: updatedAmount,
+        allocationPercentage: newAllocPct ?? goal.allocationPercentage,
+        status: isCompleted ? GoalStatus.completed : goal.status,
+        updatedAt: now,
+      );
+      await repository.saveGoal(updatedGoal);
+    }
+
+    state = AsyncValue.data(await repository.getAllGoals());
   }
 
   Future<void> createGoalWithInitialDeposit({

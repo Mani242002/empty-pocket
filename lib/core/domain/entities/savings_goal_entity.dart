@@ -95,6 +95,9 @@ class SavingsGoalEntity {
     );
   }
 
+  bool get isCompleted =>
+      status == GoalStatus.completed || (targetAmount > 0 && currentAmount >= targetAmount);
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

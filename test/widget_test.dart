@@ -205,8 +205,9 @@ void main() {
     await tester.tap(find.text('Dashboard'));
     await tester.pumpAndSettle();
 
-    // Balance updated: 50,000 - 5,000 - 25,000 (goal) - 649 (netflix) = 19,351
-    expect(find.text('₹19,351.00'), findsOneWidget);
+    // Balance updated: 50,000 (salary) - 5,000 (groceries) - 649 (netflix) = 44,351.00
+    // (savings contributions are internal savings transfers, not expenses)
+    expect(find.text('₹44,351.00'), findsOneWidget);
     expect(find.text('Netflix Standard'), findsOneWidget);
     expect(find.text('Goal: MacBook Pro M3'), findsOneWidget);
     expect(find.text('25% Saved'), findsOneWidget);
@@ -258,8 +259,8 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    // Verify final updated balance: 19,351 - 10,000 = 9,351
-    expect(find.text('₹9,351.00'), findsOneWidget);
+    // Verify final updated balance: 44,351 - 10,000 = 34,351
+    expect(find.text('₹34,351.00'), findsOneWidget);
     expect(find.text('EMI: Axis Car Loan'), findsOneWidget);
 
     // --- STEP 6: TEST INVESTMENTS & ASSET ALLOCATION ---
@@ -321,10 +322,10 @@ void main() {
 
     // --- STEP 7: TEST NET WORTH & FINANCIAL HEALTH ENGINE ---
     // Verify Net Worth banner is present on Dashboard
-    expect(find.text('Net Worth: -₹1,90,649.00'), findsOneWidget);
+    expect(find.text('Net Worth: -₹1,65,649.00'), findsOneWidget);
 
     // Tap on the Net Worth & Health Score banner
-    await tester.tap(find.text('Net Worth: -₹1,90,649.00'));
+    await tester.tap(find.text('Net Worth: -₹1,65,649.00'));
     await tester.pumpAndSettle();
 
     // In FinancialHealthScreen, verify all sections

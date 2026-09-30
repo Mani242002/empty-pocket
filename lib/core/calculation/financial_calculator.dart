@@ -345,8 +345,14 @@ abstract class FinancialCalculator {
     List<TransactionEntity> monthlyTransactions,
   ) {
     final categoryExpenses = monthlyTransactions.where((t) {
-      return t.type == TransactionType.expense &&
-          t.category.toLowerCase() == budget.category.toLowerCase();
+      if (t.type != TransactionType.expense ||
+          t.category.toLowerCase() != budget.category.toLowerCase()) {
+        return false;
+      }
+      if (budget.accountId != null && t.accountId != budget.accountId) {
+        return false;
+      }
+      return true;
     });
 
     final spent = categoryExpenses.fold(

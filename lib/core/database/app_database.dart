@@ -18,7 +18,7 @@ import '../services/log_service.dart';
 /// Local SQLite Database manager for EmptyPocket
 class AppDatabase {
   static const String _databaseName = 'empty_pocket.db';
-  static const int _databaseVersion = 12;
+  static const int _databaseVersion = 13;
 
   static const String tableTransactions = 'transactions';
   static const String tableBudgets = 'budgets';
@@ -348,6 +348,13 @@ class AppDatabase {
         LogService.debug('AppDatabase', 'initial_used_amount column migration: $e');
       }
     }
+    if (oldVersion < 13) {
+      try {
+        await db.execute('ALTER TABLE $tableBudgets ADD COLUMN account_id TEXT');
+      } catch (e) {
+        LogService.debug('AppDatabase', 'account_id column migration for budgets: $e');
+      }
+    }
   }
 
   Future<void> _createAiReportsTable(Database db) async {
@@ -451,6 +458,7 @@ class AppDatabase {
         category TEXT NOT NULL,
         limit_amount REAL NOT NULL,
         month INTEGER NOT NULL,
+        account_id TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )

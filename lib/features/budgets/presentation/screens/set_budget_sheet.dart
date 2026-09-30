@@ -8,6 +8,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/budget_entity.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/budgets_provider.dart';
 
 class SetBudgetSheet extends ConsumerStatefulWidget {
@@ -44,6 +45,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
   late TextEditingController _amountController;
   late String _selectedCategory;
   late DateTime _targetMonth;
+  String? _selectedAccountId;
   final _formKey = GlobalKey<FormState>();
 
   bool get _isEditMode => widget.initialBudget != null;
@@ -62,6 +64,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
 
     _selectedCategory = budget?.category ?? CategoryConstants.expenseCategories.first.name;
     _targetMonth = widget.targetMonth ?? budget?.month ?? DateTime.now();
+    _selectedAccountId = budget?.accountId;
   }
 
   @override
@@ -92,6 +95,7 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
       category: _selectedCategory,
       limitAmount: limit,
       month: budgetMonth,
+      accountId: _selectedAccountId,
       createdAt: widget.initialBudget?.createdAt ?? now,
       updatedAt: now,
     );
@@ -390,6 +394,65 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
                       );
                     },
                   ),
+                ),
+                // Linked Account (Optional)
+                Builder(
+                  builder: (context) {
+                    final bankAccounts = ref.watch(activeBankAccountsProvider);
+                    if (bankAccounts.isEmpty) return const SizedBox.shrink();
+
+                    final isAccountValid = bankAccounts.any((a) => a.id == _selectedAccountId);
+                    final effectiveAccountId = isAccountValid ? _selectedAccountId : null;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        Text(
+                          'LINKED ACCOUNT (OPTIONAL)',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                            color: financialColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String?>(
+                          key: ValueKey('budget_account_$effectiveAccountId'),
+                          initialValue: effectiveAccountId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.account_balance_rounded, size: 20),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text(
+                                'None (All Accounts / General)',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            ...bankAccounts.map((acc) {
+                              return DropdownMenuItem<String?>(
+                                value: acc.id,
+                                child: Text(
+                                  '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }),
+                          ],
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedAccountId = val;
+                            });
+                          },
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 28),
 

@@ -160,6 +160,26 @@ class TransactionDetailSheet extends ConsumerWidget {
       }
     }
 
+    String? destinationDisplay;
+    IconData? destinationIcon;
+    if (transaction.type == TransactionType.transfer) {
+      if (transaction.creditCardId != null) {
+        final matching = creditCards.where((c) => c.id == transaction.creditCardId);
+        if (matching.isNotEmpty) {
+          destinationDisplay = '${matching.first.cardName} (${matching.first.bankName})';
+        } else {
+          destinationDisplay = 'Credit Card';
+        }
+        destinationIcon = Icons.credit_card_rounded;
+      } else if (transaction.toAccountId != null) {
+        final matching = bankAccounts.where((a) => a.id == transaction.toAccountId);
+        if (matching.isNotEmpty) {
+          destinationDisplay = '${matching.first.accountName} (${matching.first.bankName})';
+        }
+        destinationIcon = Icons.account_balance_rounded;
+      }
+    }
+
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -338,14 +358,29 @@ class TransactionDetailSheet extends ConsumerWidget {
                     const Divider(height: 20),
                     _buildDetailRow(
                       context,
-                      icon: transaction.creditCardId != null
-                          ? Icons.credit_card_rounded
-                          : (transaction.accountId != null
-                              ? Icons.account_balance_rounded
-                              : Icons.payment_rounded),
-                      label: transaction.type == TransactionType.income ? 'Deposited To' : 'Paid From',
+                      icon: transaction.type == TransactionType.transfer
+                          ? Icons.account_balance_rounded
+                          : (transaction.creditCardId != null
+                              ? Icons.credit_card_rounded
+                              : (transaction.accountId != null
+                                  ? Icons.account_balance_rounded
+                                  : Icons.payment_rounded)),
+                      label: transaction.type == TransactionType.income
+                          ? 'Deposited To'
+                          : (transaction.type == TransactionType.transfer ? 'Transfer From (Source)' : 'Paid From'),
                       value: accountDisplay,
                     ),
+                    if (destinationDisplay != null) ...[
+                      const Divider(height: 20),
+                      _buildDetailRow(
+                        context,
+                        icon: destinationIcon ?? Icons.arrow_circle_down_rounded,
+                        label: transaction.creditCardId != null
+                            ? 'Transfer To (Credit Card)'
+                            : 'Transfer To (Destination)',
+                        value: destinationDisplay,
+                      ),
+                    ],
                   ],
                 ),
               ),

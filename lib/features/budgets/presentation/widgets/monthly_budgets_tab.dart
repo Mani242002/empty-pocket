@@ -7,6 +7,7 @@ import '../../../../core/domain/entities/budget_entity.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../screens/set_budget_sheet.dart';
 import '../state/budgets_provider.dart';
@@ -321,6 +322,11 @@ class MonthlyBudgetsTab extends ConsumerWidget {
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
 
+    final bankAccounts = ref.watch(activeBankAccountsProvider);
+    final linkedAccount = status.budget.accountId != null
+        ? bankAccounts.where((a) => a.id == status.budget.accountId).firstOrNull
+        : null;
+
     final categoryItem = CategoryConstants.getCategoryByName(
       status.category,
       TransactionType.expense,
@@ -406,11 +412,51 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            status.category,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  status.category,
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (linkedAccount != null) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: financialColors.cardBorder),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.account_balance_rounded,
+                                        size: 9.5,
+                                        color: financialColors.textMuted,
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        linkedAccount.accountName,
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: financialColors.textMuted,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 2),
                           Text(
