@@ -36,18 +36,25 @@ class DashboardLiabilitiesCard extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.account_balance_rounded, color: financialColors.expense, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Loans & Liabilities',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(Icons.account_balance_rounded, color: financialColors.expense, size: 20),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Loans & Liabilities',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   if (liabilitiesSummary.activeDebtsCount > 0)
                     TextButton(
                       style: TextButton.styleFrom(

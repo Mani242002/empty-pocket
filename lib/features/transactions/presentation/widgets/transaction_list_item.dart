@@ -167,7 +167,7 @@ class TransactionListItem extends StatelessWidget {
                       Builder(
                         builder: (context) {
                           final source = transaction.paymentSource.trim();
-                          final loan = transaction.category == 'Money Lent / Helping Friend'
+                          final loan = transaction.category == CategoryConstants.categoryMoneyLent
                               ? LoanShareHelper.parseLoan(transaction.sharedWith)
                               : null;
 
@@ -191,7 +191,7 @@ class TransactionListItem extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (transaction.category == 'Money Lent / Helping Friend') ...[
+                              if (transaction.category == CategoryConstants.categoryMoneyLent) ...[
                                 const SizedBox(width: 4),
                                 Icon(
                                   Icons.handshake_rounded,
@@ -220,7 +220,7 @@ class TransactionListItem extends StatelessWidget {
                 Flexible(
                   child: Builder(
                     builder: (context) {
-                      final loan = transaction.category == 'Money Lent / Helping Friend'
+                      final loan = transaction.category == CategoryConstants.categoryMoneyLent
                           ? LoanShareHelper.parseLoan(transaction.sharedWith)
                           : null;
 

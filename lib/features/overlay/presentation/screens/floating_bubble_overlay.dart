@@ -361,7 +361,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           title: title,
           amount: amount,
           type: TransactionType.income,
-          category: 'Shared Expense Reimbursement',
+          category: CategoryConstants.categorySharedReimbursement,
           date: now,
           notes: 'Payback for "${original.title}" via 24/7 Bubble',
           paymentSource: _selectedPaymentSource,
@@ -705,7 +705,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                           onTap: () => setState(() {
                             final oldCategory = _selectedCategory;
                             _selectedCategory = cat.name;
-                            if (cat.name == 'Shared Expense Reimbursement') {
+                            if (cat.name == CategoryConstants.categorySharedReimbursement) {
                               _isIncomeReimbursement = true;
                             }
                             if (_validationError != null) _validationError = null;
@@ -857,7 +857,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                       setState(() {
                         _isIncomeReimbursement = !_isIncomeReimbursement;
                         if (_isIncomeReimbursement) {
-                          _selectedCategory = 'Shared Expense Reimbursement';
+                          _selectedCategory = CategoryConstants.categorySharedReimbursement;
                           _selectedSharedExpenseToSettle ??= _pendingSharedExpenses.first;
                           final amt = _selectedSharedExpenseToSettle!.pendingReimbursement;
                           _amountController.text = amt == amt.roundToDouble()

@@ -28,6 +28,16 @@ import '../../../transactions/presentation/state/transactions_provider.dart';
 
 final backupServiceProvider = Provider<BackupService>((ref) => BackupService());
 
+class CsvImportSummary {
+  final int totalImported;
+  final int defaultedDates;
+
+  const CsvImportSummary({
+    required this.totalImported,
+    this.defaultedDates = 0,
+  });
+}
+
 class CurrencyNotifier extends AsyncNotifier<CurrencyOption> {
   static const String _keyCurrencyCode = 'app_currency_code';
 
@@ -295,11 +305,12 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
     }
   }
 
-  Future<int> importTransactionsFromCsv(String csvContent) async {
+  Future<CsvImportSummary> importTransactionsFromCsv(String csvContent) async {
     state = const AsyncValue.loading();
     try {
       final backupService = ref.read(backupServiceProvider);
-      final txs = backupService.parseTransactionsFromCsv(csvContent);
+      final parseResult = backupService.parseTransactionsFromCsvWithResult(csvContent);
+      final txs = parseResult.transactions;
       if (txs.isEmpty) {
         throw const FormatException('No valid transactions found in the CSV file.');
       }
@@ -307,8 +318,17 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       final txRepo = ref.read(transactionRepositoryProvider);
       await txRepo.addTransactions(txs);
 
-      state = AsyncValue.data('Successfully imported ${txs.length} transactions');
-      return txs.length;
+      final summary = CsvImportSummary(
+        totalImported: txs.length,
+        defaultedDates: parseResult.defaultedDateCount,
+      );
+
+      final msg = summary.defaultedDates > 0
+          ? 'Successfully imported ${txs.length} transactions (${summary.defaultedDates} dates defaulted to today due to non-standard format)'
+          : 'Successfully imported ${txs.length} transactions';
+
+      state = AsyncValue.data(msg);
+      return summary;
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;

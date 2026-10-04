@@ -59,10 +59,14 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
-        child: Column(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+              child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // 1. AI Advisor Entry Card
@@ -476,8 +480,11 @@ class _ReportsAnalyticsScreenState extends ConsumerState<ReportsAnalyticsScreen>
         ],
       ),
     ),
-  );
-}
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildMonthTrendRow(
     BuildContext context,

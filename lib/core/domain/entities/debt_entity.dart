@@ -269,6 +269,30 @@ class DebtPaymentEntity {
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
     );
   }
+
+  DebtPaymentEntity copyWith({
+    String? id,
+    String? debtId,
+    double? amount,
+    double? principalPortion,
+    double? interestPortion,
+    DateTime? date,
+    String? notes,
+    String? sourceAccountId,
+    DateTime? createdAt,
+  }) {
+    return DebtPaymentEntity(
+      id: id ?? this.id,
+      debtId: debtId ?? this.debtId,
+      amount: amount ?? this.amount,
+      principalPortion: principalPortion ?? this.principalPortion,
+      interestPortion: interestPortion ?? this.interestPortion,
+      date: date ?? this.date,
+      notes: notes ?? this.notes,
+      sourceAccountId: sourceAccountId ?? this.sourceAccountId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }
 
 /// Calculated metrics for a specific debt

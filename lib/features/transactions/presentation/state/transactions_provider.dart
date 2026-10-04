@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/calculation/financial_calculator.dart';
+import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/split_person_share.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/transaction_repository.dart';
@@ -176,6 +177,83 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       final repository = ref.read(transactionRepositoryProvider);
       if (previousTransaction != null) {
         await repository.updateTransaction(transaction);
+
+        // Synchronize linked Savings Goals or Debts on edit if amount or details changed
+        final linkedId = (transaction.linkedEntityId ?? previousTransaction.linkedEntityId)?.trim();
+        if (previousTransaction.category != CategoryConstants.categorySharedReimbursement &&
+            previousTransaction.category != CategoryConstants.categoryLoanRepayment &&
+            linkedId != null &&
+            linkedId.isNotEmpty) {
+          try {
+            final delta = transaction.amount - previousTransaction.amount;
+            if (delta.abs() > 0.0001) {
+              // 1. Check Savings Goals
+              final savingsGoalRepo = ref.read(savingsGoalRepositoryProvider);
+              final goals = await savingsGoalRepo.getAllGoals();
+              final matchedGoal = goals.where((g) => g.id == linkedId).firstOrNull;
+              if (matchedGoal != null) {
+                final newAmount = (matchedGoal.currentAmount + delta).clamp(0.0, double.infinity).toDouble();
+                final newStatus = (newAmount >= matchedGoal.targetAmount)
+                    ? GoalStatus.completed
+                    : (matchedGoal.status == GoalStatus.completed ? GoalStatus.active : matchedGoal.status);
+                final updatedGoal = matchedGoal.copyWith(
+                  currentAmount: newAmount,
+                  status: newStatus,
+                  updatedAt: DateTime.now(),
+                );
+                await savingsGoalRepo.saveGoal(updatedGoal);
+
+                // Update corresponding contribution entry if found
+                final contributions = await savingsGoalRepo.getContributionsForGoal(matchedGoal.id);
+                final candidateContribs = contributions.where((c) => (c.amount - previousTransaction.amount).abs() < 0.001).toList();
+                if (candidateContribs.isNotEmpty) {
+                  candidateContribs.sort((a, b) {
+                    final diffA = (a.date.millisecondsSinceEpoch - previousTransaction.date.millisecondsSinceEpoch).abs();
+                    final diffB = (b.date.millisecondsSinceEpoch - previousTransaction.date.millisecondsSinceEpoch).abs();
+                    return diffA.compareTo(diffB);
+                  });
+                  final contrib = candidateContribs.first;
+                  await savingsGoalRepo.addContribution(contrib.copyWith(amount: transaction.amount, date: transaction.date));
+                }
+                ref.invalidate(savingsGoalsListNotifierProvider);
+              }
+
+              // 2. Check Debts
+              final debtRepo = ref.read(debtRepositoryProvider);
+              final debts = await debtRepo.getAllDebts();
+              final matchedDebt = debts.where((d) => d.id == linkedId).firstOrNull;
+              if (matchedDebt != null) {
+                // More payment reduces remaining debt
+                final newRemaining = (matchedDebt.remainingAmount - delta).clamp(0.0, matchedDebt.principalAmount).toDouble();
+                final newStatus = newRemaining <= 0
+                    ? DebtStatus.paidOff
+                    : (matchedDebt.status == DebtStatus.paidOff ? DebtStatus.active : matchedDebt.status);
+                final updatedDebt = matchedDebt.copyWith(
+                  remainingAmount: newRemaining,
+                  status: newStatus,
+                  updatedAt: DateTime.now(),
+                );
+                await debtRepo.saveDebt(updatedDebt);
+
+                // Update corresponding debt payment entry if found
+                final payments = await debtRepo.getPaymentsForDebt(matchedDebt.id);
+                final candidatePayments = payments.where((p) => (p.amount - previousTransaction.amount).abs() < 0.001).toList();
+                if (candidatePayments.isNotEmpty) {
+                  candidatePayments.sort((a, b) {
+                    final diffA = (a.date.millisecondsSinceEpoch - previousTransaction.date.millisecondsSinceEpoch).abs();
+                    final diffB = (b.date.millisecondsSinceEpoch - previousTransaction.date.millisecondsSinceEpoch).abs();
+                    return diffA.compareTo(diffB);
+                  });
+                  final payment = candidatePayments.first;
+                  await debtRepo.addPayment(payment.copyWith(amount: transaction.amount, date: transaction.date));
+                }
+                ref.invalidate(debtListNotifierProvider);
+              }
+            }
+          } catch (linkedErr, linkedSt) {
+            LogService.error('TransactionsProvider', 'Failed to synchronize linked entity on tx edit ${transaction.id}', linkedErr, linkedSt);
+          }
+        }
       } else {
         await repository.addTransaction(transaction);
       }
@@ -220,8 +298,8 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       final repository = ref.read(transactionRepositoryProvider);
       if (prevTx != null) {
         // If this was a reimbursement or loan repayment settlement, roll back the original transaction
-        if (prevTx.category == 'Shared Expense Reimbursement' ||
-            prevTx.category == 'Loan Repayment Received') {
+        if (prevTx.category == CategoryConstants.categorySharedReimbursement ||
+            prevTx.category == CategoryConstants.categoryLoanRepayment) {
           List<TransactionEntity> origMatches = [];
           if (prevTx.linkedEntityId != null && prevTx.linkedEntityId!.trim().isNotEmpty) {
             final parentIds = prevTx.linkedEntityId!.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toSet();
@@ -349,8 +427,8 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
         );
 
         // 2. Synchronize linked Savings Goals or Debts if this transaction was linked
-        if (prevTx.category != 'Shared Expense Reimbursement' &&
-            prevTx.category != 'Loan Repayment Received' &&
+        if (prevTx.category != CategoryConstants.categorySharedReimbursement &&
+            prevTx.category != CategoryConstants.categoryLoanRepayment &&
             prevTx.linkedEntityId != null &&
             prevTx.linkedEntityId!.trim().isNotEmpty) {
           try {
@@ -519,7 +597,7 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     final destAcc = destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
         destAccounts.firstOrNull;
 
-    final isLoanExpense = original.category == 'Money Lent / Helping Friend' || loan != null;
+    final isLoanExpense = original.category == CategoryConstants.categoryMoneyLent || loan != null;
 
     final settlementTx = TransactionEntity(
       id: const Uuid().v4(),
@@ -528,7 +606,7 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           : 'Reimbursement: ${original.title}',
       amount: amountReceived,
       type: TransactionType.income,
-      category: isLoanExpense ? 'Loan Repayment Received' : 'Shared Expense Reimbursement',
+      category: isLoanExpense ? CategoryConstants.categoryLoanRepayment : CategoryConstants.categorySharedReimbursement,
       date: now,
       paymentSource: destAcc?.accountName ?? 'Cash',
       accountId: destAcc?.id,
@@ -606,7 +684,7 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       title: 'Repayment: $borrowerName',
       amount: amountRepaid,
       type: TransactionType.income,
-      category: 'Loan Repayment Received',
+      category: CategoryConstants.categoryLoanRepayment,
       date: now,
       paymentSource: paymentSource,
       accountId: destAcc?.id,
@@ -696,7 +774,7 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       title: 'Reimbursement: Cleared All Pending (${pendingSplits.length} expenses)',
       amount: totalReimbursed,
       type: TransactionType.income,
-      category: 'Shared Expense Reimbursement',
+      category: CategoryConstants.categorySharedReimbursement,
       date: now,
       paymentSource: destAcc?.accountName ?? 'Cash',
       accountId: destAcc?.id,
@@ -866,7 +944,7 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           : 'Reimbursement: $personName (${matchingExpenses.length} expenses)',
       amount: finalAmount,
       type: TransactionType.income,
-      category: isAllLoans ? 'Loan Repayment Received' : 'Shared Expense Reimbursement',
+      category: isAllLoans ? CategoryConstants.categoryLoanRepayment : CategoryConstants.categorySharedReimbursement,
       date: now,
       paymentSource: destAcc?.accountName ?? 'Cash',
       accountId: destAcc?.id,

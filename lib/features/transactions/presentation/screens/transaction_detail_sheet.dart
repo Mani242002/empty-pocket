@@ -39,6 +39,7 @@ class TransactionDetailSheet extends ConsumerWidget {
       date: now,
       createdAt: now,
       updatedAt: now,
+      linkedEntityId: null,
       reimbursedAmount: transaction.isShared ? 0.0 : transaction.reimbursedAmount,
       isSettled: transaction.isShared ? false : transaction.isSettled,
       sharedWith: transaction.isShared

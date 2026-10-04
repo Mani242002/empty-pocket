@@ -206,6 +206,26 @@ class GoalContributionEntity {
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
     );
   }
+
+  GoalContributionEntity copyWith({
+    String? id,
+    String? goalId,
+    double? amount,
+    DateTime? date,
+    String? notes,
+    String? sourceAccountId,
+    DateTime? createdAt,
+  }) {
+    return GoalContributionEntity(
+      id: id ?? this.id,
+      goalId: goalId ?? this.goalId,
+      amount: amount ?? this.amount,
+      date: date ?? this.date,
+      notes: notes ?? this.notes,
+      sourceAccountId: sourceAccountId ?? this.sourceAccountId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }
 
 /// Calculated metrics for a specific savings goal

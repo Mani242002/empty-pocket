@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../domain/entities/bank_account_entity.dart';
 import '../domain/entities/budget_entity.dart';
+import '../domain/entities/category_constants.dart';
 import '../domain/entities/credit_card_entity.dart';
 import '../domain/entities/debt_entity.dart';
 import '../domain/entities/financial_health_entity.dart';
@@ -158,8 +159,8 @@ abstract class FinancialCalculator {
         .where((t) =>
             t.type == TransactionType.income &&
             (!excludeReimbursements ||
-                (t.category != 'Shared Expense Reimbursement' &&
-                    t.category != 'Loan Repayment Received')))
+                (t.category != CategoryConstants.categorySharedReimbursement &&
+                    t.category != CategoryConstants.categoryLoanRepayment)))
         .fold(0.0, (sum, t) => sum + t.amount);
     return roundMoney(total);
   }
@@ -176,7 +177,7 @@ abstract class FinancialCalculator {
     final total = transactions
         .where((t) => t.type == TransactionType.expense)
         .fold(0.0, (sum, t) {
-      if (netPersonalOnly && t.category == 'Money Lent / Helping Friend') {
+      if (netPersonalOnly && t.category == CategoryConstants.categoryMoneyLent) {
         return sum;
       }
       return sum + (netPersonalOnly ? t.netPersonalAmount : t.amount);

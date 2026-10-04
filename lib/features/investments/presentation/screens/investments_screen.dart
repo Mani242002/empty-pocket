@@ -33,7 +33,11 @@ class InvestmentsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: investmentsAsync.when(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: investmentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error loading investments: $e')),
         data: (investments) {
@@ -313,6 +317,9 @@ class InvestmentsScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'investments_fab',

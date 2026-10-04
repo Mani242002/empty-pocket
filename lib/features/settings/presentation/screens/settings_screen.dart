@@ -375,13 +375,16 @@ class SettingsScreen extends ConsumerWidget {
                       if (text.isEmpty) return;
 
                       try {
-                        final count = await ref.read(backupOperationsProvider.notifier).importTransactionsFromCsv(text);
+                        final summary = await ref.read(backupOperationsProvider.notifier).importTransactionsFromCsv(text);
                         ref.invalidate(transactionListNotifierProvider);
                         if (context.mounted) {
                           Navigator.pop(ctx);
+                          final msg = summary.defaultedDates > 0
+                              ? 'Imported ${summary.totalImported} transactions (${summary.defaultedDates} dates defaulted to today due to non-standard format).'
+                              : 'Successfully imported ${summary.totalImported} transactions!';
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Successfully imported $count transactions!'),
+                              content: Text(msg),
                               behavior: SnackBarBehavior.floating,
                               backgroundColor: AppColors.income,
                             ),
@@ -791,9 +794,13 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Settings & Privacy'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        children: [
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              children: [
           // Section: Appearance
           _buildSectionHeader(context, 'Appearance'),
           const SizedBox(height: 8),
@@ -1337,6 +1344,9 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 32),
         ],
+      ),
+          ),
+        ),
       ),
     );
   }

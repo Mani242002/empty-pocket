@@ -294,5 +294,30 @@ Date,Payee,Category,Amount,Type,Notes
       expect(parsed[1].amount, 5000.00);
       expect(parsed[1].type, TransactionType.income);
     });
+
+    test('parseTransactionsFromCsvWithResult tracks unparsed dates transparently and supports extended formats', () {
+      const mixedDateCsv = '''
+Date,Payee,Category,Amount,Type
+15.08.2026,Dot Separated Date,Bills,100.00,Expense
+15-Aug-2026,Named Month Date,Bills,200.00,Expense
+invalid-date-string,Corrupt Date Row,Misc,300.00,Expense
+''';
+
+      final result = backupService.parseTransactionsFromCsvWithResult(mixedDateCsv);
+
+      expect(result.transactions.length, 3);
+      expect(result.defaultedDateCount, 1); // Only the 3rd row had an invalid date string
+
+      expect(result.transactions[0].date.year, 2026);
+      expect(result.transactions[0].date.month, 8);
+      expect(result.transactions[0].date.day, 15);
+
+      expect(result.transactions[1].date.year, 2026);
+      expect(result.transactions[1].date.month, 8);
+      expect(result.transactions[1].date.day, 15);
+
+      // The 3rd transaction date should default to roughly now
+      expect(result.transactions[2].date.isAfter(DateTime(2025)), isTrue);
+    });
   });
 }

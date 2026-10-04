@@ -24,6 +24,16 @@ import '../repositories/recurring_repository.dart';
 import '../repositories/savings_goal_repository.dart';
 import '../repositories/transaction_repository.dart';
 
+class CsvParseResult {
+  final List<TransactionEntity> transactions;
+  final int defaultedDateCount;
+
+  const CsvParseResult({
+    required this.transactions,
+    this.defaultedDateCount = 0,
+  });
+}
+
 class BackupService {
   /// The current schema version supported by this version of EmptyPocket.
   static const int currentSchemaVersion = 12;
@@ -133,11 +143,16 @@ class BackupService {
   /// Parse CSV content into a list of [TransactionEntity].
   /// Supports EmptyPocket's export format as well as generic financial app CSV formats.
   List<TransactionEntity> parseTransactionsFromCsv(String csvContent) {
+    return parseTransactionsFromCsvWithResult(csvContent).transactions;
+  }
+
+  /// Parse CSV content with granular details including count of unparsed dates.
+  CsvParseResult parseTransactionsFromCsvWithResult(String csvContent) {
     final cleanContent = csvContent.startsWith('\uFEFF')
         ? csvContent.substring(1)
         : csvContent;
     final rows = _parseCsvRows(cleanContent);
-    if (rows.isEmpty) return [];
+    if (rows.isEmpty) return const CsvParseResult(transactions: []);
 
     final headerRow = rows.first;
     int idIdx = -1;
@@ -188,15 +203,29 @@ class BackupService {
     }
 
     final transactions = <TransactionEntity>[];
+    int defaultedDateCount = 0;
+
     final dateTimeFormats = [
       DateFormat('yyyy-MM-dd HH:mm:ss'),
       DateFormat('yyyy-MM-dd'),
+      DateFormat('yyyy/MM/dd HH:mm:ss'),
+      DateFormat('yyyy/MM/dd'),
       DateFormat('dd-MM-yyyy HH:mm:ss'),
       DateFormat('dd-MM-yyyy'),
       DateFormat('dd/MM/yyyy HH:mm:ss'),
       DateFormat('dd/MM/yyyy'),
+      DateFormat('dd.MM.yyyy HH:mm:ss'),
+      DateFormat('dd.MM.yyyy'),
+      DateFormat('d/M/yyyy HH:mm:ss'),
+      DateFormat('d/M/yyyy'),
+      DateFormat('d-M-yyyy HH:mm:ss'),
+      DateFormat('d-M-yyyy'),
       DateFormat('MM/dd/yyyy HH:mm:ss'),
       DateFormat('MM/dd/yyyy'),
+      DateFormat('dd-MMM-yyyy'),
+      DateFormat('dd MMM yyyy'),
+      DateFormat('MMM dd, yyyy'),
+      DateFormat('yyyy-MM-ddTHH:mm:ss'),
     ];
 
     for (final row in dataRows) {
@@ -214,17 +243,21 @@ class BackupService {
       DateTime date = DateTime.now();
       if (dateIdx != -1 && dateIdx < row.length) {
         final rawDate = row[dateIdx].trim();
-        DateTime? parsedDate = DateTime.tryParse(rawDate);
-        if (parsedDate == null) {
-          for (final fmt in dateTimeFormats) {
-            try {
-              parsedDate = fmt.parse(rawDate);
-              break;
-            } catch (_) {}
+        if (rawDate.isNotEmpty) {
+          DateTime? parsedDate = DateTime.tryParse(rawDate);
+          if (parsedDate == null) {
+            for (final fmt in dateTimeFormats) {
+              try {
+                parsedDate = fmt.parse(rawDate);
+                break;
+              } catch (_) {}
+            }
           }
-        }
-        if (parsedDate != null) {
-          date = parsedDate;
+          if (parsedDate != null) {
+            date = parsedDate;
+          } else {
+            defaultedDateCount++;
+          }
         }
       }
 
@@ -300,7 +333,10 @@ class BackupService {
       );
     }
 
-    return transactions;
+    return CsvParseResult(
+      transactions: transactions,
+      defaultedDateCount: defaultedDateCount,
+    );
   }
 
   List<List<String>> _parseCsvRows(String content) {

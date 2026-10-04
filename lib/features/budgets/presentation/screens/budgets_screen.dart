@@ -56,14 +56,21 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          MonthlyBudgetsTab(),
-          SavingsGoalsTab(),
-          RecurringBillsTab(),
-          SharedSplitsTab(),
-        ],
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: TabBarView(
+              controller: _tabController,
+              children: const [
+                MonthlyBudgetsTab(),
+                SavingsGoalsTab(),
+                RecurringBillsTab(),
+                SharedSplitsTab(),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

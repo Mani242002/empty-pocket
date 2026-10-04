@@ -32,7 +32,11 @@ class DebtsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: debtsAsync.when(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: debtsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error loading debts: $e')),
         data: (debts) {
@@ -268,6 +272,9 @@ class DebtsScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'debts_fab',

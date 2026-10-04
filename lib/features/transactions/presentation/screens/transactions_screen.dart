@@ -78,6 +78,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       date: now,
       createdAt: now,
       updatedAt: now,
+      linkedEntityId: null,
       reimbursedAmount: tx.isShared ? 0.0 : tx.reimbursedAmount,
       isSettled: tx.isShared ? false : tx.isSettled,
       sharedWith: tx.isShared
@@ -161,8 +162,11 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              children: [
             // Month Navigation Selector
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -506,6 +510,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     ),
             ),
           ],
+        ),
+          ),
         ),
       ),
     );

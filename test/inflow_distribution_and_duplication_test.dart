@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:empty_pocket/core/domain/entities/ai_assistant_entity.dart';
 import 'package:empty_pocket/core/domain/entities/bank_account_entity.dart';
+import 'package:empty_pocket/core/domain/entities/debt_entity.dart';
 import 'package:empty_pocket/core/domain/entities/savings_goal_entity.dart';
 import 'package:empty_pocket/core/domain/entities/split_person_share.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
@@ -116,12 +117,14 @@ void main() {
         updatedAt: now,
         reimbursedAmount: originalTx.isShared ? 0.0 : originalTx.reimbursedAmount,
         isSettled: originalTx.isShared ? false : originalTx.isSettled,
+        linkedEntityId: null,
         sharedWith: originalTx.isShared
             ? SplitHelper.resetSharesForDuplication(originalTx.sharedWith)
             : originalTx.sharedWith,
       );
 
       expect(cloned.id, 'clone-456');
+      expect(cloned.linkedEntityId, isNull);
       expect(cloned.reimbursedAmount, 0.0);
       expect(cloned.isSettled, isFalse);
       expect(cloned.pendingReimbursement, 600.0);
@@ -131,6 +134,34 @@ void main() {
       expect(clonedShares[0].reimbursedAmount, 0.0);
       expect(clonedShares[0].isSettled, isFalse);
       expect(clonedShares[0].pendingAmount, 600.0);
+    });
+
+    test('Duplicating a linked goal or debt transaction explicitly clears linkedEntityId', () {
+      final now = DateTime.now();
+      final linkedTx = TransactionEntity(
+        id: 'tx-goal-123',
+        title: 'Emergency Fund Contribution',
+        amount: 5000.0,
+        type: TransactionType.expense,
+        category: 'Savings',
+        date: now,
+        paymentSource: 'Bank Account',
+        linkedEntityId: 'goal-emergency-fund',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      final cloned = linkedTx.copyWith(
+        id: 'tx-goal-clone',
+        date: now,
+        createdAt: now,
+        updatedAt: now,
+        linkedEntityId: null,
+      );
+
+      expect(cloned.id, 'tx-goal-clone');
+      expect(cloned.linkedEntityId, isNull);
+      expect(cloned.amount, 5000.0);
     });
   });
 
@@ -254,6 +285,110 @@ void main() {
       expect(cleanHistory[1].id, '4');
       expect(cleanHistory.any((m) => m.text.contains('Error connecting')), isFalse);
       expect(cleanHistory.any((m) => m.text.contains('Warning:')), isFalse);
+    });
+  });
+
+  group('Linked Entity Delta Sync on Edit Tests', () {
+    test('Savings goal amount increases when edited transaction amount increases', () {
+      final now = DateTime.now();
+      final goal = SavingsGoalEntity(
+        id: 'goal-1',
+        title: 'Emergency Fund',
+        targetAmount: 50000.0,
+        currentAmount: 20000.0,
+        category: 'Emergency',
+        targetDate: now.add(const Duration(days: 90)),
+        status: GoalStatus.active,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      const prevAmount = 5000.0;
+      const newAmount = 7000.0;
+      const delta = newAmount - prevAmount; // +2000
+
+      final newGoalAmount = (goal.currentAmount + delta).clamp(0.0, double.infinity).toDouble();
+      final newStatus = newGoalAmount >= goal.targetAmount
+          ? GoalStatus.completed
+          : (goal.status == GoalStatus.completed ? GoalStatus.active : goal.status);
+
+      final updatedGoal = goal.copyWith(
+        currentAmount: newGoalAmount,
+        status: newStatus,
+        updatedAt: now,
+      );
+
+      expect(updatedGoal.currentAmount, 22000.0);
+      expect(updatedGoal.status, GoalStatus.active);
+    });
+
+    test('Savings goal marks completed if edited transaction amount meets or exceeds target', () {
+      final now = DateTime.now();
+      final goal = SavingsGoalEntity(
+        id: 'goal-2',
+        title: 'Laptop Fund',
+        targetAmount: 60000.0,
+        currentAmount: 50000.0,
+        category: 'Tech',
+        targetDate: now.add(const Duration(days: 30)),
+        status: GoalStatus.active,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      const delta = 15000.0; // Pushes total to 65000 >= 60000
+      final newGoalAmount = (goal.currentAmount + delta).clamp(0.0, double.infinity).toDouble();
+      final newStatus = newGoalAmount >= goal.targetAmount
+          ? GoalStatus.completed
+          : (goal.status == GoalStatus.completed ? GoalStatus.active : goal.status);
+
+      final updatedGoal = goal.copyWith(
+        currentAmount: newGoalAmount,
+        status: newStatus,
+      );
+
+      expect(updatedGoal.currentAmount, 65000.0);
+      expect(updatedGoal.status, GoalStatus.completed);
+    });
+
+    test('Debt remaining amount reduces and marks paid off when repayment increases', () {
+      final now = DateTime.now();
+      final debt = DebtEntity(
+        id: 'debt-1',
+        title: 'Personal Loan',
+        type: DebtType.personalLoan,
+        principalAmount: 50000.0,
+        remainingAmount: 15000.0,
+        monthlyEmi: 5000.0,
+        startDate: now,
+        status: DebtStatus.active,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // User edited transaction from 5000 to 15000 (delta = +10000)
+      const delta = 10000.0;
+      final newRemaining = (debt.remainingAmount - delta).clamp(0.0, debt.principalAmount).toDouble();
+      final newStatus = newRemaining <= 0
+          ? DebtStatus.paidOff
+          : (debt.status == DebtStatus.paidOff ? DebtStatus.active : debt.status);
+
+      final updatedDebt = debt.copyWith(
+        remainingAmount: newRemaining,
+        status: newStatus,
+      );
+
+      expect(updatedDebt.remainingAmount, 5000.0);
+      expect(updatedDebt.status, DebtStatus.active);
+
+      // If user paid full remaining 15000 (delta = 15000)
+      final fullPayoffRemaining = (debt.remainingAmount - 15000.0).clamp(0.0, debt.principalAmount).toDouble();
+      final fullPayoffStatus = fullPayoffRemaining <= 0
+          ? DebtStatus.paidOff
+          : (debt.status == DebtStatus.paidOff ? DebtStatus.active : debt.status);
+
+      expect(fullPayoffRemaining, 0.0);
+      expect(fullPayoffStatus, DebtStatus.paidOff);
     });
   });
 }

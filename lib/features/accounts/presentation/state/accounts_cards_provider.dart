@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
+import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/bank_account_repository.dart';
@@ -201,7 +202,7 @@ class AccountOperationsNotifier {
       title: 'Transfer: ${fromAccount.accountName} → ${toAccount.accountName}',
       amount: amount,
       type: TransactionType.transfer,
-      category: 'Account Transfer',
+      category: CategoryConstants.categoryAccountTransfer,
       date: now,
       paymentSource: fromAccount.accountName,
       accountId: fromAccount.id,
@@ -241,7 +242,7 @@ class AccountOperationsNotifier {
       title: 'Bill Pay: ${creditCard.cardName}',
       amount: amount,
       type: TransactionType.transfer,
-      category: 'Credit Card Bill Pay',
+      category: CategoryConstants.categoryCreditCardBillPay,
       date: now,
       paymentSource: fromAccount.accountName,
       accountId: fromAccount.id,

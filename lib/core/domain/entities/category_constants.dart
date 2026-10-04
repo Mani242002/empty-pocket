@@ -18,11 +18,19 @@ class CategoryItem {
 }
 
 abstract class CategoryConstants {
+  // Centralized Category String Constants
+  static const String categorySharedReimbursement = 'Shared Expense Reimbursement';
+  static const String categoryLoanRepayment = 'Loan Repayment Received';
+  static const String categoryMoneyLent = 'Money Lent / Helping Friend';
+  static const String categoryCreditCardBillPay = 'Credit Card Bill Pay';
+  static const String categoryAccountTransfer = 'Account Transfer';
+  static const String categoryFoodDining = 'Food & Dining';
+
   // Preset Expense Categories
   static const List<CategoryItem> expenseCategories = [
     CategoryItem(
       id: 'food',
-      name: 'Food & Dining',
+      name: CategoryConstants.categoryFoodDining,
       type: TransactionType.expense,
       icon: Icons.restaurant_rounded,
       color: Color(0xFFF97316),
@@ -141,7 +149,7 @@ abstract class CategoryConstants {
     ),
     CategoryItem(
       id: 'friend_loan',
-      name: 'Money Lent / Helping Friend',
+      name: CategoryConstants.categoryMoneyLent,
       type: TransactionType.expense,
       icon: Icons.handshake_rounded,
       color: Color(0xFF14B8A6),
@@ -194,14 +202,14 @@ abstract class CategoryConstants {
     ),
     CategoryItem(
       id: 'reimbursement',
-      name: 'Shared Expense Reimbursement',
+      name: CategoryConstants.categorySharedReimbursement,
       type: TransactionType.income,
       icon: Icons.handshake_rounded,
       color: Color(0xFF3B82F6),
     ),
     CategoryItem(
       id: 'loan_repayment',
-      name: 'Loan Repayment Received',
+      name: CategoryConstants.categoryLoanRepayment,
       type: TransactionType.income,
       icon: Icons.assignment_turned_in_rounded,
       color: Color(0xFF10B981),

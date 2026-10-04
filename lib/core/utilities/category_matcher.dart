@@ -1,8 +1,10 @@
+import '../domain/entities/category_constants.dart';
+
 /// Utility to automatically predict transaction category based on title or merchant keywords
 class CategoryMatcher {
   static const Map<String, List<String>> _keywordMap = {
     // 1. High-priority Financial Actions & Transfers
-    'Loan Repayment Received': [
+    CategoryConstants.categoryLoanRepayment: [
       'loan repayment received',
       'loan repayment',
       'loan repaid',
@@ -14,7 +16,7 @@ class CategoryMatcher {
       'lent money returned',
       'lent money back',
     ],
-    'Money Lent / Helping Friend': [
+    CategoryConstants.categoryMoneyLent: [
       'helping friend',
       'helping relative',
       'money lent to friend',
@@ -29,8 +31,8 @@ class CategoryMatcher {
       'friend loan',
       'personal loan given',
       'lent cash',
-    ],
-    'Shared Expense Reimbursement': [
+      ],
+    CategoryConstants.categorySharedReimbursement: [
       'shared expense reimbursement',
       'split settlement',
       'roommate payback',
@@ -311,7 +313,7 @@ class CategoryMatcher {
       'mart',
       'milk',
     ],
-    'Food & Dining': [
+    CategoryConstants.categoryFoodDining: [
       'hotel food',
       'starbucks',
       'restaurant',

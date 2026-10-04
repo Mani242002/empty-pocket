@@ -134,7 +134,7 @@ class _AddEditTransactionSheetState
         : CategoryConstants.expenseCategories;
 
     _selectedCategory = tx?.category ?? categories.first.name;
-    _isIncomeReimbursement = _selectedCategory == 'Shared Expense Reimbursement';
+    _isIncomeReimbursement = _selectedCategory == CategoryConstants.categorySharedReimbursement;
     _titleController = TextEditingController(text: tx?.title ?? _selectedCategory);
     _titleController.addListener(_onTitleChanged);
     _amountController = TextEditingController(
@@ -191,12 +191,12 @@ class _AddEditTransactionSheetState
           _transferDestinationType = TransferDestinationType.creditCard;
           _selectedCreditCardId = tx.creditCardId;
           _selectedToAccountId = null;
-          _selectedCategory = 'Credit Card Bill Pay';
+          _selectedCategory = CategoryConstants.categoryCreditCardBillPay;
         } else {
           _transferDestinationType = TransferDestinationType.bankAccount;
           _selectedToAccountId = tx.toAccountId;
           _selectedCreditCardId = null;
-          _selectedCategory = tx.category.isNotEmpty ? tx.category : 'Account Transfer';
+          _selectedCategory = tx.category.isNotEmpty ? tx.category : CategoryConstants.categoryAccountTransfer;
         }
       }
       _selectedPaymentMode = PaymentMode.fromString(tx.paymentSource);
@@ -332,9 +332,9 @@ class _AddEditTransactionSheetState
 
       if (newType == TransactionType.transfer) {
         if (_transferDestinationType == TransferDestinationType.creditCard && _selectedCreditCardId != null) {
-          _selectedCategory = 'Credit Card Bill Pay';
+          _selectedCategory = CategoryConstants.categoryCreditCardBillPay;
         } else {
-          _selectedCategory = 'Account Transfer';
+          _selectedCategory = CategoryConstants.categoryAccountTransfer;
         }
         _selectedPaymentMode = PaymentMode.bankAccount;
         final bankAccounts = ref.read(activeBankAccountsProvider);
@@ -366,7 +366,7 @@ class _AddEditTransactionSheetState
 
         // If title is empty, or equals any of the previous type's category names,
         // update to the new category name so old category titles are never carried over across tabs.
-        if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase()) || currentTitle == 'Account Transfer') {
+        if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase()) || currentTitle == CategoryConstants.categoryAccountTransfer) {
           _titleController.text = _selectedCategory;
         }
       }
@@ -569,7 +569,7 @@ class _AddEditTransactionSheetState
     }
 
     if (_selectedType == TransactionType.expense &&
-        _selectedCategory == 'Money Lent / Helping Friend') {
+        _selectedCategory == CategoryConstants.categoryMoneyLent) {
       final borrower = _borrowerNameController.text.trim();
       if (borrower.isEmpty) {
         AppHaptics.warning();
@@ -682,7 +682,7 @@ class _AddEditTransactionSheetState
       final prevTx = widget.initialTransaction!;
 
       final isExpense = _selectedType == TransactionType.expense;
-      final isMoneyLent = isExpense && _selectedCategory == 'Money Lent / Helping Friend';
+      final isMoneyLent = isExpense && _selectedCategory == CategoryConstants.categoryMoneyLent;
       final isSharedExpense = isExpense && (_isShared || isMoneyLent);
       double? myShare;
       String? sharedWith;
@@ -758,8 +758,8 @@ class _AddEditTransactionSheetState
         type: _selectedType,
         category: _selectedType == TransactionType.transfer
             ? (_transferDestinationType == TransferDestinationType.creditCard
-                ? 'Credit Card Bill Pay'
-                : 'Account Transfer')
+                ? CategoryConstants.categoryCreditCardBillPay
+                : CategoryConstants.categoryAccountTransfer)
             : _selectedCategory,
         date: _selectedDate,
         paymentSource: _selectedPaymentSource,
@@ -880,7 +880,7 @@ class _AddEditTransactionSheetState
       }
 
       final isExpense = _selectedType == TransactionType.expense;
-      final isMoneyLent = isExpense && _selectedCategory == 'Money Lent / Helping Friend';
+      final isMoneyLent = isExpense && _selectedCategory == CategoryConstants.categoryMoneyLent;
       final isSharedExpense = isExpense && (_isShared || isMoneyLent);
       double? myShare;
       String? sharedWith;
@@ -937,8 +937,8 @@ class _AddEditTransactionSheetState
         type: _selectedType,
         category: _selectedType == TransactionType.transfer
             ? (_transferDestinationType == TransferDestinationType.creditCard
-                ? 'Credit Card Bill Pay'
-                : 'Account Transfer')
+                ? CategoryConstants.categoryCreditCardBillPay
+                : CategoryConstants.categoryAccountTransfer)
             : _selectedCategory,
         date: _selectedDate,
         paymentSource: _selectedPaymentSource,
@@ -1234,7 +1234,7 @@ class _AddEditTransactionSheetState
                             setState(() {
                               final oldCategory = _selectedCategory;
                               _selectedCategory = item.name;
-                              if (item.name == 'Shared Expense Reimbursement') {
+                              if (item.name == CategoryConstants.categorySharedReimbursement) {
                                 _isIncomeReimbursement = true;
                               }
 
@@ -1244,7 +1244,7 @@ class _AddEditTransactionSheetState
                                 ...CategoryConstants.incomeCategories.map((c) => c.name.toLowerCase()),
                               };
 
-                              if (item.name == 'Money Lent / Helping Friend') {
+                              if (item.name == CategoryConstants.categoryMoneyLent) {
                                 final borrower = _borrowerNameController.text.trim();
                                 _titleController.text = borrower.isNotEmpty ? 'Money Lent to $borrower' : 'Money Lent to Friend';
                               } else if (currentTitle.isEmpty ||
@@ -1387,7 +1387,7 @@ class _AddEditTransactionSheetState
                         ],
                       ),
                     ),
-                  if (!isIncome && _selectedCategory == 'Money Lent / Helping Friend')
+                  if (!isIncome && _selectedCategory == CategoryConstants.categoryMoneyLent)
                     _buildMoneyLentSection(theme, financialColors, isDark)
                   else if (!isIncome)
                     _buildSharedExpenseSection(theme, financialColors, isDark),
@@ -1887,7 +1887,7 @@ class _AddEditTransactionSheetState
                   setState(() {
                     _transferDestinationType = TransferDestinationType.bankAccount;
                     _selectedCreditCardId = null;
-                    _selectedCategory = 'Account Transfer';
+                    _selectedCategory = CategoryConstants.categoryAccountTransfer;
                     _updateDefaultGoalAllocations(_selectedToAccountId ?? toVal);
                   });
                 },
@@ -1905,7 +1905,7 @@ class _AddEditTransactionSheetState
                   setState(() {
                     _transferDestinationType = TransferDestinationType.creditCard;
                     _selectedToAccountId = null;
-                    _selectedCategory = 'Credit Card Bill Pay';
+                    _selectedCategory = CategoryConstants.categoryCreditCardBillPay;
                     if (_selectedCreditCardId == null && creditCards.isNotEmpty) {
                       _selectedCreditCardId = creditCards.first.id;
                     }
@@ -3952,7 +3952,7 @@ class _AddEditTransactionSheetState
                   setState(() {
                     _isIncomeReimbursement = val;
                     if (val) {
-                      _selectedCategory = 'Shared Expense Reimbursement';
+                      _selectedCategory = CategoryConstants.categorySharedReimbursement;
                       if (pendingSplits.isNotEmpty) {
                         _selectedSharedExpenseToSettle = pendingSplits.first;
                         final amt = _selectedSharedExpenseToSettle!.pendingReimbursement;

@@ -77,14 +77,21 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Bank Accounts
-          _buildBankAccountsTab(context, accounts, combinedCash, isDark, financialColors),
-          // Tab 2: Credit Cards
-          _buildCreditCardsTab(context, cards, creditSummary, isDark, financialColors),
-        ],
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Tab 1: Bank Accounts
+                _buildBankAccountsTab(context, accounts, combinedCash, isDark, financialColors),
+                // Tab 2: Credit Cards
+                _buildCreditCardsTab(context, cards, creditSummary, isDark, financialColors),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
