@@ -73,41 +73,176 @@ void main() {
     final allAccounts = [icici, idfc, kotak, auBank, sbi];
 
     test('Food, Groceries, Shopping, Transport intelligently auto-default to Kotak (Daily Spending)', () {
-      expect(AccountPurposeTags.matchAccountForCategory('Food & Dining', allAccounts, defaultAccount: icici)?.id, kotak.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Groceries', allAccounts, defaultAccount: icici)?.id, kotak.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Shopping', allAccounts, defaultAccount: icici)?.id, kotak.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Transportation & Fuel', allAccounts, defaultAccount: icici)?.id, kotak.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Cafe & Snacks', allAccounts, defaultAccount: icici)?.id, kotak.id);
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Food & Dining',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        kotak.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Groceries',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        kotak.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Shopping',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        kotak.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Transportation & Fuel',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        kotak.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Cafe & Snacks',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        kotak.id,
+      );
     });
 
     test('Investments & SIP intelligently auto-default to SBI (Investments & Insurance)', () {
-      expect(AccountPurposeTags.matchAccountForCategory('Investments & SIP', allAccounts, defaultAccount: icici)?.id, sbi.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Mutual Funds', allAccounts, defaultAccount: icici)?.id, sbi.id);
-      expect(AccountPurposeTags.matchAccountForCategory('SIP Contribution', allAccounts, defaultAccount: icici)?.id, sbi.id);
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Investments & SIP',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        sbi.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Mutual Funds',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        sbi.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'SIP Contribution',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        sbi.id,
+      );
     });
 
     test('Insurance Premiums strictly auto-default to SBI (Investments & Insurance / SBI Bank)', () {
-      expect(AccountPurposeTags.matchAccountForCategory('Insurance Premiums', allAccounts, defaultAccount: icici)?.id, sbi.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Health Insurance', allAccounts, defaultAccount: icici)?.id, sbi.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Term Life Insurance', allAccounts, defaultAccount: icici)?.id, sbi.id);
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Insurance Premiums',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        sbi.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Health Insurance',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        sbi.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Term Life Insurance',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        sbi.id,
+      );
     });
 
     test('Bills & Utilities, Subscriptions, EMI, Rent auto-default to ICICI (Salary & Income Hub)', () {
-      expect(AccountPurposeTags.matchAccountForCategory('Bills & Utilities', allAccounts, defaultAccount: icici)?.id, icici.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Subscriptions', allAccounts, defaultAccount: icici)?.id, icici.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Loan EMI', allAccounts, defaultAccount: icici)?.id, icici.id);
-      expect(AccountPurposeTags.matchAccountForCategory('House Rent', allAccounts, defaultAccount: icici)?.id, icici.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Monthly Salary', allAccounts, defaultAccount: icici)?.id, icici.id);
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Bills & Utilities',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        icici.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Subscriptions',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        icici.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Loan EMI',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        icici.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'House Rent',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        icici.id,
+      );
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Monthly Salary',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        icici.id,
+      );
     });
 
     test('Emergency Fund categories auto-default to IDFC', () {
-      expect(AccountPurposeTags.matchAccountForCategory('Emergency Fund Reserve', allAccounts, defaultAccount: icici)?.id, idfc.id);
+      expect(
+        AccountPurposeTags.matchAccountForCategory(
+          'Emergency Fund Reserve',
+          allAccounts,
+          defaultAccount: icici,
+        )?.id,
+        idfc.id,
+      );
     });
 
-    test('Unmatched categories fall back to default account or first account', () {
-      expect(AccountPurposeTags.matchAccountForCategory('Unknown Custom Tag', allAccounts, defaultAccount: icici)?.id, icici.id);
-      expect(AccountPurposeTags.matchAccountForCategory('Unknown Custom Tag', allAccounts)?.id, icici.id);
-    });
+    test(
+      'Unmatched categories fall back to default account or first account',
+      () {
+        expect(
+          AccountPurposeTags.matchAccountForCategory(
+            'Unknown Custom Tag',
+            allAccounts,
+            defaultAccount: icici,
+          )?.id,
+          icici.id,
+        );
+        expect(
+          AccountPurposeTags.matchAccountForCategory(
+            'Unknown Custom Tag',
+            allAccounts,
+          )?.id,
+          icici.id,
+        );
+      },
+    );
   });
 
   group('SavingsGoalEntity Schema v10 Allocation & AutoSync Tests', () {
@@ -157,30 +292,33 @@ void main() {
       expect(reconstructed.autoSyncAccount, isTrue);
     });
 
-    test('SavingsGoalEntity copyWith modifies allocation and autoSync accurately', () {
-      final goal = SavingsGoalEntity(
-        id: 'g3',
-        title: 'New Gadget',
-        targetAmount: 40000.0,
-        currentAmount: 10000.0,
-        category: 'Gadgets',
-        targetDate: now.add(const Duration(days: 60)),
-        linkedAccountId: 'acc_au',
-        allocationPercentage: 40.0,
-        autoSyncAccount: false,
-        createdAt: now,
-        updatedAt: now,
-      );
+    test(
+      'SavingsGoalEntity copyWith modifies allocation and autoSync accurately',
+      () {
+        final goal = SavingsGoalEntity(
+          id: 'g3',
+          title: 'New Gadget',
+          targetAmount: 40000.0,
+          currentAmount: 10000.0,
+          category: 'Gadgets',
+          targetDate: now.add(const Duration(days: 60)),
+          linkedAccountId: 'acc_au',
+          allocationPercentage: 40.0,
+          autoSyncAccount: false,
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      final updated = goal.copyWith(
-        allocationPercentage: 50.0,
-        autoSyncAccount: true,
-      );
+        final updated = goal.copyWith(
+          allocationPercentage: 50.0,
+          autoSyncAccount: true,
+        );
 
-      expect(updated.allocationPercentage, 50.0);
-      expect(updated.autoSyncAccount, isTrue);
-      expect(updated.linkedAccountId, 'acc_au');
-    });
+        expect(updated.allocationPercentage, 50.0);
+        expect(updated.autoSyncAccount, isTrue);
+        expect(updated.linkedAccountId, 'acc_au');
+      },
+    );
   });
 
   group('Reports & Analytics Enhanced Financial Calculator Tests', () {
@@ -327,7 +465,11 @@ void main() {
       // SBI: 5000
       // Total: 12000
 
-      final breakdown = FinancialCalculator.calculateAccountOutflowBreakdown(txs, bankAccounts, []);
+      final breakdown = FinancialCalculator.calculateAccountOutflowBreakdown(
+        txs,
+        bankAccounts,
+        [],
+      );
       expect(breakdown.length, 3);
 
       final sbiItem = breakdown.firstWhere((b) => b.accountId == 'acc_sbi');
@@ -435,7 +577,10 @@ void main() {
 
       final allTxs = [...prevTxs, ...currentTxs];
 
-      final changes = FinancialCalculator.calculateCategoryMomChanges(allTxs, currentMonth);
+      final changes = FinancialCalculator.calculateCategoryMomChanges(
+        allTxs,
+        currentMonth,
+      );
 
       expect(changes.length, 2);
 
@@ -446,7 +591,9 @@ void main() {
       expect(grocChange.percentChange, closeTo(20.0, 0.1));
       expect(grocChange.isIncrease, isTrue);
 
-      final billChange = changes.firstWhere((c) => c.category == 'Bills & Utilities');
+      final billChange = changes.firstWhere(
+        (c) => c.category == 'Bills & Utilities',
+      );
       expect(billChange.currentMonthAmount, 1500.0);
       expect(billChange.previousMonthAmount, 2000.0);
       expect(billChange.diffAmount, -500.0);
@@ -486,8 +633,10 @@ void main() {
         updatedAt: DateTime.now(),
       );
 
-      final vacationAllocated = auBalance * (vacationGoal.allocationPercentage / 100.0);
-      final gadgetAllocated = auBalance * (gadgetGoal.allocationPercentage / 100.0);
+      final vacationAllocated =
+          auBalance * (vacationGoal.allocationPercentage / 100.0);
+      final gadgetAllocated =
+          auBalance * (gadgetGoal.allocationPercentage / 100.0);
       final totalAllocated = vacationAllocated + gadgetAllocated;
 
       expect(vacationAllocated, 30000.0);
@@ -511,7 +660,8 @@ void main() {
         updatedAt: DateTime.now(),
       );
 
-      final syncedAmount = idfcBalance * (emergencyGoal.allocationPercentage / 100.0);
+      final syncedAmount =
+          idfcBalance * (emergencyGoal.allocationPercentage / 100.0);
       expect(syncedAmount, 200000.0);
       expect(syncedAmount >= emergencyGoal.targetAmount, isTrue);
     });
@@ -529,7 +679,10 @@ void main() {
       expect(investmentAllocation, 18000.0);
       expect(insuranceAllocation, 9000.0);
       expect(idleBuffer, 3000.0);
-      expect(investmentAllocation + insuranceAllocation + idleBuffer, inflowAmount);
+      expect(
+        investmentAllocation + insuranceAllocation + idleBuffer,
+        inflowAmount,
+      );
     });
   });
 }

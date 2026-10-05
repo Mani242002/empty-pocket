@@ -1,7 +1,17 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
+import '../../../../core/domain/entities/bank_account_entity.dart';
+import '../../../../core/domain/entities/budget_entity.dart';
+import '../../../../core/domain/entities/credit_card_entity.dart';
+import '../../../../core/domain/entities/debt_entity.dart';
+import '../../../../core/domain/entities/investment_entity.dart';
+import '../../../../core/domain/entities/recurring_expense_entity.dart';
+import '../../../../core/domain/entities/savings_goal_entity.dart';
+import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/ai_chat_repository.dart';
 import '../../../../core/repositories/ai_reports_repository.dart';
 import '../../../../core/repositories/bank_account_repository.dart';
@@ -31,10 +41,12 @@ final backupServiceProvider = Provider<BackupService>((ref) => BackupService());
 class CsvImportSummary {
   final int totalImported;
   final int defaultedDates;
+  final int invalidRows;
 
   const CsvImportSummary({
     required this.totalImported,
     this.defaultedDates = 0,
+    this.invalidRows = 0,
   });
 }
 
@@ -59,7 +71,10 @@ class CurrencyNotifier extends AsyncNotifier<CurrencyOption> {
     state = await AsyncValue.guard(() async {
       try {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_keyCurrencyCode, option.code);
+        final success = await prefs.setString(_keyCurrencyCode, option.code);
+        if (!success) {
+          throw Exception('Failed to write currency preference to storage');
+        }
         CurrencyFormatter.setCurrency(option);
         return option;
       } catch (e, st) {
@@ -67,12 +82,16 @@ class CurrencyNotifier extends AsyncNotifier<CurrencyOption> {
         rethrow;
       }
     });
+    if (state.hasError) {
+      throw state.error!;
+    }
   }
 }
 
-final currencyProvider = AsyncNotifierProvider<CurrencyNotifier, CurrencyOption>(
-  CurrencyNotifier.new,
-);
+final currencyProvider =
+    AsyncNotifierProvider<CurrencyNotifier, CurrencyOption>(
+      CurrencyNotifier.new,
+    );
 
 class AppLockNotifier extends AsyncNotifier<bool> {
   static const String _keyAppLock = 'app_lock_enabled';
@@ -107,7 +126,8 @@ final appLockProvider = AsyncNotifierProvider<AppLockNotifier, bool>(
   AppLockNotifier.new,
 );
 
-class FloatingBubbleNotifier extends StateNotifier<bool> with WidgetsBindingObserver {
+class FloatingBubbleNotifier extends StateNotifier<bool>
+    with WidgetsBindingObserver {
   static const String _keyBubble = 'floating_bubble_enabled';
 
   FloatingBubbleNotifier() : super(false) {
@@ -134,12 +154,20 @@ class FloatingBubbleNotifier extends StateNotifier<bool> with WidgetsBindingObse
       if (isGranted) {
         final isActive = await OverlayService.isActive();
         if (!isActive) {
-          LogService.info('FloatingBubbleNotifier', 'Auto-recovering floating bubble on app resume');
+          LogService.info(
+            'FloatingBubbleNotifier',
+            'Auto-recovering floating bubble on app resume',
+          );
           await OverlayService.showFloatingBubble();
         }
       }
     } catch (e, stack) {
-      LogService.error('FloatingBubbleNotifier', '_checkAndRecoverBubble error', e, stack);
+      LogService.error(
+        'FloatingBubbleNotifier',
+        '_checkAndRecoverBubble error',
+        e,
+        stack,
+      );
     }
   }
 
@@ -175,7 +203,11 @@ class FloatingBubbleNotifier extends StateNotifier<bool> with WidgetsBindingObse
             final prefs = await SharedPreferences.getInstance();
             await prefs.setBool(_keyBubble, false);
           } catch (e) {
-            LogService.error('FloatingBubbleNotifier', 'error resetting bubble pref', e);
+            LogService.error(
+              'FloatingBubbleNotifier',
+              'error resetting bubble pref',
+              e,
+            );
           }
           return false;
         }
@@ -183,12 +215,17 @@ class FloatingBubbleNotifier extends StateNotifier<bool> with WidgetsBindingObse
 
       // Automatically request battery optimization whitelist for 24/7 background resilience
       try {
-        final isIgnoring = await BatteryOptimizationService.isIgnoringBatteryOptimizations();
+        final isIgnoring =
+            await BatteryOptimizationService.isIgnoringBatteryOptimizations();
         if (!isIgnoring) {
           await BatteryOptimizationService.requestIgnoreBatteryOptimizations();
         }
       } catch (e) {
-        LogService.warning('FloatingBubbleNotifier', 'Battery optimization request error', e);
+        LogService.warning(
+          'FloatingBubbleNotifier',
+          'Battery optimization request error',
+          e,
+        );
       }
 
       await OverlayService.showFloatingBubble();
@@ -206,8 +243,8 @@ class FloatingBubbleNotifier extends StateNotifier<bool> with WidgetsBindingObse
 
 final floatingBubbleProvider =
     StateNotifierProvider<FloatingBubbleNotifier, bool>((ref) {
-  return FloatingBubbleNotifier();
-});
+      return FloatingBubbleNotifier();
+    });
 
 class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
   final Ref ref;
@@ -227,40 +264,85 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       final cardRepo = ref.read(creditCardRepositoryProvider);
       final chatRepo = ref.read(aiChatRepositoryProvider);
 
-      final txs = await txRepo.getAllTransactions();
-      final budgets = await budgetRepo.getAllBudgets();
-      final goals = await savingsRepo.getAllGoals();
-      final contribs = <dynamic>[];
-      for (final g in goals) {
-        final c = await savingsRepo.getContributionsForGoal(g.id);
-        contribs.addAll(c);
-      }
-      final debts = await debtRepo.getAllDebts();
-      final payments = <dynamic>[];
-      for (final d in debts) {
-        final p = await debtRepo.getPaymentsForDebt(d.id);
-        payments.addAll(p);
-      }
-      final investments = await investRepo.getAllInvestments();
-      final recurring = await recurRepo.getAllRecurringExpenses();
-      final bankAccounts = await bankRepo.getAllAccounts();
-      final creditCards = await cardRepo.getAllCards();
+      List<TransactionEntity> txs;
+      List<BudgetEntity> budgets;
+      List<SavingsGoalEntity> goals;
+      List<GoalContributionEntity> contribs;
+      List<DebtEntity> debts;
+      List<DebtPaymentEntity> payments;
+      List<InvestmentEntity> investments;
+      List<RecurringExpenseEntity> recurring;
+      List<BankAccountEntity> bankAccounts;
+      List<CreditCardEntity> creditCards;
+      List<AiChatSession> chatSessions;
+      List<AiChatMessage> chatMessages;
+      List<AiReportItem> aiReports;
 
-      List<AiChatSession> chatSessions = [];
-      List<AiChatMessage> chatMessages = [];
-      try {
-        chatSessions = await chatRepo.getAllSessions();
-        chatMessages = await chatRepo.getAllMessages();
-      } catch (e, st) {
-        LogService.error('BackupOperationsNotifier', 'Chat repository query error', e, st);
-      }
-
-      List<AiReportItem> aiReports = [];
-      try {
-        final reportsRepo = ref.read(aiReportsRepositoryProvider);
-        aiReports = await reportsRepo.getAllReports();
-      } catch (e, st) {
-        LogService.error('BackupOperationsNotifier', 'AI reports query error', e, st);
+      if (txRepo is SqliteTransactionRepository) {
+        final db = ref.read(appDatabaseProvider);
+        final snapshot = await db.exportSnapshotTables();
+        txs = (snapshot['transactions'] as List).cast<TransactionEntity>();
+        budgets = (snapshot['budgets'] as List).cast<BudgetEntity>();
+        goals = (snapshot['savingsGoals'] as List).cast<SavingsGoalEntity>();
+        contribs = (snapshot['savingsContributions'] as List)
+            .cast<GoalContributionEntity>();
+        debts = (snapshot['debts'] as List).cast<DebtEntity>();
+        payments = (snapshot['debtPayments'] as List).cast<DebtPaymentEntity>();
+        investments = (snapshot['investments'] as List)
+            .cast<InvestmentEntity>();
+        recurring = (snapshot['recurringExpenses'] as List)
+            .cast<RecurringExpenseEntity>();
+        bankAccounts = (snapshot['bankAccounts'] as List)
+            .cast<BankAccountEntity>();
+        creditCards = (snapshot['creditCards'] as List)
+            .cast<CreditCardEntity>();
+        chatSessions = (snapshot['chatSessions'] as List).cast<AiChatSession>();
+        chatMessages = (snapshot['chatMessages'] as List).cast<AiChatMessage>();
+        aiReports = (snapshot['aiReports'] as List).cast<AiReportItem>();
+      } else {
+        txs = await txRepo.getAllTransactions();
+        budgets = await budgetRepo.getAllBudgets();
+        goals = await savingsRepo.getAllGoals();
+        contribs = [];
+        for (final g in goals) {
+          final c = await savingsRepo.getContributionsForGoal(g.id);
+          contribs.addAll(c);
+        }
+        debts = await debtRepo.getAllDebts();
+        payments = [];
+        for (final d in debts) {
+          final p = await debtRepo.getPaymentsForDebt(d.id);
+          payments.addAll(p);
+        }
+        investments = await investRepo.getAllInvestments();
+        recurring = await recurRepo.getAllRecurringExpenses();
+        bankAccounts = await bankRepo.getAllAccounts();
+        creditCards = await cardRepo.getAllCards();
+        chatSessions = [];
+        chatMessages = [];
+        try {
+          chatSessions = await chatRepo.getAllSessions();
+          chatMessages = await chatRepo.getAllMessages();
+        } catch (e, st) {
+          LogService.error(
+            'BackupOperationsNotifier',
+            'Chat repository query error',
+            e,
+            st,
+          );
+        }
+        aiReports = [];
+        try {
+          final reportsRepo = ref.read(aiReportsRepositoryProvider);
+          aiReports = await reportsRepo.getAllReports();
+        } catch (e, st) {
+          LogService.error(
+            'BackupOperationsNotifier',
+            'AI reports query error',
+            e,
+            st,
+          );
+        }
       }
 
       final backupService = ref.read(backupServiceProvider);
@@ -268,9 +350,9 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         transactions: txs,
         budgets: budgets,
         savingsGoals: goals,
-        savingsContributions: contribs.cast(),
+        savingsContributions: contribs,
         debts: debts,
-        debtPayments: payments.cast(),
+        debtPayments: payments,
         investments: investments,
         recurringExpenses: recurring,
         chatSessions: chatSessions,
@@ -305,26 +387,63 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
     }
   }
 
-  Future<CsvImportSummary> importTransactionsFromCsv(String csvContent) async {
+  Future<CsvImportSummary> importTransactionsFromCsv(
+    String csvContent, {
+    NumberFormatMode formatMode = NumberFormatMode.auto,
+  }) async {
     state = const AsyncValue.loading();
     try {
       final backupService = ref.read(backupServiceProvider);
-      final parseResult = backupService.parseTransactionsFromCsvWithResult(csvContent);
+      final parseResult = backupService.parseTransactionsFromCsvWithResult(
+        csvContent,
+        formatMode: formatMode,
+      );
+      if (parseResult.requiresFormatConfirmation) {
+        throw CsvAmbiguousNumberException(
+          ambiguousCount: parseResult.ambiguousAmountCount,
+          defaultedDates: parseResult.defaultedDateCount,
+          csvContent: csvContent,
+        );
+      }
       final txs = parseResult.transactions;
       if (txs.isEmpty) {
-        throw const FormatException('No valid transactions found in the CSV file.');
+        throw const FormatException(
+          'No valid transactions found in the CSV file.',
+        );
       }
 
       final txRepo = ref.read(transactionRepositoryProvider);
-      await txRepo.addTransactions(txs);
+      final existingTxs = await txRepo.getAllTransactions();
+      final existingIds = existingTxs.map((t) => t.id).toSet();
+      final safeTxs = <TransactionEntity>[];
+      for (final tx in txs) {
+        if (existingIds.contains(tx.id)) {
+          final newId = const Uuid().v4();
+          existingIds.add(newId);
+          safeTxs.add(tx.copyWith(id: newId));
+        } else {
+          existingIds.add(tx.id);
+          safeTxs.add(tx);
+        }
+      }
+      await txRepo.addTransactions(safeTxs);
 
       final summary = CsvImportSummary(
         totalImported: txs.length,
         defaultedDates: parseResult.defaultedDateCount,
+        invalidRows: parseResult.invalidRowsCount,
       );
 
-      final msg = summary.defaultedDates > 0
-          ? 'Successfully imported ${txs.length} transactions (${summary.defaultedDates} dates defaulted to today due to non-standard format)'
+      final List<String> details = [];
+      if (summary.defaultedDates > 0) {
+        details.add('${summary.defaultedDates} dates defaulted to today');
+      }
+      if (summary.invalidRows > 0) {
+        details.add('${summary.invalidRows} invalid/malformed rows skipped');
+      }
+
+      final msg = details.isNotEmpty
+          ? 'Successfully imported ${txs.length} transactions (${details.join(', ')})'
           : 'Successfully imported ${txs.length} transactions';
 
       state = AsyncValue.data(msg);
@@ -428,5 +547,5 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
 
 final backupOperationsProvider =
     StateNotifierProvider<BackupOperationsNotifier, AsyncValue<String?>>((ref) {
-  return BackupOperationsNotifier(ref);
-});
+      return BackupOperationsNotifier(ref);
+    });

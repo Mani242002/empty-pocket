@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
+
 import '../domain/entities/recurring_expense_entity.dart';
 import '../utilities/currency_formatter.dart';
 import 'log_service.dart';
@@ -17,8 +19,8 @@ const String kPrefBillDueAlert = 'notifications_bill_due_enabled';
 /// StateNotifier for Daily Streak Reminder toggle
 final dailyStreakReminderNotifierProvider =
     StateNotifierProvider<DailyStreakReminderNotifier, bool>((ref) {
-  return DailyStreakReminderNotifier(ref);
-});
+      return DailyStreakReminderNotifier(ref);
+    });
 
 class DailyStreakReminderNotifier extends StateNotifier<bool> {
   final Ref _ref;
@@ -48,7 +50,10 @@ class DailyStreakReminderNotifier extends StateNotifier<bool> {
         await service.cancelDailyStreakReminder();
       }
     } catch (e) {
-      LogService.error('DailyStreakReminderNotifier', 'Failed to update streak pref: $e');
+      LogService.error(
+        'DailyStreakReminderNotifier',
+        'Failed to update streak pref: $e',
+      );
     }
   }
 }
@@ -56,8 +61,8 @@ class DailyStreakReminderNotifier extends StateNotifier<bool> {
 /// StateNotifier for Bill Due Alerts toggle
 final billDueAlertNotifierProvider =
     StateNotifierProvider<BillDueAlertNotifier, bool>((ref) {
-  return BillDueAlertNotifier(ref);
-});
+      return BillDueAlertNotifier(ref);
+    });
 
 class BillDueAlertNotifier extends StateNotifier<bool> {
   final Ref _ref;
@@ -85,7 +90,10 @@ class BillDueAlertNotifier extends StateNotifier<bool> {
         await service.cancelBillDueAlerts();
       }
     } catch (e) {
-      LogService.error('BillDueAlertNotifier', 'Failed to update bill alert pref: $e');
+      LogService.error(
+        'BillDueAlertNotifier',
+        'Failed to update bill alert pref: $e',
+      );
     }
   }
 }
@@ -139,24 +147,38 @@ class NotificationService {
         final tzInfo = await FlutterTimezone.getLocalTimezone();
         final String timeZoneName = tzInfo.identifier;
         tz.setLocalLocation(tz.getLocation(timeZoneName));
-        LogService.debug(_tag, 'Notification local timezone configured: $timeZoneName');
+        LogService.debug(
+          _tag,
+          'Notification local timezone configured: $timeZoneName',
+        );
       } catch (e) {
-        LogService.debug(_tag, 'Could not determine local timezone via FlutterTimezone: $e');
+        LogService.debug(
+          _tag,
+          'Could not determine local timezone via FlutterTimezone: $e',
+        );
         try {
           tz.setLocalLocation(tz.UTC);
         } catch (utcErr) {
-          LogService.warning(_tag, 'Failed to fallback to UTC timezone: $utcErr');
+          LogService.warning(
+            _tag,
+            'Failed to fallback to UTC timezone: $utcErr',
+          );
         }
       }
 
       if (!_isSupportedPlatform) {
-        LogService.debug(_tag, 'NotificationService skipped on unsupported/test platform.');
+        LogService.debug(
+          _tag,
+          'NotificationService skipped on unsupported/test platform.',
+        );
         _isInitialized = true;
         return;
       }
 
       // Configure Android initialization settings
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
       const initSettings = InitializationSettings(android: androidSettings);
 
       await _notificationsPlugin.initialize(
@@ -169,7 +191,12 @@ class NotificationService {
       _isInitialized = true;
       LogService.debug(_tag, 'NotificationService initialized successfully.');
     } catch (e, stack) {
-      LogService.error(_tag, 'NotificationService init failed (graceful fallback): $e', e, stack);
+      LogService.error(
+        _tag,
+        'NotificationService init failed (graceful fallback): $e',
+        e,
+        stack,
+      );
     }
   }
 
@@ -178,8 +205,11 @@ class NotificationService {
     try {
       if (!kIsWeb && Platform.isAndroid) {
         final androidImplementation = _notificationsPlugin
-            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-        final granted = await androidImplementation?.requestNotificationsPermission();
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        final granted = await androidImplementation
+            ?.requestNotificationsPermission();
         return granted ?? false;
       }
       return true;
@@ -190,7 +220,10 @@ class NotificationService {
   }
 
   /// Schedule the repeating 8:00 PM daily streak prompt
-  Future<void> scheduleDailyStreakReminder({int hour = 20, int minute = 0}) async {
+  Future<void> scheduleDailyStreakReminder({
+    int hour = 20,
+    int minute = 0,
+  }) async {
     if (!_isInitialized) await initialize();
     if (!_isSupportedPlatform) return;
 
@@ -212,8 +245,12 @@ class NotificationService {
       bool canExact = false;
       if (!kIsWeb && Platform.isAndroid) {
         final androidImplementation = _notificationsPlugin
-            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-        canExact = await androidImplementation?.canScheduleExactNotifications() ?? false;
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        canExact =
+            await androidImplementation?.canScheduleExactNotifications() ??
+            false;
       }
 
       await _notificationsPlugin.zonedSchedule(
@@ -228,9 +265,17 @@ class NotificationService {
         matchDateTimeComponents: DateTimeComponents.time,
       );
 
-      LogService.debug(_tag, 'Scheduled daily streak reminder for $hour:$minute (exact: $canExact) repeating daily.');
+      LogService.debug(
+        _tag,
+        'Scheduled daily streak reminder for $hour:$minute (exact: $canExact) repeating daily.',
+      );
     } catch (e, stack) {
-      LogService.error(_tag, 'Failed to schedule streak reminder: $e', e, stack);
+      LogService.error(
+        _tag,
+        'Failed to schedule streak reminder: $e',
+        e,
+        stack,
+      );
     }
   }
 
@@ -246,7 +291,9 @@ class NotificationService {
   }
 
   /// Check recurring bills and notify if any are due today
-  Future<void> checkAndNotifyBillsDueToday(List<RecurringExpenseEntity> items) async {
+  Future<void> checkAndNotifyBillsDueToday(
+    List<RecurringExpenseEntity> items,
+  ) async {
     if (!_isInitialized) await initialize();
     if (!_isSupportedPlatform) return;
 
@@ -255,7 +302,9 @@ class NotificationService {
       final enabled = prefs.getBool(kPrefBillDueAlert) ?? true;
       if (!enabled) return;
 
-      final dueToday = items.where((i) => i.isActive && i.daysUntilDue == 0).toList();
+      final dueToday = items
+          .where((i) => i.isActive && i.daysUntilDue == 0)
+          .toList();
       if (dueToday.isEmpty) return;
 
       for (int i = 0; i < dueToday.length; i++) {
@@ -263,7 +312,8 @@ class NotificationService {
         await showBillDueNotification(
           notificationId: billNotificationIdBase + i,
           title: '📅 Bill Due Today: ${bill.title}',
-          body: '${CurrencyFormatter.format(bill.amount)} is scheduled for payment today. Tap to view or log.',
+          body:
+              '${CurrencyFormatter.format(bill.amount)} is scheduled for payment today. Tap to view or log.',
         );
       }
     } catch (e) {
@@ -337,7 +387,8 @@ class NotificationService {
       await _notificationsPlugin.show(
         id: testNotificationId,
         title: '✨ EmptyPocket Notifications Active',
-        body: 'Daily streak prompts and bill due alerts are properly configured!',
+        body:
+            'Daily streak prompts and bill due alerts are properly configured!',
         notificationDetails: notificationDetails,
       );
     } catch (e) {
@@ -351,7 +402,8 @@ class NotificationService {
     if (!_isSupportedPlatform) return false;
 
     try {
-      final scheduledTime = tz.TZDateTime.now(tz.local).add(Duration(seconds: seconds));
+      final scheduledTime = tz.TZDateTime.now(tz.local)
+          .add(Duration(seconds: seconds));
 
       const androidDetails = AndroidNotificationDetails(
         streakChannelId,
@@ -368,14 +420,19 @@ class NotificationService {
       bool canExact = false;
       if (!kIsWeb && Platform.isAndroid) {
         final androidImplementation = _notificationsPlugin
-            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-        canExact = await androidImplementation?.canScheduleExactNotifications() ?? false;
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        canExact =
+            await androidImplementation?.canScheduleExactNotifications() ??
+            false;
       }
 
       await _notificationsPlugin.zonedSchedule(
         id: testNotificationId,
         title: '⏰ Scheduled Test Notification',
-        body: 'Offline notification fired after $seconds seconds while phone was backgrounded/idle.',
+        body:
+            'Offline notification fired after $seconds seconds while phone was backgrounded/idle.',
         scheduledDate: scheduledTime,
         notificationDetails: notificationDetails,
         androidScheduleMode: canExact
@@ -383,10 +440,18 @@ class NotificationService {
             : AndroidScheduleMode.inexactAllowWhileIdle,
       );
 
-      LogService.debug(_tag, 'Scheduled test delayed notification in $seconds seconds (exact: $canExact).');
+      LogService.debug(
+        _tag,
+        'Scheduled test delayed notification in $seconds seconds (exact: $canExact).',
+      );
       return true;
     } catch (e, stack) {
-      LogService.error(_tag, 'Failed to schedule delayed test notification: $e', e, stack);
+      LogService.error(
+        _tag,
+        'Failed to schedule delayed test notification: $e',
+        e,
+        stack,
+      );
       return false;
     }
   }

@@ -128,19 +128,31 @@ void main() {
         );
       }
 
-      final page1 = await repository.getTransactionsPaginated(limit: 5, offset: 0);
+      final page1 = await repository.getTransactionsPaginated(
+        limit: 5,
+        offset: 0,
+      );
       expect(page1.length, 5);
       expect(page1.first.id, 'tx-0');
 
-      final page2 = await repository.getTransactionsPaginated(limit: 5, offset: 5);
+      final page2 = await repository.getTransactionsPaginated(
+        limit: 5,
+        offset: 5,
+      );
       expect(page2.length, 5);
       expect(page2.first.id, 'tx-5');
 
-      final page3 = await repository.getTransactionsPaginated(limit: 10, offset: 10);
+      final page3 = await repository.getTransactionsPaginated(
+        limit: 10,
+        offset: 10,
+      );
       expect(page3.length, 5);
       expect(page3.first.id, 'tx-10');
 
-      final emptyPage = await repository.getTransactionsPaginated(limit: 5, offset: 20);
+      final emptyPage = await repository.getTransactionsPaginated(
+        limit: 5,
+        offset: 20,
+      );
       expect(emptyPage.isEmpty, isTrue);
     });
   });
@@ -165,13 +177,13 @@ void main() {
 
       final mockRepo = InMemoryTransactionRepository(items);
       final container = ProviderContainer(
-        overrides: [
-          transactionRepositoryProvider.overrideWithValue(mockRepo),
-        ],
+        overrides: [transactionRepositoryProvider.overrideWithValue(mockRepo)],
       );
 
       final notifier = container.read(transactionListNotifierProvider.notifier);
-      final initialList = await container.read(transactionListNotifierProvider.future);
+      final initialList = await container.read(
+        transactionListNotifierProvider.future,
+      );
 
       // Verify complete history is loaded so derived monthly analytics and streaks are never truncated
       expect(initialList.length, 150);
@@ -179,7 +191,9 @@ void main() {
 
       // Load more / custom pagination
       await notifier.loadMore(pageSize: 50);
-      final expandedList = container.read(transactionListNotifierProvider).value!;
+      final expandedList = container
+          .read(transactionListNotifierProvider)
+          .value!;
       expect(expandedList.length, 150);
 
       // Load all
@@ -190,4 +204,3 @@ void main() {
     });
   });
 }
-

@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../state/accounts_cards_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class AddEditBankAccountSheet extends ConsumerStatefulWidget {
   final BankAccountEntity? initialAccount;
 
   const AddEditBankAccountSheet({super.key, this.initialAccount});
 
-  static Future<bool?> show(BuildContext context, {BankAccountEntity? account}) {
+  static Future<bool?> show(
+    BuildContext context, {
+    BankAccountEntity? account,
+  }) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -55,8 +60,8 @@ class _AddEditBankAccountSheetState
     _balanceController = TextEditingController(
       text: acc != null
           ? (acc.currentBalance == acc.currentBalance.roundToDouble()
-              ? acc.currentBalance.toInt().toString()
-              : acc.currentBalance.toString())
+                ? acc.currentBalance.toInt().toString()
+                : acc.currentBalance.toString())
           : '',
     );
     _selectedType = acc?.accountType ?? AccountType.savings;
@@ -114,7 +119,9 @@ class _AddEditBankAccountSheetState
         await ref.read(bankAccountListProvider.notifier).saveAccount(updated);
 
         if (_isDefault) {
-          await ref.read(bankAccountListProvider.notifier).setDefaultAccount(updated.id);
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .setDefaultAccount(updated.id);
         }
 
         if (mounted) {
@@ -143,14 +150,18 @@ class _AddEditBankAccountSheetState
         await ref.read(bankAccountListProvider.notifier).saveAccount(newAcc);
 
         if (_isDefault) {
-          await ref.read(bankAccountListProvider.notifier).setDefaultAccount(newAcc.id);
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .setDefaultAccount(newAcc.id);
         }
 
         if (mounted) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Added "${newAcc.accountName}" (${CurrencyFormatter.format(newAcc.currentBalance)})'),
+              content: Text(
+                'Added "${newAcc.accountName}" (${CurrencyFormatter.format(newAcc.currentBalance)})',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -195,7 +206,9 @@ class _AddEditBankAccountSheetState
 
     if (confirmed == true && mounted) {
       try {
-        await ref.read(bankAccountListProvider.notifier).deleteAccount(widget.initialAccount!.id);
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .deleteAccount(widget.initialAccount!.id);
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -221,6 +234,7 @@ class _AddEditBankAccountSheetState
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -267,7 +281,9 @@ class _AddEditBankAccountSheetState
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                                color: AppColors.primaryEmerald.withAlpha(
+                                  isDark ? 40 : 25,
+                                ),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
@@ -279,7 +295,9 @@ class _AddEditBankAccountSheetState
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                _isEditMode ? 'Edit Account' : 'Add Bank / Cash Account',
+                                _isEditMode
+                                    ? 'Edit Account'
+                                    : 'Add Bank / Cash Account',
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -292,7 +310,10 @@ class _AddEditBankAccountSheetState
                       ),
                       if (_isEditMode)
                         IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: AppColors.expense,
+                          ),
                           onPressed: _delete,
                           tooltip: 'Delete Account',
                         ),
@@ -313,7 +334,8 @@ class _AddEditBankAccountSheetState
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      hintText: 'e.g. HDFC Salary, Emergency Stash, Cash Wallet',
+                      hintText:
+                          'e.g. HDFC Salary, Emergency Stash, Cash Wallet',
                       prefixIcon: Icon(Icons.badge_rounded, size: 20),
                     ),
                     validator: (val) {
@@ -359,7 +381,8 @@ class _AddEditBankAccountSheetState
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: AccountType.values.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         final type = AccountType.values[index];
                         final isSelected = _selectedType == type;
@@ -367,7 +390,9 @@ class _AddEditBankAccountSheetState
                           avatar: Icon(
                             type.icon,
                             size: 16,
-                            color: isSelected ? Colors.white : financialColors.textMuted,
+                            color: isSelected
+                                ? Colors.white
+                                : financialColors.textMuted,
                           ),
                           label: Text(type.displayName),
                           selected: isSelected,
@@ -377,8 +402,14 @@ class _AddEditBankAccountSheetState
                           selectedColor: AppColors.primaryEmerald,
                           labelStyle: TextStyle(
                             fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            color: isSelected ? Colors.white : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : (isDark
+                                      ? AppColors.darkTextPrimary
+                                      : AppColors.lightTextPrimary),
                           ),
                         );
                       },
@@ -408,7 +439,8 @@ class _AddEditBankAccountSheetState
                     runSpacing: 8,
                     children: [
                       ..._presetTags.map((tag) {
-                        final isSelected = !_isCustomTag && _selectedUsedForTag == tag;
+                        final isSelected =
+                            !_isCustomTag && _selectedUsedForTag == tag;
                         return FilterChip(
                           label: Text(tag),
                           selected: isSelected,
@@ -418,12 +450,18 @@ class _AddEditBankAccountSheetState
                               _isCustomTag = false;
                             });
                           },
-                          selectedColor: AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40),
+                          selectedColor: AppColors.primaryEmerald.withAlpha(
+                            isDark ? 60 : 40,
+                          ),
                           labelStyle: TextStyle(
                             fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                             color: isSelected
-                                ? (isDark ? AppColors.primaryMint : AppColors.primaryTeal)
+                                ? (isDark
+                                      ? AppColors.primaryMint
+                                      : AppColors.primaryTeal)
                                 : financialColors.textMuted,
                           ),
                         );
@@ -436,12 +474,18 @@ class _AddEditBankAccountSheetState
                             _isCustomTag = true;
                           });
                         },
-                        selectedColor: AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40),
+                        selectedColor: AppColors.primaryEmerald.withAlpha(
+                          isDark ? 60 : 40,
+                        ),
                         labelStyle: TextStyle(
                           fontSize: 12,
-                          fontWeight: _isCustomTag ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: _isCustomTag
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                           color: _isCustomTag
-                              ? (isDark ? AppColors.primaryMint : AppColors.primaryTeal)
+                              ? (isDark
+                                    ? AppColors.primaryMint
+                                    : AppColors.primaryTeal)
                               : financialColors.textMuted,
                         ),
                       ),
@@ -471,9 +515,13 @@ class _AddEditBankAccountSheetState
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _balanceController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}'),
+                      ),
                     ],
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
@@ -491,7 +539,10 @@ class _AddEditBankAccountSheetState
                           ),
                         ),
                       ),
-                      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                      prefixIconConstraints: const BoxConstraints(
+                        minWidth: 0,
+                        minHeight: 0,
+                      ),
                       hintText: '0.00',
                     ),
                     validator: (val) {
@@ -534,7 +585,10 @@ class _AddEditBankAccountSheetState
                       onPressed: _save,
                       child: Text(
                         _isEditMode ? 'Save Changes' : 'Create Account',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),

@@ -4,10 +4,7 @@ class AiModelOption {
   final String id;
   final String displayName;
 
-  const AiModelOption({
-    required this.id,
-    required this.displayName,
-  });
+  const AiModelOption({required this.id, required this.displayName});
 }
 
 enum AiProviderType {
@@ -61,89 +58,266 @@ enum AiProviderType {
     switch (this) {
       case AiProviderType.gemini:
         return const [
-          AiModelOption(id: 'gemini-3.8-flash', displayName: 'Gemini 3.8 Flash (Flagship Workhorse)'),
-          AiModelOption(id: 'gemini-3.8-flash-cyber', displayName: 'Gemini 3.8 Flash Cyber (Security & Code Audit)'),
-          AiModelOption(id: 'gemini-3.7-flash', displayName: 'Gemini 3.7 Flash (High Reasoning)'),
-          AiModelOption(id: 'gemini-3.7-flash-thinking', displayName: 'Gemini 3.7 Flash Thinking (Extended Deliberation)'),
-          AiModelOption(id: 'gemini-3.6-flash', displayName: 'Gemini 3.6 Flash (Multimodal Workflow)'),
-          AiModelOption(id: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash (Near-Pro Intelligence)'),
-          AiModelOption(id: 'gemini-3.0-pro', displayName: 'Gemini 3.0 Pro (Deep Analytical)'),
-          AiModelOption(id: 'gemini-3.0-flash', displayName: 'Gemini 3.0 Flash (Fast Multimodal)'),
-          AiModelOption(id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash'),
+          AiModelOption(
+            id: 'gemini-3.8-flash',
+            displayName: 'Gemini 3.8 Flash (Flagship Workhorse)',
+          ),
+          AiModelOption(
+            id: 'gemini-3.8-flash-cyber',
+            displayName: 'Gemini 3.8 Flash Cyber (Security & Code Audit)',
+          ),
+          AiModelOption(
+            id: 'gemini-3.7-flash',
+            displayName: 'Gemini 3.7 Flash (High Reasoning)',
+          ),
+          AiModelOption(
+            id: 'gemini-3.7-flash-thinking',
+            displayName: 'Gemini 3.7 Flash Thinking (Extended Deliberation)',
+          ),
+          AiModelOption(
+            id: 'gemini-3.6-flash',
+            displayName: 'Gemini 3.6 Flash (Multimodal Workflow)',
+          ),
+          AiModelOption(
+            id: 'gemini-3.5-flash',
+            displayName: 'Gemini 3.5 Flash (Near-Pro Intelligence)',
+          ),
+          AiModelOption(
+            id: 'gemini-3.0-pro',
+            displayName: 'Gemini 3.0 Pro (Deep Analytical)',
+          ),
+          AiModelOption(
+            id: 'gemini-3.0-flash',
+            displayName: 'Gemini 3.0 Flash (Fast Multimodal)',
+          ),
+          AiModelOption(
+            id: 'gemini-2.5-flash',
+            displayName: 'Gemini 2.5 Flash',
+          ),
           AiModelOption(id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro'),
         ];
       case AiProviderType.openAi:
         return const [
-          AiModelOption(id: 'gpt-6-astra', displayName: 'GPT-6 Astra (Flagship Frontier Agentic)'),
-          AiModelOption(id: 'gpt-6-sol', displayName: 'GPT-6 Sol (Balanced Coding Workhorse)'),
-          AiModelOption(id: 'gpt-6-luna', displayName: 'GPT-6 Luna (Fast Cost-Efficient Chat)'),
+          AiModelOption(
+            id: 'gpt-6-astra',
+            displayName: 'GPT-6 Astra (Flagship Frontier Agentic)',
+          ),
+          AiModelOption(
+            id: 'gpt-6-sol',
+            displayName: 'GPT-6 Sol (Balanced Coding Workhorse)',
+          ),
+          AiModelOption(
+            id: 'gpt-6-luna',
+            displayName: 'GPT-6 Luna (Fast Cost-Efficient Chat)',
+          ),
           AiModelOption(id: 'o3', displayName: 'o3 (Frontier Deep Reasoning)'),
-          AiModelOption(id: 'o3-pro', displayName: 'o3-pro (High-Compute Premium Reasoning)'),
-          AiModelOption(id: 'o4-mini', displayName: 'o4-mini (Next-Gen Ultra-Fast Reasoning)'),
-          AiModelOption(id: 'o3-mini', displayName: 'o3-mini (STEM & Structured Reasoning)'),
-          AiModelOption(id: 'gpt-5.6', displayName: 'GPT-5.6 (Frontier Professional Workhorse)'),
-          AiModelOption(id: 'gpt-5.5', displayName: 'GPT-5.5 (High-Reasoning Multimodal)'),
-          AiModelOption(id: 'gpt-5.4', displayName: 'GPT-5.4 (General-Purpose Daily Chat)'),
+          AiModelOption(
+            id: 'o3-pro',
+            displayName: 'o3-pro (High-Compute Premium Reasoning)',
+          ),
+          AiModelOption(
+            id: 'o4-mini',
+            displayName: 'o4-mini (Next-Gen Ultra-Fast Reasoning)',
+          ),
+          AiModelOption(
+            id: 'o3-mini',
+            displayName: 'o3-mini (STEM & Structured Reasoning)',
+          ),
+          AiModelOption(
+            id: 'gpt-5.6',
+            displayName: 'GPT-5.6 (Frontier Professional Workhorse)',
+          ),
+          AiModelOption(
+            id: 'gpt-5.5',
+            displayName: 'GPT-5.5 (High-Reasoning Multimodal)',
+          ),
+          AiModelOption(
+            id: 'gpt-5.4',
+            displayName: 'GPT-5.4 (General-Purpose Daily Chat)',
+          ),
         ];
       case AiProviderType.anthropic:
         return const [
-          AiModelOption(id: 'claude-opus-5-5', displayName: 'Claude Opus 5.5 (Frontier Intelligence & Reasoning)'),
-          AiModelOption(id: 'claude-fable-5-1', displayName: 'Claude Fable 5.1 (Frontier Research & Agentic)'),
-          AiModelOption(id: 'claude-opus-5', displayName: 'Claude Opus 5 (Enterprise Complex Coding)'),
-          AiModelOption(id: 'claude-sonnet-5', displayName: 'Claude Sonnet 5 (Balanced Intelligence Workhorse)'),
-          AiModelOption(id: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5 (High-Volume Low-Latency)'),
+          AiModelOption(
+            id: 'claude-opus-5-5',
+            displayName: 'Claude Opus 5.5 (Frontier Intelligence & Reasoning)',
+          ),
+          AiModelOption(
+            id: 'claude-fable-5-1',
+            displayName: 'Claude Fable 5.1 (Frontier Research & Agentic)',
+          ),
+          AiModelOption(
+            id: 'claude-opus-5',
+            displayName: 'Claude Opus 5 (Enterprise Complex Coding)',
+          ),
+          AiModelOption(
+            id: 'claude-sonnet-5',
+            displayName: 'Claude Sonnet 5 (Balanced Intelligence Workhorse)',
+          ),
+          AiModelOption(
+            id: 'claude-haiku-4-5',
+            displayName: 'Claude Haiku 4.5 (High-Volume Low-Latency)',
+          ),
           AiModelOption(id: 'claude-fable-5', displayName: 'Claude Fable 5'),
-          AiModelOption(id: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5'),
+          AiModelOption(
+            id: 'claude-sonnet-4-5',
+            displayName: 'Claude Sonnet 4.5',
+          ),
           AiModelOption(id: 'claude-opus-4-5', displayName: 'Claude Opus 4.5'),
-          AiModelOption(id: 'claude-3-7-sonnet', displayName: 'Claude 3.7 Sonnet (Hybrid Reasoning)'),
-          AiModelOption(id: 'claude-3-5-sonnet', displayName: 'Claude 3.5 Sonnet (Benchmark Workhorse)'),
+          AiModelOption(
+            id: 'claude-3-7-sonnet',
+            displayName: 'Claude 3.7 Sonnet (Hybrid Reasoning)',
+          ),
+          AiModelOption(
+            id: 'claude-3-5-sonnet',
+            displayName: 'Claude 3.5 Sonnet (Benchmark Workhorse)',
+          ),
         ];
       case AiProviderType.groq:
         return const [
-          AiModelOption(id: 'qwen/qwen3.8-27b', displayName: 'Qwen 3.8 27B (Multimodal 131K Context)'),
-          AiModelOption(id: 'meta-llama/llama-4-scout', displayName: 'Llama 4 Scout (Multimodal LPU Speed)'),
-          AiModelOption(id: 'llama-3.3-70b-versatile', displayName: 'Llama 3.3 70B Versatile'),
-          AiModelOption(id: 'llama-3.1-8b-instant', displayName: 'Llama 3.1 8B Instant (Ultra-Low Latency)'),
-          AiModelOption(id: 'llama-3.2-90b-vision-preview', displayName: 'Llama 3.2 90B Vision (Multimodal)'),
-          AiModelOption(id: 'llama-3.2-11b-vision-preview', displayName: 'Llama 3.2 11B Vision (Multimodal)'),
-          AiModelOption(id: 'llama-3.2-3b-preview', displayName: 'Llama 3.2 3B Preview'),
-          AiModelOption(id: 'openai/gpt-oss-120b', displayName: 'GPT OSS Large (120B Open Enterprise)'),
-          AiModelOption(id: 'openai/gpt-oss-20b', displayName: 'GPT OSS Mini (20B Open Lightweight)'),
-          AiModelOption(id: 'groq/compound', displayName: 'Groq Compound (Multi-Agent Routing)'),
+          AiModelOption(
+            id: 'qwen/qwen3.8-27b',
+            displayName: 'Qwen 3.8 27B (Multimodal 131K Context)',
+          ),
+          AiModelOption(
+            id: 'meta-llama/llama-4-scout',
+            displayName: 'Llama 4 Scout (Multimodal LPU Speed)',
+          ),
+          AiModelOption(
+            id: 'llama-3.3-70b-versatile',
+            displayName: 'Llama 3.3 70B Versatile',
+          ),
+          AiModelOption(
+            id: 'llama-3.1-8b-instant',
+            displayName: 'Llama 3.1 8B Instant (Ultra-Low Latency)',
+          ),
+          AiModelOption(
+            id: 'llama-3.2-90b-vision-preview',
+            displayName: 'Llama 3.2 90B Vision (Multimodal)',
+          ),
+          AiModelOption(
+            id: 'llama-3.2-11b-vision-preview',
+            displayName: 'Llama 3.2 11B Vision (Multimodal)',
+          ),
+          AiModelOption(
+            id: 'llama-3.2-3b-preview',
+            displayName: 'Llama 3.2 3B Preview',
+          ),
+          AiModelOption(
+            id: 'openai/gpt-oss-120b',
+            displayName: 'GPT OSS Large (120B Open Enterprise)',
+          ),
+          AiModelOption(
+            id: 'openai/gpt-oss-20b',
+            displayName: 'GPT OSS Mini (20B Open Lightweight)',
+          ),
+          AiModelOption(
+            id: 'groq/compound',
+            displayName: 'Groq Compound (Multi-Agent Routing)',
+          ),
         ];
       case AiProviderType.openRouter:
         return const [
-          AiModelOption(id: 'meta-llama/llama-4-maverick', displayName: 'Llama 4 Maverick (128-Expert MoE Multimodal)'),
-          AiModelOption(id: 'meta-llama/llama-4-scout', displayName: 'Llama 4 Scout (17B Multimodal 1M Context)'),
-          AiModelOption(id: 'meta/muse-spark', displayName: 'Meta Muse Spark (Frontier Multimodal API)'),
-          AiModelOption(id: 'meta/muse-glimmer', displayName: 'Meta Muse Glimmer (30B Open Weights)'),
-          AiModelOption(id: 'meta-llama/llama-3.3-70b-instruct', displayName: 'Llama 3.3 70B Instruct (Multilingual & Reasoning)'),
-          AiModelOption(id: 'meta-llama/llama-3.2-90b-vision-instruct', displayName: 'Llama 3.2 90B Vision Instruct'),
-          AiModelOption(id: 'meta-llama/llama-3.2-11b-vision-instruct', displayName: 'Llama 3.2 11B Vision Instruct'),
-          AiModelOption(id: 'meta-llama/llama-3.2-3b-instruct', displayName: 'Llama 3.2 3B Instruct (Edge Mobile Chat)'),
-          AiModelOption(id: 'meta-llama/llama-3.2-1b-instruct', displayName: 'Llama 3.2 1B Instruct (Ultra-Compact)'),
-          AiModelOption(id: 'meta-llama/llama-3.1-405b-instruct', displayName: 'Llama 3.1 405B Instruct (Massive Reasoning)'),
+          AiModelOption(
+            id: 'meta-llama/llama-4-maverick',
+            displayName: 'Llama 4 Maverick (128-Expert MoE Multimodal)',
+          ),
+          AiModelOption(
+            id: 'meta-llama/llama-4-scout',
+            displayName: 'Llama 4 Scout (17B Multimodal 1M Context)',
+          ),
+          AiModelOption(
+            id: 'meta/muse-spark',
+            displayName: 'Meta Muse Spark (Frontier Multimodal API)',
+          ),
+          AiModelOption(
+            id: 'meta/muse-glimmer',
+            displayName: 'Meta Muse Glimmer (30B Open Weights)',
+          ),
+          AiModelOption(
+            id: 'meta-llama/llama-3.3-70b-instruct',
+            displayName: 'Llama 3.3 70B Instruct (Multilingual & Reasoning)',
+          ),
+          AiModelOption(
+            id: 'meta-llama/llama-3.2-90b-vision-instruct',
+            displayName: 'Llama 3.2 90B Vision Instruct',
+          ),
+          AiModelOption(
+            id: 'meta-llama/llama-3.2-11b-vision-instruct',
+            displayName: 'Llama 3.2 11B Vision Instruct',
+          ),
+          AiModelOption(
+            id: 'meta-llama/llama-3.2-3b-instruct',
+            displayName: 'Llama 3.2 3B Instruct (Edge Mobile Chat)',
+          ),
+          AiModelOption(
+            id: 'meta-llama/llama-3.2-1b-instruct',
+            displayName: 'Llama 3.2 1B Instruct (Ultra-Compact)',
+          ),
+          AiModelOption(
+            id: 'meta-llama/llama-3.1-405b-instruct',
+            displayName: 'Llama 3.1 405B Instruct (Massive Reasoning)',
+          ),
         ];
       case AiProviderType.deepSeek:
         return const [
-          AiModelOption(id: 'deepseek-flash', displayName: 'DeepSeek-V4.1-Flash (552B MoE Multimodal + Thinking)'),
-          AiModelOption(id: 'deepseek-v4-pro', displayName: 'DeepSeek-V4 Pro (Flagship Agentic Model)'),
-          AiModelOption(id: 'deepseek-chat', displayName: 'DeepSeek Chat (Standard Conversational)'),
-          AiModelOption(id: 'deepseek-reasoner', displayName: 'DeepSeek Reasoner (Deliberate Chain-of-Thought)'),
-          AiModelOption(id: 'deepseek-coder', displayName: 'DeepSeek Coder (Financial Logic & Code)'),
+          AiModelOption(
+            id: 'deepseek-flash',
+            displayName: 'DeepSeek-V4.1-Flash (552B MoE Multimodal + Thinking)',
+          ),
+          AiModelOption(
+            id: 'deepseek-v4-pro',
+            displayName: 'DeepSeek-V4 Pro (Flagship Agentic Model)',
+          ),
+          AiModelOption(
+            id: 'deepseek-chat',
+            displayName: 'DeepSeek Chat (Standard Conversational)',
+          ),
+          AiModelOption(
+            id: 'deepseek-reasoner',
+            displayName: 'DeepSeek Reasoner (Deliberate Chain-of-Thought)',
+          ),
+          AiModelOption(
+            id: 'deepseek-coder',
+            displayName: 'DeepSeek Coder (Financial Logic & Code)',
+          ),
         ];
       case AiProviderType.custom:
         return const [
-          AiModelOption(id: 'llama-4-scout', displayName: 'Llama 4 Scout (Ollama / LocalAI / vLLM)'),
-          AiModelOption(id: 'qwen3.8', displayName: 'Qwen 3.8 Multimodal (Local)'),
-          AiModelOption(id: 'deepseek-flash', displayName: 'DeepSeek Flash (Local / Self-Hosted)'),
-          AiModelOption(id: 'llama3.3:70b', displayName: 'Llama 3.3 70B (Local)'),
-          AiModelOption(id: 'llama3.2-vision', displayName: 'Llama 3.2 Vision 11B (Local Multimodal)'),
-          AiModelOption(id: 'llama3.2:3b', displayName: 'Llama 3.2 3B (Compact Laptop/Device)'),
-          AiModelOption(id: 'mistral-large', displayName: 'Mistral Large (Local / vLLM)'),
+          AiModelOption(
+            id: 'llama-4-scout',
+            displayName: 'Llama 4 Scout (Ollama / LocalAI / vLLM)',
+          ),
+          AiModelOption(
+            id: 'qwen3.8',
+            displayName: 'Qwen 3.8 Multimodal (Local)',
+          ),
+          AiModelOption(
+            id: 'deepseek-flash',
+            displayName: 'DeepSeek Flash (Local / Self-Hosted)',
+          ),
+          AiModelOption(
+            id: 'llama3.3:70b',
+            displayName: 'Llama 3.3 70B (Local)',
+          ),
+          AiModelOption(
+            id: 'llama3.2-vision',
+            displayName: 'Llama 3.2 Vision 11B (Local Multimodal)',
+          ),
+          AiModelOption(
+            id: 'llama3.2:3b',
+            displayName: 'Llama 3.2 3B (Compact Laptop/Device)',
+          ),
+          AiModelOption(
+            id: 'mistral-large',
+            displayName: 'Mistral Large (Local / vLLM)',
+          ),
           AiModelOption(id: 'gemma2:27b', displayName: 'Gemma 2 27B (Local)'),
           AiModelOption(id: 'phi-4', displayName: 'Phi-4 (Local Reasoning)'),
-          AiModelOption(id: 'command-r-plus', displayName: 'Command R+ (Enterprise Retrieval)'),
+          AiModelOption(
+            id: 'command-r-plus',
+            displayName: 'Command R+ (Enterprise Retrieval)',
+          ),
         ];
     }
   }
@@ -291,7 +465,9 @@ class AiProviderConfig {
       final customOptions = <AiModelOption>[...defaultOptions];
       for (final saved in customSavedModels) {
         if (!existingIds.contains(saved) && saved.trim().isNotEmpty) {
-          customOptions.add(AiModelOption(id: saved, displayName: '$saved (Custom)'));
+          customOptions.add(
+            AiModelOption(id: saved, displayName: '$saved (Custom)'),
+          );
         }
       }
       return customOptions;
@@ -300,7 +476,8 @@ class AiProviderConfig {
   }
 
   /// Returns effective model options including custom user-saved models for active provider
-  List<AiModelOption> get activeModelOptions => getModelOptionsFor(providerType);
+  List<AiModelOption> get activeModelOptions =>
+      getModelOptionsFor(providerType);
 
   /// Display name of the active model
   String get activeModelDisplayName {
@@ -340,10 +517,13 @@ class AiProviderConfig {
 
   bool get isGeminiConfigured => isProviderConfigured(AiProviderType.gemini);
   bool get isOpenAiConfigured => isProviderConfigured(AiProviderType.openAi);
-  bool get isAnthropicConfigured => isProviderConfigured(AiProviderType.anthropic);
+  bool get isAnthropicConfigured =>
+      isProviderConfigured(AiProviderType.anthropic);
   bool get isGroqConfigured => isProviderConfigured(AiProviderType.groq);
-  bool get isOpenRouterConfigured => isProviderConfigured(AiProviderType.openRouter);
-  bool get isDeepSeekConfigured => isProviderConfigured(AiProviderType.deepSeek);
+  bool get isOpenRouterConfigured =>
+      isProviderConfigured(AiProviderType.openRouter);
+  bool get isDeepSeekConfigured =>
+      isProviderConfigured(AiProviderType.deepSeek);
   bool get isCustomConfigured => isProviderConfigured(AiProviderType.custom);
 
   /// List of providers that have been configured
@@ -520,41 +700,42 @@ class AiChatSession {
   });
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'title': title,
-        'provider': provider,
-        'model_used': modelUsed,
-        'created_at': createdAt.millisecondsSinceEpoch,
-        'updated_at': updatedAt.millisecondsSinceEpoch,
-      };
+    'id': id,
+    'title': title,
+    'provider': provider,
+    'model_used': modelUsed,
+    'created_at': createdAt.millisecondsSinceEpoch,
+    'updated_at': updatedAt.millisecondsSinceEpoch,
+  };
 
   factory AiChatSession.fromMap(Map<String, dynamic> map) => AiChatSession(
-        id: map['id'] as String,
-        title: (map['title'] as String?) ?? 'Conversation',
-        provider: (map['provider'] as String?) ?? 'gemini',
-        modelUsed: (map['model_used'] as String?) ?? '',
-        createdAt: DateTime.fromMillisecondsSinceEpoch(
-          (map['created_at'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
-        ),
-        updatedAt: DateTime.fromMillisecondsSinceEpoch(
-          (map['updated_at'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
-        ),
-      );
+    id: map['id'] as String,
+    title: (map['title'] as String?) ?? 'Conversation',
+    provider: (map['provider'] as String?) ?? 'gemini',
+    modelUsed: (map['model_used'] as String?) ?? '',
+    createdAt: DateTime.fromMillisecondsSinceEpoch(
+      (map['created_at'] as num?)?.toInt() ??
+          DateTime.now().millisecondsSinceEpoch,
+    ),
+    updatedAt: DateTime.fromMillisecondsSinceEpoch(
+      (map['updated_at'] as num?)?.toInt() ??
+          DateTime.now().millisecondsSinceEpoch,
+    ),
+  );
 
   AiChatSession copyWith({
     String? title,
     String? provider,
     String? modelUsed,
     DateTime? updatedAt,
-  }) =>
-      AiChatSession(
-        id: id,
-        title: title ?? this.title,
-        provider: provider ?? this.provider,
-        modelUsed: modelUsed ?? this.modelUsed,
-        createdAt: createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => AiChatSession(
+    id: id,
+    title: title ?? this.title,
+    provider: provider ?? this.provider,
+    modelUsed: modelUsed ?? this.modelUsed,
+    createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 }
 
 class AiChatMessage {
@@ -573,22 +754,23 @@ class AiChatMessage {
   });
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'session_id': sessionId,
-        'text': text,
-        'is_user': isUser ? 1 : 0,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-      };
+    'id': id,
+    'session_id': sessionId,
+    'text': text,
+    'is_user': isUser ? 1 : 0,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+  };
 
   factory AiChatMessage.fromMap(Map<String, dynamic> map) => AiChatMessage(
-        id: map['id'] as String,
-        sessionId: (map['session_id'] as String?) ?? '',
-        text: (map['text'] as String?) ?? '',
-        isUser: map['is_user'] == 1 || map['is_user'] == true,
-        timestamp: DateTime.fromMillisecondsSinceEpoch(
-          (map['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
-        ),
-      );
+    id: map['id'] as String,
+    sessionId: (map['session_id'] as String?) ?? '',
+    text: (map['text'] as String?) ?? '',
+    isUser: map['is_user'] == 1 || map['is_user'] == true,
+    timestamp: DateTime.fromMillisecondsSinceEpoch(
+      (map['timestamp'] as num?)?.toInt() ??
+          DateTime.now().millisecondsSinceEpoch,
+    ),
+  );
 }
 
 enum AiReportType {

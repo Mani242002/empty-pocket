@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/budget_entity.dart';
@@ -16,8 +17,8 @@ class DashboardBudgetCard extends ConsumerWidget {
     super.key,
     OverallBudgetSummary? budgetSummary,
     double? totalExpense,
-  })  : explicitBudgetSummary = budgetSummary,
-        explicitTotalExpense = totalExpense;
+  }) : explicitBudgetSummary = budgetSummary,
+       explicitTotalExpense = totalExpense;
 
   Color _getBudgetHealthColor(BuildContext context, BudgetHealth health) {
     final fc = context.financialColors;
@@ -37,8 +38,11 @@ class DashboardBudgetCard extends ConsumerWidget {
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
 
-    final OverallBudgetSummary budgetSummary = explicitBudgetSummary ?? ref.watch(overallMonthlyBudgetSummaryProvider);
-    final double totalExpense = explicitTotalExpense ?? ref.watch(monthlyFinancialSummaryProvider).totalExpense;
+    final OverallBudgetSummary budgetSummary =
+        explicitBudgetSummary ?? ref.watch(overallMonthlyBudgetSummaryProvider);
+    final double totalExpense =
+        explicitTotalExpense ??
+        ref.watch(monthlyFinancialSummaryProvider).totalExpense;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -64,18 +68,30 @@ class DashboardBudgetCard extends ConsumerWidget {
                   const SizedBox(width: 8),
                   if (budgetSummary.budgetedCategoriesCount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getBudgetHealthColor(context, budgetSummary.health).withAlpha(isDark ? 40 : 25),
+                        color: _getBudgetHealthColor(
+                          context,
+                          budgetSummary.health,
+                        ).withAlpha(isDark ? 40 : 25),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: _getBudgetHealthColor(context, budgetSummary.health).withAlpha(isDark ? 60 : 40),
+                          color: _getBudgetHealthColor(
+                            context,
+                            budgetSummary.health,
+                          ).withAlpha(isDark ? 60 : 40),
                         ),
                       ),
                       child: Text(
                         budgetSummary.health.displayName,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: _getBudgetHealthColor(context, budgetSummary.health),
+                          color: _getBudgetHealthColor(
+                            context,
+                            budgetSummary.health,
+                          ),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -97,7 +113,10 @@ class DashboardBudgetCard extends ConsumerWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: LinearProgressIndicator(
-                    value: (budgetSummary.overallPercentage / 100).clamp(0.0, 1.0),
+                    value: (budgetSummary.overallPercentage / 100).clamp(
+                      0.0,
+                      1.0,
+                    ),
                     minHeight: 8,
                     backgroundColor: isDark
                         ? AppColors.darkSurfaceVariant
@@ -150,7 +169,9 @@ class DashboardBudgetCard extends ConsumerWidget {
                     backgroundColor: isDark
                         ? AppColors.darkSurfaceVariant
                         : AppColors.lightSurfaceVariant,
-                    valueColor: AlwaysStoppedAnimation<Color>(financialColors.income),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      financialColors.income,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utilities/currency_formatter.dart';
@@ -34,14 +35,8 @@ class DashboardPendingSharedCard extends ConsumerWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? [
-                    const Color(0xFF13221B),
-                    const Color(0xFF131B26),
-                  ]
-                : [
-                    const Color(0xFFECFDF5),
-                    const Color(0xFFF0FDF4),
-                  ],
+                ? [const Color(0xFF13221B), const Color(0xFF131B26)]
+                : [const Color(0xFFECFDF5), const Color(0xFFF0FDF4)],
           ),
           border: Border.all(
             color: AppColors.primaryEmerald.withAlpha(isDark ? 80 : 50),
@@ -108,14 +103,21 @@ class DashboardPendingSharedCard extends ConsumerWidget {
             if (ccEarmark > 0) ...[
               const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.info.withAlpha(isDark ? 30 : 20),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.credit_card_rounded, size: 14, color: AppColors.info),
+                    const Icon(
+                      Icons.credit_card_rounded,
+                      size: 14,
+                      color: AppColors.info,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -123,7 +125,9 @@ class DashboardPendingSharedCard extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary,
                         ),
                       ),
                     ),
@@ -139,7 +143,9 @@ class DashboardPendingSharedCard extends ConsumerWidget {
                   backgroundColor: AppColors.primaryEmerald,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 icon: const Icon(Icons.check_rounded, size: 16),
                 label: const Text(

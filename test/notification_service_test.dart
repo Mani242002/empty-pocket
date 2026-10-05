@@ -29,25 +29,32 @@ void main() {
       expect(identical(service, NotificationService.instance), isTrue);
     });
 
-    test('DailyStreakReminderNotifier loads initial preference and toggles', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+    test(
+      'DailyStreakReminderNotifier loads initial preference and toggles',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
 
-      // Initial state is true
-      expect(container.read(dailyStreakReminderNotifierProvider), isTrue);
+        // Initial state is true
+        expect(container.read(dailyStreakReminderNotifierProvider), isTrue);
 
-      // Set to false
-      await container.read(dailyStreakReminderNotifierProvider.notifier).setEnabled(false);
-      expect(container.read(dailyStreakReminderNotifierProvider), isFalse);
+        // Set to false
+        await container
+            .read(dailyStreakReminderNotifierProvider.notifier)
+            .setEnabled(false);
+        expect(container.read(dailyStreakReminderNotifierProvider), isFalse);
 
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(kPrefDailyStreakReminder), isFalse);
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getBool(kPrefDailyStreakReminder), isFalse);
 
-      // Set back to true
-      await container.read(dailyStreakReminderNotifierProvider.notifier).setEnabled(true);
-      expect(container.read(dailyStreakReminderNotifierProvider), isTrue);
-      expect(prefs.getBool(kPrefDailyStreakReminder), isTrue);
-    });
+        // Set back to true
+        await container
+            .read(dailyStreakReminderNotifierProvider.notifier)
+            .setEnabled(true);
+        expect(container.read(dailyStreakReminderNotifierProvider), isTrue);
+        expect(prefs.getBool(kPrefDailyStreakReminder), isTrue);
+      },
+    );
 
     test('BillDueAlertNotifier loads initial preference and toggles', () async {
       final container = ProviderContainer();
@@ -57,40 +64,47 @@ void main() {
       expect(container.read(billDueAlertNotifierProvider), isTrue);
 
       // Set to false
-      await container.read(billDueAlertNotifierProvider.notifier).setEnabled(false);
+      await container
+          .read(billDueAlertNotifierProvider.notifier)
+          .setEnabled(false);
       expect(container.read(billDueAlertNotifierProvider), isFalse);
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool(kPrefBillDueAlert), isFalse);
 
       // Set back to true
-      await container.read(billDueAlertNotifierProvider.notifier).setEnabled(true);
+      await container
+          .read(billDueAlertNotifierProvider.notifier)
+          .setEnabled(true);
       expect(container.read(billDueAlertNotifierProvider), isTrue);
       expect(prefs.getBool(kPrefBillDueAlert), isTrue);
     });
 
-    test('checkAndNotifyBillsDueToday handles empty or non-due bills safely', () async {
-      final service = NotificationService.instance;
+    test(
+      'checkAndNotifyBillsDueToday handles empty or non-due bills safely',
+      () async {
+        final service = NotificationService.instance;
 
-      final now = DateTime.now();
-      final bills = [
-        RecurringExpenseEntity(
-          id: 'rec_1',
-          title: 'Internet Fiber',
-          amount: 999,
-          category: 'Utilities',
-          frequency: RecurringFrequency.monthly,
-          paymentSource: 'Bank Account',
-          startDate: now.subtract(const Duration(days: 30)),
-          nextDueDate: now.add(const Duration(days: 5)),
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ];
+        final now = DateTime.now();
+        final bills = [
+          RecurringExpenseEntity(
+            id: 'rec_1',
+            title: 'Internet Fiber',
+            amount: 999,
+            category: 'Utilities',
+            frequency: RecurringFrequency.monthly,
+            paymentSource: 'Bank Account',
+            startDate: now.subtract(const Duration(days: 30)),
+            nextDueDate: now.add(const Duration(days: 5)),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ];
 
-      // Should not throw
-      await service.checkAndNotifyBillsDueToday(bills);
-      await service.checkAndNotifyBillsDueToday(<RecurringExpenseEntity>[]);
-    });
+        // Should not throw
+        await service.checkAndNotifyBillsDueToday(bills);
+        await service.checkAndNotifyBillsDueToday(<RecurringExpenseEntity>[]);
+      },
+    );
   });
 }

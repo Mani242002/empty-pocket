@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
@@ -7,14 +8,12 @@ import '../../../../core/utilities/currency_formatter.dart';
 class DashboardMonthlyComparisonBanner extends StatelessWidget {
   final MonthlySpendingComparison comparison;
 
-  const DashboardMonthlyComparisonBanner({
-    super.key,
-    required this.comparison,
-  });
+  const DashboardMonthlyComparisonBanner({super.key, required this.comparison});
 
   @override
   Widget build(BuildContext context) {
-    if (!comparison.hasPreviousMonthData || comparison.previousMonthExpense <= 0) {
+    if (!comparison.hasPreviousMonthData ||
+        comparison.previousMonthExpense <= 0) {
       return const SizedBox.shrink();
     }
 
@@ -23,8 +22,14 @@ class DashboardMonthlyComparisonBanner extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final isSaving = comparison.isLower;
-    final accentColor = isSaving ? financialColors.income : (comparison.percentageChange > 20 ? financialColors.expense : financialColors.warning);
-    final icon = isSaving ? Icons.trending_down_rounded : Icons.trending_up_rounded;
+    final accentColor = isSaving
+        ? financialColors.income
+        : (comparison.percentageChange > 20
+              ? financialColors.expense
+              : financialColors.warning);
+    final icon = isSaving
+        ? Icons.trending_down_rounded
+        : Icons.trending_up_rounded;
 
     final title = isSaving
         ? 'Spending is down by ${comparison.percentageChange.toStringAsFixed(0)}%'
@@ -65,7 +70,9 @@ class DashboardMonthlyComparisonBanner extends StatelessWidget {
                     title,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

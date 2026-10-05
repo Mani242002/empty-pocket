@@ -101,10 +101,15 @@ class NetWorthComposition {
   );
 
   bool get isPositive => netWorth >= 0;
-  double get cashPercentage => totalAssets > 0 ? (cashBalance.clamp(0, double.infinity) / totalAssets) * 100 : 0.0;
-  double get savingsPercentage => totalAssets > 0 ? (savingsGoalsAmount / totalAssets) * 100 : 0.0;
-  double get investmentsPercentage => totalAssets > 0 ? (investmentsAmount / totalAssets) * 100 : 0.0;
-  double get receivablesPercentage => totalAssets > 0 ? (receivablesAmount / totalAssets) * 100 : 0.0;
+  double get cashPercentage => totalAssets > 0
+      ? (cashBalance.clamp(0, double.infinity) / totalAssets) * 100
+      : 0.0;
+  double get savingsPercentage =>
+      totalAssets > 0 ? (savingsGoalsAmount / totalAssets) * 100 : 0.0;
+  double get investmentsPercentage =>
+      totalAssets > 0 ? (investmentsAmount / totalAssets) * 100 : 0.0;
+  double get receivablesPercentage =>
+      totalAssets > 0 ? (receivablesAmount / totalAssets) * 100 : 0.0;
 }
 
 class FinancialHealthSummary {

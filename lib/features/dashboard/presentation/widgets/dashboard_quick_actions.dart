@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
@@ -44,10 +45,7 @@ class DashboardQuickActions extends StatelessWidget {
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: context.financialColors.cardBorder,
-          width: 1,
-        ),
+        side: BorderSide(color: context.financialColors.cardBorder, width: 1),
       ),
       child: InkWell(
         onTap: onTap,
@@ -65,11 +63,7 @@ class DashboardQuickActions extends StatelessWidget {
                 )
               : Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
-                    iconWidget,
-                    const SizedBox(height: 8),
-                    textWidget,
-                  ],
+                  children: [iconWidget, const SizedBox(height: 8), textWidget],
                 ),
         ),
       ),
@@ -129,11 +123,7 @@ class DashboardQuickActions extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(child: budgetBtn),
-                  ],
-                ),
+                Row(children: [Expanded(child: budgetBtn)]),
               ],
             ),
           );

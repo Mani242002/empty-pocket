@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/category_constants.dart';
@@ -77,7 +78,9 @@ class TransactionListItem extends StatelessWidget {
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.expense,
+                ),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Delete'),
               ),
@@ -100,7 +103,10 @@ class TransactionListItem extends StatelessWidget {
             SizedBox(width: 8),
             Text(
               'Delete',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -109,10 +115,7 @@ class TransactionListItem extends StatelessWidget {
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: financialColors.cardBorder,
-            width: 1,
-          ),
+          side: BorderSide(color: financialColors.cardBorder, width: 1),
         ),
         child: InkWell(
           onTap: () {
@@ -167,8 +170,12 @@ class TransactionListItem extends StatelessWidget {
                       Builder(
                         builder: (context) {
                           final source = transaction.paymentSource.trim();
-                          final loan = transaction.category == CategoryConstants.categoryMoneyLent
-                              ? LoanShareHelper.parseLoan(transaction.sharedWith)
+                          final loan =
+                              transaction.category ==
+                                  CategoryConstants.categoryMoneyLent
+                              ? LoanShareHelper.parseLoan(
+                                  transaction.sharedWith,
+                                )
                               : null;
 
                           final parts = <String>[
@@ -191,12 +198,14 @@ class TransactionListItem extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (transaction.category == CategoryConstants.categoryMoneyLent) ...[
+                              if (transaction.category ==
+                                  CategoryConstants.categoryMoneyLent) ...[
                                 const SizedBox(width: 4),
                                 Icon(
                                   Icons.handshake_rounded,
                                   size: 13,
-                                  color: (loan?.isRepaid ?? transaction.isSettled)
+                                  color:
+                                      (loan?.isRepaid ?? transaction.isSettled)
                                       ? financialColors.income
                                       : financialColors.warning,
                                 ),
@@ -205,7 +214,9 @@ class TransactionListItem extends StatelessWidget {
                                 Icon(
                                   Icons.group_outlined,
                                   size: 13,
-                                  color: transaction.isSettled ? financialColors.income : financialColors.warning,
+                                  color: transaction.isSettled
+                                      ? financialColors.income
+                                      : financialColors.warning,
                                 ),
                               ],
                             ],
@@ -220,7 +231,9 @@ class TransactionListItem extends StatelessWidget {
                 Flexible(
                   child: Builder(
                     builder: (context) {
-                      final loan = transaction.category == CategoryConstants.categoryMoneyLent
+                      final loan =
+                          transaction.category ==
+                              CategoryConstants.categoryMoneyLent
                           ? LoanShareHelper.parseLoan(transaction.sharedWith)
                           : null;
 

@@ -96,7 +96,8 @@ class SavingsGoalEntity {
   }
 
   bool get isCompleted =>
-      status == GoalStatus.completed || (targetAmount > 0 && currentAmount >= targetAmount);
+      status == GoalStatus.completed ||
+      (targetAmount > 0 && currentAmount >= targetAmount);
 
   Map<String, dynamic> toMap() {
     return {
@@ -123,11 +124,14 @@ class SavingsGoalEntity {
       targetAmount: (map['target_amount'] as num).toDouble(),
       currentAmount: (map['current_amount'] as num).toDouble(),
       category: map['category'] as String,
-      targetDate: DateTime.fromMillisecondsSinceEpoch(map['target_date'] as int),
+      targetDate: DateTime.fromMillisecondsSinceEpoch(
+        map['target_date'] as int,
+      ),
       isEmergencyFund: (map['is_emergency_fund'] as int) == 1,
       status: GoalStatus.fromString(map['status'] as String),
       linkedAccountId: map['linked_account_id'] as String?,
-      allocationPercentage: (map['allocation_percentage'] as num?)?.toDouble() ?? 100.0,
+      allocationPercentage:
+          (map['allocation_percentage'] as num?)?.toDouble() ?? 100.0,
       autoSyncAccount: (map['auto_sync_account'] as int? ?? 0) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
@@ -151,16 +155,16 @@ class SavingsGoalEntity {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        title,
-        targetAmount,
-        currentAmount,
-        category,
-        status,
-        linkedAccountId,
-        allocationPercentage,
-        autoSyncAccount,
-      );
+    id,
+    title,
+    targetAmount,
+    currentAmount,
+    category,
+    status,
+    linkedAccountId,
+    allocationPercentage,
+    autoSyncAccount,
+  );
 }
 
 /// Domain entity representing a contribution entry towards a goal
@@ -171,6 +175,7 @@ class GoalContributionEntity {
   final DateTime date;
   final String? notes;
   final String? sourceAccountId;
+  final String? transactionId;
   final DateTime createdAt;
 
   const GoalContributionEntity({
@@ -180,6 +185,7 @@ class GoalContributionEntity {
     required this.date,
     this.notes,
     this.sourceAccountId,
+    this.transactionId,
     required this.createdAt,
   });
 
@@ -191,6 +197,7 @@ class GoalContributionEntity {
       'date': date.millisecondsSinceEpoch,
       'notes': notes,
       'source_account_id': sourceAccountId,
+      'transaction_id': transactionId,
       'created_at': createdAt.millisecondsSinceEpoch,
     };
   }
@@ -203,6 +210,7 @@ class GoalContributionEntity {
       date: DateTime.fromMillisecondsSinceEpoch(map['date'] as int),
       notes: map['notes'] as String?,
       sourceAccountId: map['source_account_id'] as String?,
+      transactionId: map['transaction_id'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
     );
   }
@@ -214,6 +222,7 @@ class GoalContributionEntity {
     DateTime? date,
     String? notes,
     String? sourceAccountId,
+    String? transactionId,
     DateTime? createdAt,
   }) {
     return GoalContributionEntity(
@@ -223,6 +232,7 @@ class GoalContributionEntity {
       date: date ?? this.date,
       notes: notes ?? this.notes,
       sourceAccountId: sourceAccountId ?? this.sourceAccountId,
+      transactionId: transactionId ?? this.transactionId,
       createdAt: createdAt ?? this.createdAt,
     );
   }

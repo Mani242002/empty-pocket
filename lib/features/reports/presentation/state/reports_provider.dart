@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/reports_entity.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
@@ -11,7 +12,10 @@ final monthlyTrendsProvider = Provider<List<MonthlyTrendData>>((ref) {
   final transactionsAsync = ref.watch(transactionListNotifierProvider);
 
   return transactionsAsync.maybeWhen(
-    data: (transactions) => FinancialCalculator.calculateMonthlyTrends(transactions, monthsCount: 6),
+    data: (transactions) => FinancialCalculator.calculateMonthlyTrends(
+      transactions,
+      monthsCount: 6,
+    ),
     orElse: () => [],
   );
 });
@@ -35,22 +39,31 @@ final cashFlowForecastProvider = Provider<List<CashFlowForecastItem>>((ref) {
 });
 
 /// Spending breakdown by payment method
-final paymentSourceBreakdownProvider = Provider<List<PaymentSourceBreakdown>>((ref) {
+final paymentSourceBreakdownProvider = Provider<List<PaymentSourceBreakdown>>((
+  ref,
+) {
   final transactionsAsync = ref.watch(transactionListNotifierProvider);
 
   return transactionsAsync.maybeWhen(
-    data: (transactions) => FinancialCalculator.calculatePaymentSourceBreakdown(transactions),
+    data: (transactions) =>
+        FinancialCalculator.calculatePaymentSourceBreakdown(transactions),
     orElse: () => [],
   );
 });
 
 /// Account-wise outflow breakdown with purpose mapping (Kotak, ICICI, SBI, AU, IDFC, etc.)
-final accountOutflowBreakdownProvider = Provider<List<AccountOutflowBreakdown>>((ref) {
-  final transactions = ref.watch(monthlyTransactionsProvider);
-  final accounts = ref.watch(activeBankAccountsProvider);
-  final cards = ref.watch(activeCreditCardsProvider);
-  return FinancialCalculator.calculateAccountOutflowBreakdown(transactions, accounts, cards);
-});
+final accountOutflowBreakdownProvider = Provider<List<AccountOutflowBreakdown>>(
+  (ref) {
+    final transactions = ref.watch(monthlyTransactionsProvider);
+    final accounts = ref.watch(activeBankAccountsProvider);
+    final cards = ref.watch(activeCreditCardsProvider);
+    return FinancialCalculator.calculateAccountOutflowBreakdown(
+      transactions,
+      accounts,
+      cards,
+    );
+  },
+);
 
 /// True personal spend vs shared reimbursements impact
 final sharedExpenseImpactProvider = Provider<SharedExpenseImpact>((ref) {
@@ -66,8 +79,11 @@ final wealthBuildingSummaryProvider = Provider<WealthBuildingSummary>((ref) {
 
 /// Month-over-month category spending changes
 final categoryMomChangesProvider = Provider<List<CategoryMomChange>>((ref) {
-  final allTransactions = ref.watch(transactionListNotifierProvider).valueOrNull ?? [];
+  final allTransactions =
+      ref.watch(transactionListNotifierProvider).valueOrNull ?? [];
   final currentMonth = ref.watch(selectedMonthProvider);
-  return FinancialCalculator.calculateCategoryMomChanges(allTransactions, currentMonth);
+  return FinancialCalculator.calculateCategoryMomChanges(
+    allTransactions,
+    currentMonth,
+  );
 });
-

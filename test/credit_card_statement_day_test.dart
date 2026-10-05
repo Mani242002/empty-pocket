@@ -24,7 +24,11 @@ void main() {
       expect(nextStatement.day, 15);
 
       final daysUntilStmt = card.daysUntilStatement(now);
-      expect(daysUntilStmt, 0, reason: 'Days until statement on statement day must be 0');
+      expect(
+        daysUntilStmt,
+        0,
+        reason: 'Days until statement on statement day must be 0',
+      );
 
       final nextDue = card.getNextDueDate(now);
       expect(nextDue, DateTime(2026, 9, 15).add(const Duration(days: 20)));
@@ -93,7 +97,11 @@ void main() {
 
       // Due date MUST be for the bill generated on Sept 15 -> Oct 5
       final nextDue = card.getNextDueDate(now);
-      expect(nextDue, DateTime(2026, 10, 5), reason: 'Due date must not skip to November');
+      expect(
+        nextDue,
+        DateTime(2026, 10, 5),
+        reason: 'Due date must not skip to November',
+      );
 
       final daysUntilDue = card.daysUntilDue(now);
       expect(daysUntilDue, 19, reason: 'From Sept 16 to Oct 5 is 19 days');
@@ -156,7 +164,8 @@ void main() {
       expect(restored.initialUsedAmount, 15000.0);
 
       // Fallback test for legacy maps lacking initial_used_amount
-      final legacyMap = Map<String, dynamic>.from(map)..remove('initial_used_amount');
+      final legacyMap = Map<String, dynamic>.from(map)
+        ..remove('initial_used_amount');
       final legacyRestored = CreditCardEntity.fromMap(legacyMap);
       expect(legacyRestored.initialUsedAmount, 15000.0);
     });

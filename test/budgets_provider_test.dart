@@ -57,28 +57,31 @@ void main() {
       repository = InMemoryRecurringRepository();
     });
 
-    test('saveRecurringExpense and getAllRecurringExpenses works properly', () async {
-      final item = RecurringExpenseEntity(
-        id: 'r1',
-        title: 'Spotify Premium',
-        amount: 119,
-        category: 'Entertainment',
-        frequency: RecurringFrequency.monthly,
-        paymentSource: 'UPI',
-        startDate: now,
-        nextDueDate: now.add(const Duration(days: 10)),
-        isActive: true,
-        createdAt: now,
-        updatedAt: now,
-      );
+    test(
+      'saveRecurringExpense and getAllRecurringExpenses works properly',
+      () async {
+        final item = RecurringExpenseEntity(
+          id: 'r1',
+          title: 'Spotify Premium',
+          amount: 119,
+          category: 'Entertainment',
+          frequency: RecurringFrequency.monthly,
+          paymentSource: 'UPI',
+          startDate: now,
+          nextDueDate: now.add(const Duration(days: 10)),
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      await repository.saveRecurringExpense(item);
-      final list = await repository.getAllRecurringExpenses();
+        await repository.saveRecurringExpense(item);
+        final list = await repository.getAllRecurringExpenses();
 
-      expect(list.length, 1);
-      expect(list.first.title, 'Spotify Premium');
-      expect(list.first.amount, 119);
-    });
+        expect(list.length, 1);
+        expect(list.first.title, 'Spotify Premium');
+        expect(list.first.amount, 119);
+      },
+    );
 
     test('deleteRecurringExpense removes item', () async {
       final item = RecurringExpenseEntity(

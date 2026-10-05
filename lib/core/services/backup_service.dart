@@ -1,6 +1,8 @@
 import 'dart:convert';
+
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+
 import 'log_service.dart';
 import '../database/app_database.dart';
 import '../domain/entities/ai_assistant_entity.dart';
@@ -24,14 +26,54 @@ import '../repositories/recurring_repository.dart';
 import '../repositories/savings_goal_repository.dart';
 import '../repositories/transaction_repository.dart';
 
+enum NumberFormatMode { auto, western, european, indian }
+
+class CsvAmbiguousNumberException implements Exception {
+  final int ambiguousCount;
+  final int defaultedDates;
+  final String csvContent;
+
+  const CsvAmbiguousNumberException({
+    required this.ambiguousCount,
+    required this.defaultedDates,
+    required this.csvContent,
+  });
+
+  @override
+  String toString() =>
+      'Found $ambiguousCount ambiguous number(s) (e.g. "1.234" or "1,234"). Format selection required.';
+}
+
 class CsvParseResult {
   final List<TransactionEntity> transactions;
   final int defaultedDateCount;
+  final bool requiresFormatConfirmation;
+  final int ambiguousAmountCount;
+  final int invalidRowsCount;
 
   const CsvParseResult({
     required this.transactions,
     this.defaultedDateCount = 0,
+    this.requiresFormatConfirmation = false,
+    this.ambiguousAmountCount = 0,
+    this.invalidRowsCount = 0,
   });
+}
+
+class _AmountParseOutcome {
+  final double amount;
+  final bool isNegative;
+  final bool isValid;
+  final bool isAmbiguous;
+
+  const _AmountParseOutcome(
+    this.amount, {
+    this.isNegative = false,
+    this.isValid = true,
+    this.isAmbiguous = false,
+  });
+
+  static const invalid = _AmountParseOutcome(0.0, isValid: false);
 }
 
 class BackupService {
@@ -112,42 +154,81 @@ class BackupService {
     }
   }
 
-  /// Generate RFC 4180 CSV export of transactions
+  /// Generate RFC 4180 CSV export of transactions with OWASP formula injection protection
   String exportTransactionsToCsv(List<TransactionEntity> transactions) {
     final buffer = StringBuffer();
-    // CSV Header
-    buffer.writeln('ID,Date,Type,Category,Title,Amount,Payment Method,Notes,Created At');
+    // CSV Header (cleanly quoted)
+    final headers = [
+      'ID',
+      'Date',
+      'Type',
+      'Category',
+      'Title',
+      'Amount',
+      'Payment Method',
+      'Notes',
+      'Created At',
+    ];
+    buffer.writeln(headers.join(','));
 
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
 
     for (final tx in transactions) {
-      final escapedTitle = _escapeCsvField(tx.title);
-      final escapedCategory = _escapeCsvField(tx.category);
-      final escapedSource = _escapeCsvField(tx.paymentSource);
-      final escapedNotes = _escapeCsvField(tx.notes ?? '');
       final formattedDate = dateFormat.format(tx.date);
       final formattedCreatedAt = dateFormat.format(tx.createdAt);
 
-      buffer.writeln(
-        '${tx.id},"$formattedDate",${tx.type.name},"$escapedCategory","$escapedTitle",${tx.amount.toStringAsFixed(2)},"$escapedSource","$escapedNotes","$formattedCreatedAt"',
-      );
+      final cells = [
+        _sanitizeCsvCell(tx.id),
+        _sanitizeCsvCell(formattedDate),
+        _sanitizeCsvCell(tx.type.name),
+        _sanitizeCsvCell(tx.category),
+        _sanitizeCsvCell(tx.title),
+        tx.amount.toStringAsFixed(2),
+        _sanitizeCsvCell(tx.paymentSource),
+        _sanitizeCsvCell(tx.notes ?? ''),
+        _sanitizeCsvCell(formattedCreatedAt),
+      ];
+      buffer.writeln(cells.map((c) => '"$c"').join(','));
     }
 
     return buffer.toString();
   }
 
-  String _escapeCsvField(String field) {
-    return field.replaceAll('"', '""');
+  /// Sanitizes text cells against spreadsheet formula injection (OWASP CWE-1236)
+  /// and escapes internal quotes. Returns an unquoted string ready for enclosing quotes.
+  String _sanitizeCsvCell(String field) {
+    if (field.isEmpty) return '';
+    String escaped = field.replaceAll('"', '""');
+    final trimmed = escaped.trimLeft();
+    if (trimmed.startsWith('=') ||
+        trimmed.startsWith('+') ||
+        trimmed.startsWith('-') ||
+        trimmed.startsWith('@') ||
+        trimmed.startsWith('\t') ||
+        trimmed.startsWith('\r') ||
+        trimmed.startsWith('\n')) {
+      escaped = "'$escaped";
+    }
+    return escaped;
   }
 
   /// Parse CSV content into a list of [TransactionEntity].
   /// Supports EmptyPocket's export format as well as generic financial app CSV formats.
-  List<TransactionEntity> parseTransactionsFromCsv(String csvContent) {
-    return parseTransactionsFromCsvWithResult(csvContent).transactions;
+  List<TransactionEntity> parseTransactionsFromCsv(
+    String csvContent, {
+    NumberFormatMode formatMode = NumberFormatMode.auto,
+  }) {
+    return parseTransactionsFromCsvWithResult(
+      csvContent,
+      formatMode: formatMode,
+    ).transactions;
   }
 
-  /// Parse CSV content with granular details including count of unparsed dates.
-  CsvParseResult parseTransactionsFromCsvWithResult(String csvContent) {
+  /// Parse CSV content with granular details including count of unparsed dates and ambiguous numbers.
+  CsvParseResult parseTransactionsFromCsvWithResult(
+    String csvContent, {
+    NumberFormatMode formatMode = NumberFormatMode.auto,
+  }) {
     final cleanContent = csvContent.startsWith('\uFEFF')
         ? csvContent.substring(1)
         : csvContent;
@@ -171,24 +252,39 @@ class BackupService {
         idIdx = i;
       } else if (col.contains('date') && !col.contains('created')) {
         dateIdx = i;
-      } else if (col == 'created at' || col == 'created_at' || col.contains('create')) {
+      } else if (col == 'created at' ||
+          col == 'created_at' ||
+          col.contains('create')) {
         createdAtIdx = i;
       } else if (col == 'type' || col.contains('transaction type')) {
         typeIdx = i;
       } else if (col.contains('category')) {
         categoryIdx = i;
-      } else if (col.contains('title') || col.contains('desc') || col.contains('payee') || col == 'name') {
+      } else if (col.contains('title') ||
+          col.contains('desc') ||
+          col.contains('payee') ||
+          col == 'name') {
         titleIdx = i;
-      } else if (col.contains('amount') || col == 'sum' || col == 'value' || col == 'cost') {
+      } else if (col.contains('amount') ||
+          col == 'sum' ||
+          col == 'value' ||
+          col == 'cost') {
         amountIdx = i;
-      } else if (col.contains('payment') || col.contains('source') || col.contains('method') || col.contains('account') || col.contains('wallet')) {
+      } else if (col.contains('payment') ||
+          col.contains('source') ||
+          col.contains('method') ||
+          col.contains('account') ||
+          col.contains('wallet')) {
         paymentSourceIdx = i;
-      } else if (col.contains('note') || col.contains('memo') || col.contains('remark')) {
+      } else if (col.contains('note') ||
+          col.contains('memo') ||
+          col.contains('remark')) {
         notesIdx = i;
       }
     }
 
-    final hasRecognizedHeader = (dateIdx != -1 || amountIdx != -1 || titleIdx != -1);
+    final hasRecognizedHeader =
+        (dateIdx != -1 || amountIdx != -1 || titleIdx != -1);
     final dataRows = hasRecognizedHeader ? rows.sublist(1) : rows;
 
     // Fallback column positions if standard EmptyPocket header was positional or headerless
@@ -204,6 +300,8 @@ class BackupService {
 
     final transactions = <TransactionEntity>[];
     int defaultedDateCount = 0;
+    int ambiguousAmountCount = 0;
+    int invalidRowsCount = 0;
 
     final dateTimeFormats = [
       DateFormat('yyyy-MM-dd HH:mm:ss'),
@@ -233,11 +331,21 @@ class BackupService {
 
       // Extract amount
       double amount = 0.0;
+      bool isNegativeAmount = false;
       if (amountIdx != -1 && amountIdx < row.length) {
-        final cleanAmt = row[amountIdx].replaceAll(RegExp(r'[^0-9.-]'), '');
-        amount = double.tryParse(cleanAmt)?.abs() ?? 0.0;
+        final rawAmt = row[amountIdx].trim();
+        final outcome = _parseAmount(rawAmt, formatMode);
+        if (!outcome.isValid) {
+          invalidRowsCount++;
+          continue; // Malformed grouping or invalid number format
+        }
+        amount = outcome.amount.abs();
+        isNegativeAmount = outcome.isNegative;
+        if (outcome.isAmbiguous) {
+          ambiguousAmountCount++;
+        }
       }
-      if (amount <= 0) continue; // Skip invalid or zero-amount lines
+      if (amount <= 0) continue; // Skip zero-amount lines
 
       // Extract Date
       DateTime date = DateTime.now();
@@ -262,7 +370,9 @@ class BackupService {
       }
 
       // Extract Type
-      TransactionType type = TransactionType.expense;
+      TransactionType type = isNegativeAmount
+          ? TransactionType.expense
+          : TransactionType.expense;
       if (typeIdx != -1 && typeIdx < row.length) {
         final rawType = row[typeIdx].toLowerCase().trim();
         if (rawType.contains('inc') || rawType.contains('credit')) {
@@ -272,17 +382,23 @@ class BackupService {
         } else {
           type = TransactionType.expense;
         }
+      } else if (isNegativeAmount) {
+        type = TransactionType.expense;
       }
 
       // Extract Title
       String title = 'Transaction';
-      if (titleIdx != -1 && titleIdx < row.length && row[titleIdx].trim().isNotEmpty) {
+      if (titleIdx != -1 &&
+          titleIdx < row.length &&
+          row[titleIdx].trim().isNotEmpty) {
         title = row[titleIdx].trim();
       }
 
       // Extract Category
       String category = 'General';
-      if (categoryIdx != -1 && categoryIdx < row.length && row[categoryIdx].trim().isNotEmpty) {
+      if (categoryIdx != -1 &&
+          categoryIdx < row.length &&
+          row[categoryIdx].trim().isNotEmpty) {
         category = row[categoryIdx].trim();
       } else if (title != 'Transaction') {
         category = title;
@@ -290,13 +406,17 @@ class BackupService {
 
       // Extract Payment Source
       String paymentSource = 'Cash';
-      if (paymentSourceIdx != -1 && paymentSourceIdx < row.length && row[paymentSourceIdx].trim().isNotEmpty) {
+      if (paymentSourceIdx != -1 &&
+          paymentSourceIdx < row.length &&
+          row[paymentSourceIdx].trim().isNotEmpty) {
         paymentSource = row[paymentSourceIdx].trim();
       }
 
       // Extract Notes
       String? notes;
-      if (notesIdx != -1 && notesIdx < row.length && row[notesIdx].trim().isNotEmpty) {
+      if (notesIdx != -1 &&
+          notesIdx < row.length &&
+          row[notesIdx].trim().isNotEmpty) {
         notes = row[notesIdx].trim();
       }
 
@@ -336,7 +456,254 @@ class BackupService {
     return CsvParseResult(
       transactions: transactions,
       defaultedDateCount: defaultedDateCount,
+      requiresFormatConfirmation:
+          formatMode == NumberFormatMode.auto && ambiguousAmountCount > 0,
+      ambiguousAmountCount: ambiguousAmountCount,
+      invalidRowsCount: invalidRowsCount,
     );
+  }
+
+  _AmountParseOutcome _parseAmount(String raw, NumberFormatMode mode) {
+    var trimmed = raw.trim();
+    if (trimmed.isEmpty) return const _AmountParseOutcome(0.0);
+
+    bool isNegative = false;
+    if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
+      isNegative = true;
+      trimmed = trimmed.substring(1, trimmed.length - 1).trim();
+    } else if (trimmed.startsWith('-')) {
+      isNegative = true;
+      trimmed = trimmed.substring(1).trim();
+    } else if (trimmed.endsWith('-')) {
+      isNegative = true;
+      trimmed = trimmed.substring(0, trimmed.length - 1).trim();
+    }
+
+    final clean = trimmed.replaceAll(RegExp(r'[^0-9.,]'), '').trim();
+    if (clean.isEmpty || clean == '.' || clean == ',') {
+      return const _AmountParseOutcome(0.0);
+    }
+
+    if (mode == NumberFormatMode.indian) {
+      if (clean.contains(',')) {
+        if (!RegExp(r'^\d{1,2}(,\d{2})*(,\d{3})(\.\d+)?$').hasMatch(clean)) {
+          return _AmountParseOutcome.invalid;
+        }
+        final stripped = clean.replaceAll(',', '');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      } else {
+        if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(clean)) {
+          return _AmountParseOutcome.invalid;
+        }
+        final parsed = double.tryParse(clean);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      }
+    }
+
+    if (mode == NumberFormatMode.western) {
+      if (clean.contains(',')) {
+        if (!RegExp(r'^\d{1,3}(,\d{3})+(\.\d+)?$').hasMatch(clean)) {
+          return _AmountParseOutcome.invalid;
+        }
+        final stripped = clean.replaceAll(',', '');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      } else {
+        if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(clean)) {
+          return _AmountParseOutcome.invalid;
+        }
+        final parsed = double.tryParse(clean);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      }
+    }
+
+    if (mode == NumberFormatMode.european) {
+      if (clean.contains('.')) {
+        if (!RegExp(r'^\d{1,3}(\.\d{3})+(,\d+)?$').hasMatch(clean)) {
+          return _AmountParseOutcome.invalid;
+        }
+        final stripped = clean.replaceAll('.', '').replaceAll(',', '.');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      } else {
+        if (!RegExp(r'^\d+(,\d+)?$').hasMatch(clean)) {
+          return _AmountParseOutcome.invalid;
+        }
+        final stripped = clean.replaceAll(',', '.');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      }
+    }
+
+    // mode == NumberFormatMode.auto
+    final hasDot = clean.contains('.');
+    final hasComma = clean.contains(',');
+
+    // 1. Both '.' and ',' present
+    if (hasDot && hasComma) {
+      final lastDot = clean.lastIndexOf('.');
+      final lastComma = clean.lastIndexOf(',');
+      if (lastComma > lastDot) {
+        // European: 1.234,50 or 1.234.567,89
+        if (!RegExp(r'^\d{1,3}(\.\d{3})+(,\d+)?$').hasMatch(clean)) {
+          return _AmountParseOutcome.invalid;
+        }
+        final stripped = clean.replaceAll('.', '').replaceAll(',', '.');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      } else {
+        // Western or Indian
+        if (RegExp(r'^\d{1,2}(,\d{2})+(,\d{3})(\.\d+)?$').hasMatch(clean)) {
+          final stripped = clean.replaceAll(',', '');
+          final parsed = double.tryParse(stripped);
+          if (parsed == null) return _AmountParseOutcome.invalid;
+          return _AmountParseOutcome(
+            isNegative ? -parsed : parsed,
+            isNegative: isNegative,
+          );
+        } else if (RegExp(r'^\d{1,3}(,\d{3})+(\.\d+)?$').hasMatch(clean)) {
+          final stripped = clean.replaceAll(',', '');
+          final parsed = double.tryParse(stripped);
+          if (parsed == null) return _AmountParseOutcome.invalid;
+          return _AmountParseOutcome(
+            isNegative ? -parsed : parsed,
+            isNegative: isNegative,
+          );
+        } else {
+          return _AmountParseOutcome.invalid;
+        }
+      }
+    }
+
+    // 2. Only comma present (no dot)
+    if (hasComma && !hasDot) {
+      // Indian multi-group integer: 1,00,000 or 12,34,567
+      if (RegExp(r'^\d{1,2}(,\d{2})+(,\d{3})$').hasMatch(clean)) {
+        final stripped = clean.replaceAll(',', '');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      }
+      // Western repeated group integer: 1,234,567
+      if (RegExp(r'^\d{1,3}(,\d{3}){2,}$').hasMatch(clean)) {
+        final stripped = clean.replaceAll(',', '');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      }
+      // European decimal: 1234,50 or 45,5
+      if (RegExp(r'^\d+,\d{1,2}$').hasMatch(clean)) {
+        final stripped = clean.replaceAll(',', '.');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      }
+      // Exactly 3 digits after comma: 1,234 -> Ambiguous!
+      if (RegExp(r'^\d{1,3},\d{3}$').hasMatch(clean)) {
+        final stripped = clean.replaceAll(',', '');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+          isAmbiguous: true,
+        );
+      }
+      return _AmountParseOutcome.invalid;
+    }
+
+    // 3. Only dot present (no comma)
+    if (hasDot && !hasComma) {
+      // European repeated group integer: 1.234.567
+      if (RegExp(r'^\d{1,3}(\.\d{3}){2,}$').hasMatch(clean)) {
+        final stripped = clean.replaceAll('.', '');
+        final parsed = double.tryParse(stripped);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      }
+      // Western decimal: 12.34 or 1234.50
+      if (RegExp(r'^\d+\.\d{1,2}$').hasMatch(clean)) {
+        final parsed = double.tryParse(clean);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      }
+      // Exactly 3 digits after dot: 1.234 -> Ambiguous!
+      if (RegExp(r'^\d{1,3}\.\d{3}$').hasMatch(clean)) {
+        final parsed = double.tryParse(clean);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+          isAmbiguous: true,
+        );
+      }
+      // Western multi-decimal: 12.3456
+      if (RegExp(r'^\d+\.\d{3,}$').hasMatch(clean)) {
+        final parsed = double.tryParse(clean);
+        if (parsed == null) return _AmountParseOutcome.invalid;
+        return _AmountParseOutcome(
+          isNegative ? -parsed : parsed,
+          isNegative: isNegative,
+        );
+      }
+      return _AmountParseOutcome.invalid;
+    }
+
+    // 4. Plain integer without separators
+    if (RegExp(r'^\d+$').hasMatch(clean)) {
+      final parsed = double.tryParse(clean);
+      if (parsed == null) return _AmountParseOutcome.invalid;
+      return _AmountParseOutcome(
+        isNegative ? -parsed : parsed,
+        isNegative: isNegative,
+      );
+    }
+
+    return _AmountParseOutcome.invalid;
   }
 
   List<List<String>> _parseCsvRows(String content) {
@@ -370,14 +737,16 @@ class BackupService {
           }
           currentRow.add(currentField.toString().trim());
           currentField.clear();
-          if (currentRow.isNotEmpty && (currentRow.length > 1 || currentRow[0].isNotEmpty)) {
+          if (currentRow.isNotEmpty &&
+              (currentRow.length > 1 || currentRow[0].isNotEmpty)) {
             rows.add(List.from(currentRow));
           }
           currentRow.clear();
         } else if (char == '\n') {
           currentRow.add(currentField.toString().trim());
           currentField.clear();
-          if (currentRow.isNotEmpty && (currentRow.length > 1 || currentRow[0].isNotEmpty)) {
+          if (currentRow.isNotEmpty &&
+              (currentRow.length > 1 || currentRow[0].isNotEmpty)) {
             rows.add(List.from(currentRow));
           }
           currentRow.clear();
@@ -388,7 +757,8 @@ class BackupService {
     }
     if (currentField.isNotEmpty || currentRow.isNotEmpty) {
       currentRow.add(currentField.toString().trim());
-      if (currentRow.isNotEmpty && (currentRow.length > 1 || currentRow[0].isNotEmpty)) {
+      if (currentRow.isNotEmpty &&
+          (currentRow.length > 1 || currentRow[0].isNotEmpty)) {
         rows.add(currentRow);
       }
     }
@@ -519,8 +889,16 @@ class BackupService {
         await AppDatabase.instance.clearAllData();
         return;
       } catch (e, st) {
-        LogService.warning('BackupService', 'Atomic clearAllData failed, falling back to individual repository deletes: $e');
-        LogService.error('BackupService', 'clearAllData failure details', e, st);
+        LogService.warning(
+          'BackupService',
+          'Atomic clearAllData failed, falling back to individual repository deletes: $e',
+        );
+        LogService.error(
+          'BackupService',
+          'clearAllData failure details',
+          e,
+          st,
+        );
       }
     }
 

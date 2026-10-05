@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/investment_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 import '../state/investments_provider.dart';
 
 class UpdateValuationSheet extends ConsumerStatefulWidget {
@@ -22,7 +24,8 @@ class UpdateValuationSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<UpdateValuationSheet> createState() => _UpdateValuationSheetState();
+  ConsumerState<UpdateValuationSheet> createState() =>
+      _UpdateValuationSheetState();
 }
 
 class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
@@ -34,7 +37,9 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
     super.initState();
     final cur = widget.investment.currentValue;
     _currentValueController = TextEditingController(
-      text: cur == cur.roundToDouble() ? cur.toInt().toString() : cur.toString(),
+      text: cur == cur.roundToDouble()
+          ? cur.toInt().toString()
+          : cur.toString(),
     );
   }
 
@@ -45,12 +50,15 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
   }
 
   void _applyPercentageMultiplier(double multiplier) {
-    final cur = double.tryParse(_currentValueController.text.trim()) ?? widget.investment.currentValue;
+    final cur =
+        double.tryParse(_currentValueController.text.trim()) ??
+        widget.investment.currentValue;
     final newVal = cur * (1.0 + multiplier);
     setState(() {
       _currentValueController.text = newVal.round().toString();
-      _currentValueController.selection =
-          TextSelection.collapsed(offset: _currentValueController.text.length);
+      _currentValueController.selection = TextSelection.collapsed(
+        offset: _currentValueController.text.length,
+      );
     });
   }
 
@@ -69,7 +77,9 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
     }
 
     try {
-      await ref.read(investmentListNotifierProvider.notifier).updateValuation(
+      await ref
+          .read(investmentListNotifierProvider.notifier)
+          .updateValuation(
             investment: widget.investment,
             newCurrentValue: newVal,
           );
@@ -103,11 +113,19 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+    final currency =
+        ref.watch(currencyProvider).valueOrNull ??
+        CurrencyFormatter.activeCurrency;
+    final currencySymbol = currency.symbol;
 
     final inv = widget.investment;
-    final currentInput = double.tryParse(_currentValueController.text.trim()) ?? inv.currentValue;
+    final currentInput =
+        double.tryParse(_currentValueController.text.trim()) ??
+        inv.currentValue;
     final pnl = currentInput - inv.investedAmount;
-    final returnPct = inv.investedAmount > 0 ? (pnl / inv.investedAmount) * 100 : 0.0;
+    final returnPct = inv.investedAmount > 0
+        ? (pnl / inv.investedAmount) * 100
+        : 0.0;
     final isProfit = pnl >= 0;
 
     return Material(
@@ -155,7 +173,9 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      color: isDark
+                          ? AppColors.darkSurfaceVariant
+                          : AppColors.lightSurfaceVariant,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: financialColors.cardBorder),
                     ),
@@ -164,7 +184,11 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                       children: [
                         Row(
                           children: [
-                            Icon(inv.assetClass.icon, color: inv.assetClass.color, size: 20),
+                            Icon(
+                              inv.assetClass.icon,
+                              color: inv.assetClass.color,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -229,21 +253,28 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                   TextFormField(
                     controller: _currentValueController,
                     autofocus: true,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}'),
+                      ),
                     ],
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: isProfit ? financialColors.income : financialColors.expense,
+                      color: isProfit
+                          ? financialColors.income
+                          : financialColors.expense,
                     ),
                     decoration: InputDecoration(
-                      prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                      prefixText: '$currencySymbol ',
                       hintText: '75,000',
                     ),
                     onChanged: (_) => setState(() {}),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Enter current value' : null,
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Enter current value'
+                        : null,
                   ),
                   const SizedBox(height: 10),
 
@@ -287,14 +318,23 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
 
                   // P&L Live Preview Card
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
-                      color: (isProfit ? financialColors.income : financialColors.expense)
-                          .withAlpha(isDark ? 30 : 15),
+                      color:
+                          (isProfit
+                                  ? financialColors.income
+                                  : financialColors.expense)
+                              .withAlpha(isDark ? 30 : 15),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: (isProfit ? financialColors.income : financialColors.expense)
-                            .withAlpha(isDark ? 70 : 40),
+                        color:
+                            (isProfit
+                                    ? financialColors.income
+                                    : financialColors.expense)
+                                .withAlpha(isDark ? 70 : 40),
                       ),
                     ),
                     child: Row(
@@ -316,7 +356,9 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                               '${isProfit ? '+' : ''}${CurrencyFormatter.format(pnl)} (${returnPct.toStringAsFixed(1)}%)',
                               style: theme.textTheme.bodyLarge?.copyWith(
                                 fontWeight: FontWeight.w800,
-                                color: isProfit ? financialColors.income : financialColors.expense,
+                                color: isProfit
+                                    ? financialColors.income
+                                    : financialColors.expense,
                               ),
                             ),
                           ),
@@ -337,7 +379,10 @@ class _UpdateValuationSheetState extends ConsumerState<UpdateValuationSheet> {
                       onPressed: _submitUpdate,
                       child: const Text(
                         'Update Valuation',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),

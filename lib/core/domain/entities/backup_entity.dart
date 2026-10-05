@@ -44,40 +44,42 @@ class BackupMetadata {
   });
 
   Map<String, dynamic> toJson() => {
-        'schemaVersion': schemaVersion,
-        'exportedAt': exportedAt.toIso8601String(),
-        'transactionsCount': transactionsCount,
-        'budgetsCount': budgetsCount,
-        'savingsGoalsCount': savingsGoalsCount,
-        'savingsContributionsCount': savingsContributionsCount,
-        'debtsCount': debtsCount,
-        'debtPaymentsCount': debtPaymentsCount,
-        'investmentsCount': investmentsCount,
-        'recurringExpensesCount': recurringExpensesCount,
-        'chatSessionsCount': chatSessionsCount,
-        'chatMessagesCount': chatMessagesCount,
-        'bankAccountsCount': bankAccountsCount,
-        'creditCardsCount': creditCardsCount,
-        'aiReportsCount': aiReportsCount,
-      };
+    'schemaVersion': schemaVersion,
+    'exportedAt': exportedAt.toIso8601String(),
+    'transactionsCount': transactionsCount,
+    'budgetsCount': budgetsCount,
+    'savingsGoalsCount': savingsGoalsCount,
+    'savingsContributionsCount': savingsContributionsCount,
+    'debtsCount': debtsCount,
+    'debtPaymentsCount': debtPaymentsCount,
+    'investmentsCount': investmentsCount,
+    'recurringExpensesCount': recurringExpensesCount,
+    'chatSessionsCount': chatSessionsCount,
+    'chatMessagesCount': chatMessagesCount,
+    'bankAccountsCount': bankAccountsCount,
+    'creditCardsCount': creditCardsCount,
+    'aiReportsCount': aiReportsCount,
+  };
 
   factory BackupMetadata.fromJson(Map<String, dynamic> json) => BackupMetadata(
-        schemaVersion: json['schemaVersion'] as int? ?? 1,
-        exportedAt: DateTime.tryParse(json['exportedAt'] as String? ?? '') ?? DateTime.now(),
-        transactionsCount: json['transactionsCount'] as int? ?? 0,
-        budgetsCount: json['budgetsCount'] as int? ?? 0,
-        savingsGoalsCount: json['savingsGoalsCount'] as int? ?? 0,
-        savingsContributionsCount: json['savingsContributionsCount'] as int? ?? 0,
-        debtsCount: json['debtsCount'] as int? ?? 0,
-        debtPaymentsCount: json['debtPaymentsCount'] as int? ?? 0,
-        investmentsCount: json['investmentsCount'] as int? ?? 0,
-        recurringExpensesCount: json['recurringExpensesCount'] as int? ?? 0,
-        chatSessionsCount: json['chatSessionsCount'] as int? ?? 0,
-        chatMessagesCount: json['chatMessagesCount'] as int? ?? 0,
-        bankAccountsCount: json['bankAccountsCount'] as int? ?? 0,
-        creditCardsCount: json['creditCardsCount'] as int? ?? 0,
-        aiReportsCount: json['aiReportsCount'] as int? ?? 0,
-      );
+    schemaVersion: json['schemaVersion'] as int? ?? 1,
+    exportedAt:
+        DateTime.tryParse(json['exportedAt'] as String? ?? '') ??
+        DateTime.now(),
+    transactionsCount: json['transactionsCount'] as int? ?? 0,
+    budgetsCount: json['budgetsCount'] as int? ?? 0,
+    savingsGoalsCount: json['savingsGoalsCount'] as int? ?? 0,
+    savingsContributionsCount: json['savingsContributionsCount'] as int? ?? 0,
+    debtsCount: json['debtsCount'] as int? ?? 0,
+    debtPaymentsCount: json['debtPaymentsCount'] as int? ?? 0,
+    investmentsCount: json['investmentsCount'] as int? ?? 0,
+    recurringExpensesCount: json['recurringExpensesCount'] as int? ?? 0,
+    chatSessionsCount: json['chatSessionsCount'] as int? ?? 0,
+    chatMessagesCount: json['chatMessagesCount'] as int? ?? 0,
+    bankAccountsCount: json['bankAccountsCount'] as int? ?? 0,
+    creditCardsCount: json['creditCardsCount'] as int? ?? 0,
+    aiReportsCount: json['aiReportsCount'] as int? ?? 0,
+  );
 }
 
 class FullDatabaseBackup {
@@ -114,21 +116,21 @@ class FullDatabaseBackup {
   });
 
   Map<String, dynamic> toJson() => {
-        'metadata': metadata.toJson(),
-        'transactions': transactions.map((t) => t.toMap()).toList(),
-        'budgets': budgets.map((b) => b.toMap()).toList(),
-        'savingsGoals': savingsGoals.map((g) => g.toMap()).toList(),
-        'savingsContributions': savingsContributions.map((c) => c.toMap()).toList(),
-        'debts': debts.map((d) => d.toMap()).toList(),
-        'debtPayments': debtPayments.map((p) => p.toMap()).toList(),
-        'investments': investments.map((i) => i.toMap()).toList(),
-        'recurringExpenses': recurringExpenses.map((r) => r.toMap()).toList(),
-        'chatSessions': chatSessions.map((s) => s.toMap()).toList(),
-        'chatMessages': chatMessages.map((m) => m.toMap()).toList(),
-        'bankAccounts': bankAccounts.map((a) => a.toMap()).toList(),
-        'creditCards': creditCards.map((c) => c.toMap()).toList(),
-        'aiReports': aiReports.map((r) => r.toMap()).toList(),
-      };
+    'metadata': metadata.toJson(),
+    'transactions': transactions.map((t) => t.toMap()).toList(),
+    'budgets': budgets.map((b) => b.toMap()).toList(),
+    'savingsGoals': savingsGoals.map((g) => g.toMap()).toList(),
+    'savingsContributions': savingsContributions.map((c) => c.toMap()).toList(),
+    'debts': debts.map((d) => d.toMap()).toList(),
+    'debtPayments': debtPayments.map((p) => p.toMap()).toList(),
+    'investments': investments.map((i) => i.toMap()).toList(),
+    'recurringExpenses': recurringExpenses.map((r) => r.toMap()).toList(),
+    'chatSessions': chatSessions.map((s) => s.toMap()).toList(),
+    'chatMessages': chatMessages.map((m) => m.toMap()).toList(),
+    'bankAccounts': bankAccounts.map((a) => a.toMap()).toList(),
+    'creditCards': creditCards.map((c) => c.toMap()).toList(),
+    'aiReports': aiReports.map((r) => r.toMap()).toList(),
+  };
 
   factory FullDatabaseBackup.fromJson(Map<String, dynamic> json) {
     final metaJson = json['metadata'] as Map<String, dynamic>? ?? {};

@@ -45,10 +45,13 @@ class TransactionEntity {
 
   final bool isShared; // Whether this transaction was shared/split with others
   final double? myShareAmount; // User's personal share (e.g. ₹1,000 of ₹4,000)
-  final double reimbursedAmount; // Total amount collected back from friends so far
-  final bool isSettled; // Whether all friends' shares have been fully reimbursed
+  final double
+  reimbursedAmount; // Total amount collected back from friends so far
+  final bool
+  isSettled; // Whether all friends' shares have been fully reimbursed
   final String? sharedWith; // Roommates/friends involved (e.g. "Rahul, Amit")
-  final String? linkedEntityId; // Traceable link to savings goal, debt, or investment
+  final String?
+  linkedEntityId; // Traceable link to savings goal, debt, or investment
 
   const TransactionEntity({
     required this.id,
@@ -73,16 +76,20 @@ class TransactionEntity {
   });
 
   /// Total portion of the transaction that was paid on behalf of friends/roommates
-  double get friendsShare =>
-      isShared ? (amount - (myShareAmount ?? amount)).clamp(0.0, double.infinity) : 0.0;
+  double get friendsShare => isShared
+      ? (amount - (myShareAmount ?? amount)).clamp(0.0, double.infinity)
+      : 0.0;
 
   /// Remaining reimbursement yet to be collected back from friends
-  double get pendingReimbursement =>
-      isShared ? (friendsShare - reimbursedAmount).clamp(0.0, double.infinity) : 0.0;
+  double get pendingReimbursement => isShared
+      ? (friendsShare - reimbursedAmount).clamp(0.0, double.infinity)
+      : 0.0;
 
   /// The user's true personal expenditure for this transaction
-  double get netPersonalAmount =>
-      isShared ? (myShareAmount ?? (amount - reimbursedAmount).clamp(0.0, double.infinity)) : amount;
+  double get netPersonalAmount => isShared
+      ? (myShareAmount ??
+            (amount - reimbursedAmount).clamp(0.0, double.infinity))
+      : amount;
 
   static const Object _sentinel = Object();
 
@@ -115,16 +122,28 @@ class TransactionEntity {
       category: category ?? this.category,
       date: date ?? this.date,
       paymentSource: paymentSource ?? this.paymentSource,
-      accountId: identical(accountId, _sentinel) ? this.accountId : (accountId as String?),
-      toAccountId: identical(toAccountId, _sentinel) ? this.toAccountId : (toAccountId as String?),
-      creditCardId: identical(creditCardId, _sentinel) ? this.creditCardId : (creditCardId as String?),
+      accountId: identical(accountId, _sentinel)
+          ? this.accountId
+          : (accountId as String?),
+      toAccountId: identical(toAccountId, _sentinel)
+          ? this.toAccountId
+          : (toAccountId as String?),
+      creditCardId: identical(creditCardId, _sentinel)
+          ? this.creditCardId
+          : (creditCardId as String?),
       notes: identical(notes, _sentinel) ? this.notes : (notes as String?),
       isShared: isShared ?? this.isShared,
-      myShareAmount: identical(myShareAmount, _sentinel) ? this.myShareAmount : (myShareAmount as double?),
+      myShareAmount: identical(myShareAmount, _sentinel)
+          ? this.myShareAmount
+          : (myShareAmount as double?),
       reimbursedAmount: reimbursedAmount ?? this.reimbursedAmount,
       isSettled: isSettled ?? this.isSettled,
-      sharedWith: identical(sharedWith, _sentinel) ? this.sharedWith : (sharedWith as String?),
-      linkedEntityId: identical(linkedEntityId, _sentinel) ? this.linkedEntityId : (linkedEntityId as String?),
+      sharedWith: identical(sharedWith, _sentinel)
+          ? this.sharedWith
+          : (sharedWith as String?),
+      linkedEntityId: identical(linkedEntityId, _sentinel)
+          ? this.linkedEntityId
+          : (linkedEntityId as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -203,22 +222,22 @@ class TransactionEntity {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        title,
-        amount,
-        type,
-        category,
-        date,
-        paymentSource,
-        accountId,
-        toAccountId,
-        creditCardId,
-        notes,
-        isShared,
-        myShareAmount,
-        reimbursedAmount,
-        isSettled,
-        sharedWith,
-        linkedEntityId,
-      );
+    id,
+    title,
+    amount,
+    type,
+    category,
+    date,
+    paymentSource,
+    accountId,
+    toAccountId,
+    creditCardId,
+    notes,
+    isShared,
+    myShareAmount,
+    reimbursedAmount,
+    isSettled,
+    sharedWith,
+    linkedEntityId,
+  );
 }

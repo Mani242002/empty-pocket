@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quick_add"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/quick_add_short"
+        android:shortcutLongLabel="@string/quick_add_long">
+        <intent
+            android:action="dev.emptypocket.app.QUICK_ADD"
+            android:targetPackage="dev.emptypocket.app"
+            android:targetClass="dev.emptypocket.app.MainActivity">
+            <extra android:name="action" android:value="quick_add" />
+        </intent>
+    </shortcut>
+</shortcuts>

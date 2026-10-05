@@ -1,8 +1,10 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
@@ -29,21 +31,10 @@ class FloatingBubbleOverlayApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.transparent,
         cardColor: Colors.transparent,
         dialogTheme: const DialogThemeData(backgroundColor: Colors.transparent),
-        colorScheme: const ColorScheme.dark(
-          surface: Colors.transparent,
-        ),
+        colorScheme: const ColorScheme.dark(surface: Colors.transparent),
       ),
       builder: (context, child) {
-        final mediaQuery = MediaQuery.of(context);
-        return MediaQuery(
-          data: mediaQuery.copyWith(
-            textScaler: mediaQuery.textScaler.clamp(
-              minScaleFactor: 0.85,
-              maxScaleFactor: 1.35,
-            ),
-          ),
-          child: child ?? const SizedBox.shrink(),
-        );
+        return child ?? const SizedBox.shrink();
       },
       home: const Scaffold(
         backgroundColor: Colors.transparent,
@@ -57,10 +48,12 @@ class FloatingBubbleOverlayScreen extends StatefulWidget {
   const FloatingBubbleOverlayScreen({super.key});
 
   @override
-  State<FloatingBubbleOverlayScreen> createState() => _FloatingBubbleOverlayScreenState();
+  State<FloatingBubbleOverlayScreen> createState() =>
+      _FloatingBubbleOverlayScreenState();
 }
 
-class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScreen> {
+class _FloatingBubbleOverlayScreenState
+    extends State<FloatingBubbleOverlayScreen> {
   bool _isExpanded = false;
   bool _isTransitioning = false;
   TransactionType _type = TransactionType.expense;
@@ -127,11 +120,16 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         final categories = _type == TransactionType.income
             ? CategoryConstants.incomeCategories
             : CategoryConstants.expenseCategories;
-        if (categories.any((c) => c.name.toLowerCase() == detected.toLowerCase())) {
-          final matched = categories.firstWhere((c) => c.name.toLowerCase() == detected.toLowerCase());
+        if (categories.any(
+          (c) => c.name.toLowerCase() == detected.toLowerCase(),
+        )) {
+          final matched = categories.firstWhere(
+            (c) => c.name.toLowerCase() == detected.toLowerCase(),
+          );
           setState(() {
             _selectedCategory = matched.name;
-            if (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet) {
+            if (_selectedPaymentMode == PaymentMode.bankAccount ||
+                _selectedPaymentMode == PaymentMode.upiWallet) {
               _autoSelectLinkedSource(_selectedPaymentMode);
             }
           });
@@ -142,6 +140,7 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
 
   Future<void> _loadAccountsAndCards() async {
     try {
+      await CurrencyFormatter.init();
       final db = AppDatabase.instance;
       final accs = await db.getAllBankAccounts();
       final cards = await db.getAllCreditCards();
@@ -155,7 +154,12 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         });
       }
     } catch (e, stack) {
-      LogService.error('FloatingBubble', 'Error loading accounts and cards', e, stack);
+      LogService.error(
+        'FloatingBubble',
+        'Error loading accounts and cards',
+        e,
+        stack,
+      );
     }
   }
 
@@ -197,7 +201,12 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       }
       await OverlayService.collapseOverlay();
     } catch (e, stack) {
-      LogService.error('FloatingBubble', 'Failed to collapse overlay', e, stack);
+      LogService.error(
+        'FloatingBubble',
+        'Failed to collapse overlay',
+        e,
+        stack,
+      );
     } finally {
       _isTransitioning = false;
     }
@@ -218,12 +227,16 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       _validationError = null;
 
       final currentTitle = _titleController.text.trim();
-      final oldCategoryNames = oldCategories.map((c) => c.name.toLowerCase()).toSet();
+      final oldCategoryNames = oldCategories
+          .map((c) => c.name.toLowerCase())
+          .toSet();
 
-      if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase())) {
+      if (currentTitle.isEmpty ||
+          oldCategoryNames.contains(currentTitle.toLowerCase())) {
         _titleController.text = _selectedCategory;
       }
-      if (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet) {
+      if (_selectedPaymentMode == PaymentMode.bankAccount ||
+          _selectedPaymentMode == PaymentMode.upiWallet) {
         _autoSelectLinkedSource(_selectedPaymentMode);
       }
     });
@@ -274,7 +287,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           _selectedCreditCardId = null;
           _selectedPaymentSource = 'UPI (${acc.accountName})';
         } else {
-          final rupayCards = _creditCards.where((c) => c.cardNetwork == CardNetwork.rupay).toList();
+          final rupayCards = _creditCards
+              .where((c) => c.cardNetwork == CardNetwork.rupay)
+              .toList();
           if (rupayCards.isNotEmpty) {
             _selectedCreditCardId = rupayCards.first.id;
             _selectedAccountId = null;
@@ -287,7 +302,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         }
         break;
       case PaymentMode.cash:
-        final cashAccounts = _bankAccounts.where((a) => a.accountType == AccountType.cash).toList();
+        final cashAccounts = _bankAccounts
+            .where((a) => a.accountType == AccountType.cash)
+            .toList();
         if (cashAccounts.isNotEmpty) {
           _selectedAccountId = cashAccounts.first.id;
           _selectedCreditCardId = null;
@@ -312,7 +329,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
     final amount = MathExpressionParser.tryEvaluate(amountText);
     if (amount == null || amount <= 0) {
       AppHaptics.warning();
-      setState(() => _validationError = 'Please enter a valid amount or expression.');
+      setState(
+        () => _validationError = 'Please enter a valid amount or expression.',
+      );
       return;
     }
 
@@ -325,12 +344,16 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
     }
 
     // 3. Mandatory Linked Source Validation
-    if (_selectedPaymentMode == PaymentMode.bankAccount && _bankAccounts.isNotEmpty && _selectedAccountId == null) {
+    if (_selectedPaymentMode == PaymentMode.bankAccount &&
+        _bankAccounts.isNotEmpty &&
+        _selectedAccountId == null) {
       AppHaptics.warning();
       setState(() => _validationError = 'Please select a linked bank account.');
       return;
     }
-    if (_selectedPaymentMode == PaymentMode.creditCard && _creditCards.isNotEmpty && _selectedCreditCardId == null) {
+    if (_selectedPaymentMode == PaymentMode.creditCard &&
+        _creditCards.isNotEmpty &&
+        _selectedCreditCardId == null) {
       AppHaptics.warning();
       setState(() => _validationError = 'Please select a linked credit card.');
       return;
@@ -346,7 +369,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       final db = AppDatabase.instance;
 
       // Settle Shared Expense Inflow
-      if (_type == TransactionType.income && _isIncomeReimbursement && _selectedSharedExpenseToSettle != null) {
+      if (_type == TransactionType.income &&
+          _isIncomeReimbursement &&
+          _selectedSharedExpenseToSettle != null) {
         final original = _selectedSharedExpenseToSettle!;
         final updatedReimbursed = original.reimbursedAmount + amount;
         final isFullySettled = updatedReimbursed >= original.friendsShare;
@@ -377,7 +402,8 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
           settlementTransaction: settlementTx,
         );
         try {
-          IsolateNameServer.lookupPortByName('empty_pocket_main_isolate')?.send('refresh_ledger');
+          IsolateNameServer.lookupPortByName('empty_pocket_main_isolate')
+              ?.send('refresh_ledger');
         } catch (_) {}
         AppHaptics.success();
 
@@ -405,8 +431,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       double? myShare;
       String? sharedWith;
       if (isShared) {
-        final parsedShare = MathExpressionParser.tryEvaluate(_myShareController.text.trim());
-        myShare = (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
+        final parsedShare = MathExpressionParser.tryEvaluate(
+          _myShareController.text.trim(),
+        );
+        myShare =
+            (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
             ? parsedShare
             : (amount / 2);
         final rawNames = _sharedWithController.text.trim();
@@ -436,7 +465,8 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       // Atomically inserts transaction and synchronizes balance/credit impacts in a single SQLite transaction
       await db.saveTransactionAtomic(transaction: tx);
       try {
-        IsolateNameServer.lookupPortByName('empty_pocket_main_isolate')?.send('refresh_ledger');
+        IsolateNameServer.lookupPortByName('empty_pocket_main_isolate')
+            ?.send('refresh_ledger');
       } catch (_) {}
       AppHaptics.success();
 
@@ -456,7 +486,12 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         _collapse();
       }
     } catch (e, stack) {
-      LogService.error('FloatingBubble', 'Failed to save quick transaction', e, stack);
+      LogService.error(
+        'FloatingBubble',
+        'Failed to save quick transaction',
+        e,
+        stack,
+      );
       AppHaptics.warning();
       if (mounted) {
         setState(() {
@@ -492,15 +527,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF1E293B),
-                  Color(0xFF0F172A),
-                ],
+                colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
               ),
-              border: Border.all(
-                color: AppColors.primaryEmerald,
-                width: 2.0,
-              ),
+              border: Border.all(color: AppColors.primaryEmerald, width: 2.0),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
@@ -533,7 +562,10 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         decoration: BoxDecoration(
           color: const Color(0xFF131B26),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.primaryEmerald.withAlpha(120), width: 1.5),
+          border: Border.all(
+            color: AppColors.primaryEmerald.withAlpha(120),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha(120),
@@ -565,13 +597,21 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                             color: AppColors.primaryEmerald.withAlpha(40),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.flash_on_rounded, color: AppColors.primaryEmerald, size: 16),
+                          child: const Icon(
+                            Icons.flash_on_rounded,
+                            color: AppColors.primaryEmerald,
+                            size: 16,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         const Flexible(
                           child: Text(
                             'Quick Transaction',
-                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -580,7 +620,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
                     onPressed: _collapse,
                     visualDensity: VisualDensity.compact,
                   ),
@@ -594,11 +638,19 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                   alignment: Alignment.center,
                   child: const Column(
                     children: [
-                      Icon(Icons.check_circle_rounded, color: AppColors.primaryEmerald, size: 42),
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primaryEmerald,
+                        size: 42,
+                      ),
                       SizedBox(height: 8),
                       Text(
                         'Saved to EmptyPocket!',
-                        style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -613,13 +665,19 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
-                            color: _type == TransactionType.expense ? AppColors.expense : Colors.white10,
+                            color: _type == TransactionType.expense
+                                ? AppColors.expense
+                                : Colors.white10,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           alignment: Alignment.center,
                           child: const Text(
                             'Expense',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ),
@@ -631,13 +689,19 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
-                            color: _type == TransactionType.income ? AppColors.income : Colors.white10,
+                            color: _type == TransactionType.income
+                                ? AppColors.income
+                                : Colors.white10,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           alignment: Alignment.center,
                           child: const Text(
                             'Income',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ),
@@ -649,24 +713,40 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 // Amount Input
                 TextField(
                   controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                   onChanged: (_) {
-                    if (_validationError != null) setState(() => _validationError = null);
+                    if (_validationError != null) {
+                      setState(() => _validationError = null);
+                    }
                   },
                   decoration: InputDecoration(
                     hintText: '0.00',
                     hintStyle: TextStyle(color: Colors.white.withAlpha(70)),
                     prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
                     prefixStyle: TextStyle(
-                      color: _type == TransactionType.income ? AppColors.income : AppColors.expense,
+                      color: _type == TransactionType.income
+                          ? AppColors.income
+                          : AppColors.expense,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                     filled: true,
                     fillColor: Colors.white.withAlpha(15),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -676,15 +756,23 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                   controller: _titleController,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   onChanged: (_) {
-                    if (_validationError != null) setState(() => _validationError = null);
+                    if (_validationError != null) {
+                      setState(() => _validationError = null);
+                    }
                   },
                   decoration: InputDecoration(
                     hintText: 'Title / Reason (Mandatory)',
                     hintStyle: TextStyle(color: Colors.white.withAlpha(70)),
                     filled: true,
                     fillColor: Colors.white.withAlpha(15),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -694,59 +782,86 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                   height: 30,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    children: (_type == TransactionType.expense
-                            ? CategoryConstants.expenseCategories
-                            : CategoryConstants.incomeCategories)
-                        .map((cat) {
-                      final isSelected = _selectedCategory == cat.name;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: GestureDetector(
-                          onTap: () => setState(() {
-                            final oldCategory = _selectedCategory;
-                            _selectedCategory = cat.name;
-                            if (cat.name == CategoryConstants.categorySharedReimbursement) {
-                              _isIncomeReimbursement = true;
-                            }
-                            if (_validationError != null) _validationError = null;
+                    children:
+                        (_type == TransactionType.expense
+                                ? CategoryConstants.expenseCategories
+                                : CategoryConstants.incomeCategories)
+                            .map((cat) {
+                              final isSelected = _selectedCategory == cat.name;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    final oldCategory = _selectedCategory;
+                                    _selectedCategory = cat.name;
+                                    if (cat.name ==
+                                        CategoryConstants
+                                            .categorySharedReimbursement) {
+                                      _isIncomeReimbursement = true;
+                                    }
+                                    if (_validationError != null) {
+                                      _validationError = null;
+                                    }
 
-                            final currentTitle = _titleController.text.trim();
-                            final allCategoryNames = {
-                              ...CategoryConstants.expenseCategories.map((c) => c.name.toLowerCase()),
-                              ...CategoryConstants.incomeCategories.map((c) => c.name.toLowerCase()),
-                            };
+                                    final currentTitle = _titleController.text
+                                        .trim();
+                                    final allCategoryNames = {
+                                      ...CategoryConstants.expenseCategories
+                                          .map((c) => c.name.toLowerCase()),
+                                      ...CategoryConstants.incomeCategories.map(
+                                        (c) => c.name.toLowerCase(),
+                                      ),
+                                    };
 
-                            if (currentTitle.isEmpty ||
-                                currentTitle.toLowerCase() == oldCategory.toLowerCase() ||
-                                allCategoryNames.contains(currentTitle.toLowerCase())) {
-                              _titleController.text = cat.name;
-                            }
-                            if (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet) {
-                              _autoSelectLinkedSource(_selectedPaymentMode);
-                            }
-                          }),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primaryEmerald : Colors.white10,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: isSelected ? AppColors.primaryEmerald : Colors.white24,
-                              ),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              cat.name,
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: isSelected ? Colors.black : Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                                    if (currentTitle.isEmpty ||
+                                        currentTitle.toLowerCase() ==
+                                            oldCategory.toLowerCase() ||
+                                        allCategoryNames.contains(
+                                          currentTitle.toLowerCase(),
+                                        )) {
+                                      _titleController.text = cat.name;
+                                    }
+                                    if (_selectedPaymentMode ==
+                                            PaymentMode.bankAccount ||
+                                        _selectedPaymentMode ==
+                                            PaymentMode.upiWallet) {
+                                      _autoSelectLinkedSource(
+                                        _selectedPaymentMode,
+                                      );
+                                    }
+                                  }),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? AppColors.primaryEmerald
+                                          : Colors.white10,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? AppColors.primaryEmerald
+                                            : Colors.white24,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      cat.name,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: isSelected
+                                            ? Colors.black
+                                            : Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            })
+                            .toList(),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -759,19 +874,31 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                       setState(() {
                         _isShared = !_isShared;
                         if (_isShared && _myShareController.text.isEmpty) {
-                          final amt = double.tryParse(_amountController.text) ?? 0;
-                          if (amt > 0) _myShareController.text = (amt / 2).toStringAsFixed(0);
+                          final amt =
+                              double.tryParse(_amountController.text) ?? 0;
+                          if (amt > 0) {
+                            _myShareController.text = (amt / 2).toStringAsFixed(
+                              0,
+                            );
+                          }
                         }
                       });
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: _isShared ? AppColors.primaryEmerald.withAlpha(40) : Colors.white.withAlpha(15),
+                        color: _isShared
+                            ? AppColors.primaryEmerald.withAlpha(40)
+                            : Colors.white.withAlpha(15),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: _isShared ? AppColors.primaryEmerald : Colors.white24,
+                          color: _isShared
+                              ? AppColors.primaryEmerald
+                              : Colors.white24,
                         ),
                       ),
                       child: Row(
@@ -780,15 +907,21 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                           Icon(
                             Icons.group_outlined,
                             size: 14,
-                            color: _isShared ? AppColors.primaryEmerald : Colors.white70,
+                            color: _isShared
+                                ? AppColors.primaryEmerald
+                                : Colors.white70,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            _isShared ? 'Split with Roommates / Friends' : 'Split with Roommates?',
+                            _isShared
+                                ? 'Split with Roommates / Friends'
+                                : 'Split with Roommates?',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: _isShared ? AppColors.primaryEmerald : Colors.white70,
+                              color: _isShared
+                                  ? AppColors.primaryEmerald
+                                  : Colors.white70,
                             ),
                           ),
                         ],
@@ -809,15 +942,28 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                             ),
                             child: TextField(
                               controller: _myShareController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              style: const TextStyle(fontSize: 12, color: Colors.white),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                              ),
                               decoration: InputDecoration(
                                 isDense: true,
                                 border: InputBorder.none,
-                                prefixText: 'My Share: ${CurrencyFormatter.activeCurrency.symbol}',
-                                prefixStyle: const TextStyle(fontSize: 12, color: Colors.white70),
+                                prefixText:
+                                    'My Share: ${CurrencyFormatter.activeCurrency.symbol}',
+                                prefixStyle: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                ),
                                 hintText: '50%',
-                                hintStyle: const TextStyle(fontSize: 11, color: Colors.white38),
+                                hintStyle: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white38,
+                                ),
                               ),
                             ),
                           ),
@@ -833,12 +979,18 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                             ),
                             child: TextField(
                               controller: _sharedWithController,
-                              style: const TextStyle(fontSize: 12, color: Colors.white),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                              ),
                               decoration: const InputDecoration(
                                 isDense: true,
                                 border: InputBorder.none,
                                 hintText: 'With: Roommates',
-                                hintStyle: TextStyle(fontSize: 11, color: Colors.white38),
+                                hintStyle: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white38,
+                                ),
                               ),
                             ),
                           ),
@@ -850,31 +1002,43 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 ],
 
                 // Income Shared Expense Reimbursement Chip (for income)
-                if (_type == TransactionType.income && _pendingSharedExpenses.isNotEmpty) ...[
+                if (_type == TransactionType.income &&
+                    _pendingSharedExpenses.isNotEmpty) ...[
                   InkWell(
                     onTap: () {
                       HapticFeedback.selectionClick();
                       setState(() {
                         _isIncomeReimbursement = !_isIncomeReimbursement;
                         if (_isIncomeReimbursement) {
-                          _selectedCategory = CategoryConstants.categorySharedReimbursement;
-                          _selectedSharedExpenseToSettle ??= _pendingSharedExpenses.first;
-                          final amt = _selectedSharedExpenseToSettle!.pendingReimbursement;
+                          _selectedCategory =
+                              CategoryConstants.categorySharedReimbursement;
+                          _selectedSharedExpenseToSettle ??=
+                              _pendingSharedExpenses.first;
+                          final amt = _selectedSharedExpenseToSettle!
+                              .pendingReimbursement;
                           _amountController.text = amt == amt.roundToDouble()
                               ? amt.toInt().toString()
                               : amt.toStringAsFixed(2);
-                          _titleController.text = 'Reimbursement: ${_selectedSharedExpenseToSettle!.title}';
+                          _titleController.text =
+                              'Reimbursement: ${_selectedSharedExpenseToSettle!.title}';
                         }
                       });
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: _isIncomeReimbursement ? AppColors.primaryEmerald.withAlpha(40) : Colors.white.withAlpha(15),
+                        color: _isIncomeReimbursement
+                            ? AppColors.primaryEmerald.withAlpha(40)
+                            : Colors.white.withAlpha(15),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: _isIncomeReimbursement ? AppColors.primaryEmerald : Colors.white24,
+                          color: _isIncomeReimbursement
+                              ? AppColors.primaryEmerald
+                              : Colors.white24,
                         ),
                       ),
                       child: Row(
@@ -883,22 +1047,29 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                           Icon(
                             Icons.handshake_rounded,
                             size: 14,
-                            color: _isIncomeReimbursement ? AppColors.primaryEmerald : Colors.white70,
+                            color: _isIncomeReimbursement
+                                ? AppColors.primaryEmerald
+                                : Colors.white70,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            _isIncomeReimbursement ? 'Reimbursement for Shared Expense' : 'Roommate Expense Payback?',
+                            _isIncomeReimbursement
+                                ? 'Reimbursement for Shared Expense'
+                                : 'Roommate Expense Payback?',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: _isIncomeReimbursement ? AppColors.primaryEmerald : Colors.white70,
+                              color: _isIncomeReimbursement
+                                  ? AppColors.primaryEmerald
+                                  : Colors.white70,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  if (_isIncomeReimbursement && _selectedSharedExpenseToSettle != null) ...[
+                  if (_isIncomeReimbursement &&
+                      _selectedSharedExpenseToSettle != null) ...[
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -917,7 +1088,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                               value: tx.id,
                               child: Text(
                                 '${tx.title} (${CurrencyFormatter.format(tx.pendingReimbursement)} pending)',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -925,35 +1100,51 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                           }).toList(),
                           onChanged: (id) {
                             if (id == null) return;
-                            final match = _pendingSharedExpenses.firstWhere((t) => t.id == id);
+                            final match = _pendingSharedExpenses.firstWhere(
+                              (t) => t.id == id,
+                            );
                             setState(() {
                               _selectedSharedExpenseToSettle = match;
                               final amt = match.pendingReimbursement;
-                              _amountController.text = amt == amt.roundToDouble()
+                              _amountController.text =
+                                  amt == amt.roundToDouble()
                                   ? amt.toInt().toString()
                                   : amt.toStringAsFixed(2);
-                              _titleController.text = 'Reimbursement: ${match.title}';
+                              _titleController.text =
+                                  'Reimbursement: ${match.title}';
                             });
                           },
                         ),
                       ),
                     ),
-                    if (_selectedSharedExpenseToSettle!.creditCardId != null) ...[
+                    if (_selectedSharedExpenseToSettle!.creditCardId !=
+                        null) ...[
                       const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.info.withAlpha(40),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.credit_card_rounded, size: 12, color: AppColors.info),
+                            Icon(
+                              Icons.credit_card_rounded,
+                              size: 12,
+                              color: AppColors.info,
+                            ),
                             SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 'Paid on Credit Card: will be kept earmarked for CC bill',
-                                style: TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ],
@@ -967,8 +1158,15 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 // TWO-TIER PAYMENT METHOD SELECTION
                 // Tier 1: Method Dropdown
                 Text(
-                  _type == TransactionType.income ? 'DEPOSIT TO (METHOD)' : 'PAY FROM (METHOD)',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white60, letterSpacing: 0.8),
+                  _type == TransactionType.income
+                      ? 'DEPOSIT TO (METHOD)'
+                      : 'PAY FROM (METHOD)',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white60,
+                    letterSpacing: 0.8,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Container(
@@ -988,14 +1186,22 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                           value: mode,
                           child: Row(
                             children: [
-                              Icon(mode.icon, size: 16, color: AppColors.primaryEmerald),
+                              Icon(
+                                mode.icon,
+                                size: 16,
+                                color: AppColors.primaryEmerald,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   mode.displayName,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1019,11 +1225,16 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                   _selectedPaymentMode == PaymentMode.bankAccount
                       ? 'SELECT BANK ACCOUNT'
                       : (_selectedPaymentMode == PaymentMode.creditCard
-                          ? 'SELECT CREDIT CARD'
-                          : (_selectedPaymentMode == PaymentMode.upiWallet
-                              ? 'LINKED UPI / RUPAY CARD'
-                              : 'CASH WALLET')),
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white60, letterSpacing: 0.8),
+                            ? 'SELECT CREDIT CARD'
+                            : (_selectedPaymentMode == PaymentMode.upiWallet
+                                  ? 'LINKED UPI / RUPAY CARD'
+                                  : 'CASH WALLET')),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white60,
+                    letterSpacing: 0.8,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 _buildBubbleLinkedSourceDropdown(),
@@ -1033,20 +1244,33 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 if (_validationError != null) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.expense.withAlpha(30),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.expense.withAlpha(100)),
+                      border: Border.all(
+                        color: AppColors.expense.withAlpha(100),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline_rounded, size: 14, color: AppColors.expense),
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          size: 14,
+                          color: AppColors.expense,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             _validationError!,
-                            style: const TextStyle(color: AppColors.expense, fontSize: 11, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              color: AppColors.expense,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -1062,14 +1286,27 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primaryEmerald,
                       padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: _isSaving ? null : _saveQuickTransaction,
                     child: _isSaving
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          )
                         : const Text(
                             'Save Transaction',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Colors.black),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: Colors.black,
+                            ),
                           ),
                   ),
                 ),
@@ -1101,7 +1338,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 value: acc.id,
                 child: Text(
                   '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1137,7 +1378,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 value: card.id,
                 child: Text(
                   '💳 ${card.cardName} (${card.bankName}) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1156,7 +1401,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         );
 
       case PaymentMode.upiWallet:
-        final rupayCards = _creditCards.where((c) => c.cardNetwork == CardNetwork.rupay).toList();
+        final rupayCards = _creditCards
+            .where((c) => c.cardNetwork == CardNetwork.rupay)
+            .toList();
         if (_bankAccounts.isEmpty && rupayCards.isEmpty) {
           return _buildFallbackBanner('No bank accounts or RuPay cards');
         }
@@ -1166,24 +1413,36 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
             : (_selectedAccountId != null ? 'acc_$_selectedAccountId' : null);
 
         final items = <DropdownMenuItem<String>>[
-          ..._bankAccounts.map((acc) => DropdownMenuItem<String>(
-                value: 'acc_${acc.id}',
-                child: Text(
-                  '🏦 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          ..._bankAccounts.map(
+            (acc) => DropdownMenuItem<String>(
+              value: 'acc_${acc.id}',
+              child: Text(
+                '🏦 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
-              )),
-          ...rupayCards.map((card) => DropdownMenuItem<String>(
-                value: 'card_${card.id}',
-                child: Text(
-                  '💳 ${card.cardName} (RuPay UPI) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          ...rupayCards.map(
+            (card) => DropdownMenuItem<String>(
+              value: 'card_${card.id}',
+              child: Text(
+                '💳 ${card.cardName} (RuPay UPI) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
-              )),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ];
 
         final isKeyValid = items.any((i) => i.value == upiKey);
@@ -1218,7 +1477,9 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
         );
 
       case PaymentMode.cash:
-        final cashAccounts = _bankAccounts.where((a) => a.accountType == AccountType.cash).toList();
+        final cashAccounts = _bankAccounts
+            .where((a) => a.accountType == AccountType.cash)
+            .toList();
         if (cashAccounts.isEmpty) {
           return _buildFallbackBanner('Physical Cash / Cash in Hand');
         }
@@ -1236,7 +1497,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
                 value: acc.id,
                 child: Text(
                   '💵 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               );
@@ -1275,7 +1540,11 @@ class _FloatingBubbleOverlayScreenState extends State<FloatingBubbleOverlayScree
       ),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          fontSize: 12,
+          color: Colors.white70,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

@@ -1,6 +1,8 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/reports_entity.dart';
@@ -34,10 +36,12 @@ class InteractiveCashflowLineChart extends StatefulWidget {
   });
 
   @override
-  State<InteractiveCashflowLineChart> createState() => _InteractiveCashflowLineChartState();
+  State<InteractiveCashflowLineChart> createState() =>
+      _InteractiveCashflowLineChartState();
 }
 
-class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineChart> {
+class _InteractiveCashflowLineChartState
+    extends State<InteractiveCashflowLineChart> {
   int? _selectedIndex;
 
   List<CashflowPoint> _buildPoints() {
@@ -45,24 +49,28 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
 
     // Add historical trends
     for (final t in widget.trends) {
-      points.add(CashflowPoint(
-        month: t.month,
-        income: t.totalIncome,
-        expense: t.totalExpense,
-        net: t.netSavings,
-        isForecast: false,
-      ));
+      points.add(
+        CashflowPoint(
+          month: t.month,
+          income: t.totalIncome,
+          expense: t.totalExpense,
+          net: t.netSavings,
+          isForecast: false,
+        ),
+      );
     }
 
     // Add forecast points
     for (final f in widget.forecast) {
-      points.add(CashflowPoint(
-        month: f.month,
-        income: f.projectedIncome,
-        expense: f.projectedFixedExpenses,
-        net: f.projectedNetCash,
-        isForecast: true,
-      ));
+      points.add(
+        CashflowPoint(
+          month: f.month,
+          income: f.projectedIncome,
+          expense: f.projectedFixedExpenses,
+          net: f.projectedNetCash,
+          isForecast: true,
+        ),
+      );
     }
 
     return points;
@@ -72,7 +80,10 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
     if (pointsCount <= 1) return;
 
     final stepX = chartWidth / (pointsCount - 1);
-    final rawIndex = (localPosition.dx / stepX).round().clamp(0, pointsCount - 1);
+    final rawIndex = (localPosition.dx / stepX).round().clamp(
+      0,
+      pointsCount - 1,
+    );
 
     if (_selectedIndex != rawIndex) {
       AppHaptics.selectionClick();
@@ -90,7 +101,8 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
 
     final points = _buildPoints();
 
-    if (points.isEmpty || points.every((p) => p.income == 0 && p.expense == 0)) {
+    if (points.isEmpty ||
+        points.every((p) => p.income == 0 && p.expense == 0)) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 24),
@@ -103,9 +115,11 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
     }
 
     // Default to the last historical point or last point if not touching
-    final activeIndex = _selectedIndex ?? (points.indexWhere((p) => p.isForecast) != -1
-        ? math.max(0, points.indexWhere((p) => p.isForecast) - 1)
-        : points.length - 1);
+    final activeIndex =
+        _selectedIndex ??
+        (points.indexWhere((p) => p.isForecast) != -1
+            ? math.max(0, points.indexWhere((p) => p.isForecast) - 1)
+            : points.length - 1);
     final activePoint = points[activeIndex.clamp(0, points.length - 1)];
 
     return Column(
@@ -116,7 +130,9 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
           padding: const EdgeInsets.all(12),
           margin: const EdgeInsets.only(bottom: 14),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+            color: isDark
+                ? AppColors.darkSurfaceVariant
+                : AppColors.lightSurfaceVariant,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: activePoint.isForecast
@@ -135,15 +151,22 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          activePoint.isForecast ? Icons.auto_awesome_rounded : Icons.event_note_rounded,
+                          activePoint.isForecast
+                              ? Icons.auto_awesome_rounded
+                              : Icons.event_note_rounded,
                           size: 15,
-                          color: activePoint.isForecast ? AppColors.primaryTeal : financialColors.textMuted,
+                          color: activePoint.isForecast
+                              ? AppColors.primaryTeal
+                              : financialColors.textMuted,
                         ),
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
                             DateFormat('MMMM yyyy').format(activePoint.month),
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
@@ -153,7 +176,10 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: activePoint.isForecast
                           ? AppColors.primaryTeal.withAlpha(isDark ? 45 : 25)
@@ -161,11 +187,15 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      activePoint.isForecast ? '3-Mo Projection' : 'Actual Recorded',
+                      activePoint.isForecast
+                          ? '3-Mo Projection'
+                          : 'Actual Recorded',
                       style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
-                        color: activePoint.isForecast ? AppColors.primaryTeal : financialColors.income,
+                        color: activePoint.isForecast
+                            ? AppColors.primaryTeal
+                            : financialColors.income,
                       ),
                     ),
                   ),
@@ -179,12 +209,23 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('INCOME', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: financialColors.textMuted)),
+                        Text(
+                          'INCOME',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: financialColors.textMuted,
+                          ),
+                        ),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
                             '+${CurrencyFormatter.format(activePoint.income)}',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: financialColors.income),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: financialColors.income,
+                            ),
                           ),
                         ),
                       ],
@@ -194,12 +235,23 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('EXPENSE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: financialColors.textMuted)),
+                        Text(
+                          'EXPENSE',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: financialColors.textMuted,
+                          ),
+                        ),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
                             '-${CurrencyFormatter.format(activePoint.expense)}',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: financialColors.expense),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: financialColors.expense,
+                            ),
                           ),
                         ),
                       ],
@@ -209,7 +261,14 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('NET CASH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: financialColors.textMuted)),
+                        Text(
+                          'NET CASH',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: financialColors.textMuted,
+                          ),
+                        ),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
@@ -217,7 +276,9 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
-                              color: activePoint.net >= 0 ? financialColors.income : financialColors.expense,
+                              color: activePoint.net >= 0
+                                  ? financialColors.income
+                                  : financialColors.expense,
                             ),
                           ),
                         ),
@@ -270,13 +331,39 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
                 physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: [
-                    Container(width: 8, height: 8, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.income)),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.income,
+                      ),
+                    ),
                     const SizedBox(width: 4),
-                    const Text('Income', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Income',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(width: 10),
-                    Container(width: 8, height: 8, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.expense)),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.expense,
+                      ),
+                    ),
                     const SizedBox(width: 4),
-                    const Text('Expense', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Expense',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(width: 10),
                     Container(
                       width: 14,
@@ -284,7 +371,14 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
                       color: AppColors.primaryTeal,
                     ),
                     const SizedBox(width: 4),
-                    const Text('Forecast (*)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primaryTeal)),
+                    const Text(
+                      'Forecast (*)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryTeal,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -292,7 +386,11 @@ class _InteractiveCashflowLineChartState extends State<InteractiveCashflowLineCh
             const SizedBox(width: 8),
             Text(
               'Drag to scrub',
-              style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: financialColors.textMuted),
+              style: TextStyle(
+                fontSize: 10.5,
+                fontStyle: FontStyle.italic,
+                color: financialColors.textMuted,
+              ),
             ),
           ],
         ),
@@ -331,7 +429,9 @@ class _BezierCashflowPainter extends CustomPainter {
     // Add 15% headroom
     maxVal *= 1.15;
 
-    final stepX = points.length > 1 ? graphWidth / (points.length - 1) : graphWidth;
+    final stepX = points.length > 1
+        ? graphWidth / (points.length - 1)
+        : graphWidth;
 
     // 1. Draw horizontal gridlines (3 lines)
     final gridPaint = Paint()
@@ -349,11 +449,21 @@ class _BezierCashflowPainter extends CustomPainter {
 
     for (int i = 0; i < points.length; i++) {
       final x = i * stepX;
-      final incomeY = topPadding + graphHeight - ((points[i].income / maxVal) * graphHeight);
-      final expenseY = topPadding + graphHeight - ((points[i].expense / maxVal) * graphHeight);
+      final incomeY =
+          topPadding +
+          graphHeight -
+          ((points[i].income / maxVal) * graphHeight);
+      final expenseY =
+          topPadding +
+          graphHeight -
+          ((points[i].expense / maxVal) * graphHeight);
 
-      incomeCoords.add(Offset(x, incomeY.clamp(topPadding, size.height - bottomPadding)));
-      expenseCoords.add(Offset(x, expenseY.clamp(topPadding, size.height - bottomPadding)));
+      incomeCoords.add(
+        Offset(x, incomeY.clamp(topPadding, size.height - bottomPadding)),
+      );
+      expenseCoords.add(
+        Offset(x, expenseY.clamp(topPadding, size.height - bottomPadding)),
+      );
     }
 
     // 2. Draw Bezier paths (Past curve solid, Forecast curve dashed)
@@ -405,7 +515,8 @@ class _BezierCashflowPainter extends CustomPainter {
     // 4. Draw X-axis month labels at the bottom
     for (int i = 0; i < points.length; i++) {
       final p = points[i];
-      final label = DateFormat('MMM').format(p.month) + (p.isForecast ? '*' : '');
+      final label =
+          DateFormat('MMM').format(p.month) + (p.isForecast ? '*' : '');
       final isSelected = (i == selectedIndex);
 
       final textSpan = TextSpan(
@@ -414,7 +525,9 @@ class _BezierCashflowPainter extends CustomPainter {
           fontSize: 10.5,
           fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
           color: isSelected
-              ? (p.isForecast ? AppColors.primaryTeal : (isDark ? Colors.white : Colors.black))
+              ? (p.isForecast
+                    ? AppColors.primaryTeal
+                    : (isDark ? Colors.white : Colors.black))
               : financialColors.textMuted,
         ),
       );
@@ -426,7 +539,10 @@ class _BezierCashflowPainter extends CustomPainter {
 
       final textX = (i * stepX) - (textPainter.width / 2);
       final clampedX = textX.clamp(0.0, graphWidth - textPainter.width);
-      textPainter.paint(canvas, Offset(clampedX, size.height - bottomPadding + 6));
+      textPainter.paint(
+        canvas,
+        Offset(clampedX, size.height - bottomPadding + 6),
+      );
     }
   }
 
@@ -484,10 +600,7 @@ class _BezierCashflowPainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            color.withAlpha(isDark ? 35 : 20),
-            color.withAlpha(0),
-          ],
+          colors: [color.withAlpha(isDark ? 35 : 20), color.withAlpha(0)],
         ).createShader(Rect.fromLTRB(0, topPadding, size.width, bottomY))
         ..style = PaintingStyle.fill;
 

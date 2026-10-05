@@ -1510,77 +1510,90 @@ void main() {
       expect(backup.creditCards.length, 6);
 
       // Verify specific transactions
-      final asthmaMed = backup.transactions.firstWhere((t) => t.title == 'Asthma Medicine');
+      final asthmaMed = backup.transactions.firstWhere(
+        (t) => t.title == 'Asthma Medicine',
+      );
       expect(asthmaMed.amount, 554.0);
       expect(asthmaMed.type, TransactionType.expense);
       expect(asthmaMed.creditCardId, '70691f76-9a6e-4df1-89f6-c5804033f461');
       expect(asthmaMed.category, 'Health & Medical');
 
       // Verify shared transaction
-      final rides = backup.transactions.firstWhere((t) => t.title == 'Exhibition Rides');
+      final rides = backup.transactions.firstWhere(
+        (t) => t.title == 'Exhibition Rides',
+      );
       expect(rides.isShared, isTrue);
       expect(rides.myShareAmount, 320.0);
       expect(rides.friendsShare, 220.0);
 
       // Verify reimbursement
-      final reimb = backup.transactions.firstWhere((t) => t.title == 'Reimbursement: Food & Dining');
+      final reimb = backup.transactions.firstWhere(
+        (t) => t.title == 'Reimbursement: Food & Dining',
+      );
       expect(reimb.type, TransactionType.income);
       expect(reimb.category, 'Shared Expense Reimbursement');
       expect(reimb.linkedEntityId, '924f78ba-ef7d-47cc-8ae2-c537c3e14958');
 
       // Verify accounts and cards
-      final icici = backup.bankAccounts.firstWhere((a) => a.accountName == 'ICICI Salary');
+      final icici = backup.bankAccounts.firstWhere(
+        (a) => a.accountName == 'ICICI Salary',
+      );
       expect(icici.currentBalance, closeTo(44100.57, 0.01));
 
-      final tataCard = backup.creditCards.firstWhere((c) => c.cardName == 'Tata Neu Plus');
+      final tataCard = backup.creditCards.firstWhere(
+        (c) => c.cardName == 'Tata Neu Plus',
+      );
       expect(tataCard.usedAmount, closeTo(5799.41, 0.01));
     });
 
-    test('restoreAll into in-memory repositories succeeds completely', () async {
-      final service = BackupService();
-      final backup = service.parseBackupJson(userJson);
+    test(
+      'restoreAll into in-memory repositories succeeds completely',
+      () async {
+        final service = BackupService();
+        final backup = service.parseBackupJson(userJson);
 
-      final txRepo = InMemoryTransactionRepository();
-      final budgetRepo = InMemoryBudgetRepository();
-      final savingsRepo = InMemorySavingsGoalRepository();
-      final debtRepo = InMemoryDebtRepository();
-      final investRepo = InMemoryInvestmentRepository();
-      final recurRepo = InMemoryRecurringRepository();
-      final bankRepo = InMemoryBankAccountRepository();
-      final cardRepo = InMemoryCreditCardRepository();
+        final txRepo = InMemoryTransactionRepository();
+        final budgetRepo = InMemoryBudgetRepository();
+        final savingsRepo = InMemorySavingsGoalRepository();
+        final debtRepo = InMemoryDebtRepository();
+        final investRepo = InMemoryInvestmentRepository();
+        final recurRepo = InMemoryRecurringRepository();
+        final bankRepo = InMemoryBankAccountRepository();
+        final cardRepo = InMemoryCreditCardRepository();
 
-      await service.restoreAll(
-        backup: backup,
-        transactionRepo: txRepo,
-        budgetRepo: budgetRepo,
-        savingsRepo: savingsRepo,
-        debtRepo: debtRepo,
-        investmentRepo: investRepo,
-        recurringRepo: recurRepo,
-        bankAccountRepo: bankRepo,
-        creditCardRepo: cardRepo,
-      );
+        await service.restoreAll(
+          backup: backup,
+          transactionRepo: txRepo,
+          budgetRepo: budgetRepo,
+          savingsRepo: savingsRepo,
+          debtRepo: debtRepo,
+          investmentRepo: investRepo,
+          recurringRepo: recurRepo,
+          bankAccountRepo: bankRepo,
+          creditCardRepo: cardRepo,
+        );
 
-      final txs = await txRepo.getAllTransactions();
-      expect(txs.length, 54);
+        final txs = await txRepo.getAllTransactions();
+        expect(txs.length, 54);
 
-      final accounts = await bankRepo.getAllAccounts();
-      expect(accounts.length, 5);
+        final accounts = await bankRepo.getAllAccounts();
+        expect(accounts.length, 5);
 
-      final cards = await cardRepo.getAllCards();
-      expect(cards.length, 6);
+        final cards = await cardRepo.getAllCards();
+        expect(cards.length, 6);
 
-      final budgets = await budgetRepo.getAllBudgets();
-      expect(budgets.length, 10);
+        final budgets = await budgetRepo.getAllBudgets();
+        expect(budgets.length, 10);
 
-      final debts = await debtRepo.getAllDebts();
-      expect(debts.length, 1);
+        final debts = await debtRepo.getAllDebts();
+        expect(debts.length, 1);
 
-      final goals = await savingsRepo.getAllGoals();
-      expect(goals.length, 2);
+        final goals = await savingsRepo.getAllGoals();
+        expect(goals.length, 2);
 
-      final recurrings = await recurRepo.getAllRecurringExpenses();
-      expect(recurrings.length, 2);
-    });
+        final recurrings = await recurRepo.getAllRecurringExpenses();
+        expect(recurrings.length, 2);
+      },
+    );
   });
 }

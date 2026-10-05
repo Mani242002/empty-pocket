@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../app/theme/app_colors.dart';
 import '../../../features/settings/presentation/state/backup_provider.dart';
 import '../../services/log_service.dart';
 import '../../services/security_service.dart';
 
-final securityServiceProvider = Provider<SecurityService>((ref) => SecurityService());
+final securityServiceProvider = Provider<SecurityService>(
+  (ref) => SecurityService(),
+);
 
 class AppLockGate extends ConsumerStatefulWidget {
   final Widget child;
@@ -42,7 +45,8 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
       _pausedAt = DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
       final isLockEnabled = ref.read(appLockProvider).valueOrNull ?? false;
@@ -158,7 +162,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -173,7 +179,10 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.black,
-                  border: Border.all(color: AppColors.primaryEmerald.withAlpha(120), width: 2.5),
+                  border: Border.all(
+                    color: AppColors.primaryEmerald.withAlpha(120),
+                    width: 2.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.primaryEmerald.withAlpha(60),
@@ -207,7 +216,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                 'Biometric authentication or device PIN is required to access your offline records.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                   height: 1.4,
                 ),
               ),
@@ -234,7 +245,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                         child: Text(
                           'No device lock, PIN, or biometric credentials detected on this device. You can disable the vault lock below to regain access.',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.lightTextPrimary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -260,7 +273,10 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                     icon: const Icon(Icons.lock_open_rounded, size: 22),
                     label: const Text(
                       'Disable Vault Lock',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
                     ),
                     onPressed: () async {
                       final confirmed = await showDialog<bool>(
@@ -289,7 +305,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                       );
 
                       if (confirmed == true) {
-                        await ref.read(appLockProvider.notifier).toggleAppLock(false);
+                        await ref
+                            .read(appLockProvider.notifier)
+                            .toggleAppLock(false);
                         if (mounted) {
                           setState(() {
                             isSessionUnlocked = true;
@@ -315,7 +333,10 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                     icon: const Icon(Icons.refresh_rounded, size: 20),
                     label: const Text(
                       'Retry Authentication',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
                     onPressed: _checkLockStatus,
                   ),
@@ -336,12 +357,18 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
                           )
                         : const Icon(Icons.fingerprint_rounded, size: 24),
                     label: Text(
                       _isAuthenticating ? 'Verifying...' : 'Unlock Vault',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
                     ),
                     onPressed: _isAuthenticating ? null : _authenticate,
                   ),

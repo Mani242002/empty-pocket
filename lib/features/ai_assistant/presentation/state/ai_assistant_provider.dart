@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
 import '../../../../core/repositories/ai_chat_repository.dart';
@@ -59,22 +61,29 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
       final prefs = await SharedPreferences.getInstance();
       final providerStr = prefs.getString(_keyProvider) ?? 'gemini';
 
-      final geminiModel = prefs.getString(_keyGeminiModel) ?? 'gemini-3.8-flash';
+      final geminiModel =
+          prefs.getString(_keyGeminiModel) ?? 'gemini-3.8-flash';
       final openAiModel = prefs.getString(_keyOpenAiModel) ?? 'gpt-6-astra';
-      final anthropicModel = prefs.getString(_keyAnthropicModel) ?? 'claude-opus-5-5';
+      final anthropicModel =
+          prefs.getString(_keyAnthropicModel) ?? 'claude-opus-5-5';
       final groqModel = prefs.getString(_keyGroqModel) ?? 'qwen/qwen3.8-27b';
-      final openRouterModel = prefs.getString(_keyOpenRouterModel) ?? 'meta-llama/llama-4-maverick';
-      final deepSeekModel = prefs.getString(_keyDeepSeekModel) ?? 'deepseek-flash';
+      final openRouterModel =
+          prefs.getString(_keyOpenRouterModel) ?? 'meta-llama/llama-4-maverick';
+      final deepSeekModel =
+          prefs.getString(_keyDeepSeekModel) ?? 'deepseek-flash';
       final customModel = prefs.getString(_keyCustomModel) ?? 'llama-4-scout';
-      final customBaseUrl = prefs.getString(_keyCustomBaseUrl) ?? 'http://10.0.2.2:11434/v1';
-      final customSavedModels = prefs.getStringList(_keyCustomSavedModels) ?? const [
-        'llama-4-scout',
-        'qwen3.8',
-        'deepseek-flash',
-        'llama3.3:70b',
-        'llama3.2-vision',
-        'mistral-large',
-      ];
+      final customBaseUrl =
+          prefs.getString(_keyCustomBaseUrl) ?? 'http://10.0.2.2:11434/v1';
+      final customSavedModels =
+          prefs.getStringList(_keyCustomSavedModels) ??
+          const [
+            'llama-4-scout',
+            'qwen3.8',
+            'deepseek-flash',
+            'llama3.3:70b',
+            'llama3.2-vision',
+            'mistral-large',
+          ];
 
       String? geminiKey;
       String? openAiKey;
@@ -93,11 +102,17 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
         deepSeekKey = await _secureStorage.read(key: _keyDeepSeekApiKey);
         customKey = await _secureStorage.read(key: _keyCustomApiKey);
       } catch (e, st) {
-        LogService.error('AiProviderConfigNotifier', 'Secure storage read error', e, st);
+        LogService.error(
+          'AiProviderConfigNotifier',
+          'Secure storage read error',
+          e,
+          st,
+        );
       }
 
       // Legacy key fallback & migration
-      if ((geminiKey == null || geminiKey.isEmpty) && prefs.containsKey(_keyLegacyApiKey)) {
+      if ((geminiKey == null || geminiKey.isEmpty) &&
+          prefs.containsKey(_keyLegacyApiKey)) {
         final legacyKey = prefs.getString(_keyLegacyApiKey) ?? '';
         if (legacyKey.isNotEmpty) {
           geminiKey = legacyKey;
@@ -186,7 +201,12 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
         await _secureStorage.write(key: storageKey, value: key);
       }
     } catch (e, st) {
-      LogService.error('AiProviderConfigNotifier', 'Secure storage write error ($storageKey)', e, st);
+      LogService.error(
+        'AiProviderConfigNotifier',
+        'Secure storage write error ($storageKey)',
+        e,
+        st,
+      );
     }
   }
 
@@ -231,33 +251,54 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
   }
 
   Future<void> removeCustomSavedModel(String modelName) async {
-    final updated = state.customSavedModels.where((m) => m != modelName).toList();
+    final updated = state.customSavedModels
+        .where((m) => m != modelName)
+        .toList();
     final newSelected = state.customModel == modelName
         ? (updated.isNotEmpty ? updated.first : 'llama-4-scout')
         : state.customModel;
-    state = state.copyWith(customSavedModels: updated, customModel: newSelected);
+    state = state.copyWith(
+      customSavedModels: updated,
+      customModel: newSelected,
+    );
     await _saveConfig();
   }
 
   // Convenience methods for direct provider updates
-  Future<void> updateGeminiApiKey(String key) => updateApiKeyFor(AiProviderType.gemini, key);
-  Future<void> updateOpenAiApiKey(String key) => updateApiKeyFor(AiProviderType.openAi, key);
-  Future<void> updateAnthropicApiKey(String key) => updateApiKeyFor(AiProviderType.anthropic, key);
-  Future<void> updateGroqApiKey(String key) => updateApiKeyFor(AiProviderType.groq, key);
-  Future<void> updateOpenRouterApiKey(String key) => updateApiKeyFor(AiProviderType.openRouter, key);
-  Future<void> updateDeepSeekApiKey(String key) => updateApiKeyFor(AiProviderType.deepSeek, key);
-  Future<void> updateCustomApiKey(String key) => updateApiKeyFor(AiProviderType.custom, key);
+  Future<void> updateGeminiApiKey(String key) =>
+      updateApiKeyFor(AiProviderType.gemini, key);
+  Future<void> updateOpenAiApiKey(String key) =>
+      updateApiKeyFor(AiProviderType.openAi, key);
+  Future<void> updateAnthropicApiKey(String key) =>
+      updateApiKeyFor(AiProviderType.anthropic, key);
+  Future<void> updateGroqApiKey(String key) =>
+      updateApiKeyFor(AiProviderType.groq, key);
+  Future<void> updateOpenRouterApiKey(String key) =>
+      updateApiKeyFor(AiProviderType.openRouter, key);
+  Future<void> updateDeepSeekApiKey(String key) =>
+      updateApiKeyFor(AiProviderType.deepSeek, key);
+  Future<void> updateCustomApiKey(String key) =>
+      updateApiKeyFor(AiProviderType.custom, key);
 
-  Future<void> updateGeminiModel(String model) => updateModelFor(AiProviderType.gemini, model);
-  Future<void> updateOpenAiModel(String model) => updateModelFor(AiProviderType.openAi, model);
-  Future<void> updateAnthropicModel(String model) => updateModelFor(AiProviderType.anthropic, model);
-  Future<void> updateGroqModel(String model) => updateModelFor(AiProviderType.groq, model);
-  Future<void> updateOpenRouterModel(String model) => updateModelFor(AiProviderType.openRouter, model);
-  Future<void> updateDeepSeekModel(String model) => updateModelFor(AiProviderType.deepSeek, model);
-  Future<void> updateCustomModel(String model) => updateModelFor(AiProviderType.custom, model);
+  Future<void> updateGeminiModel(String model) =>
+      updateModelFor(AiProviderType.gemini, model);
+  Future<void> updateOpenAiModel(String model) =>
+      updateModelFor(AiProviderType.openAi, model);
+  Future<void> updateAnthropicModel(String model) =>
+      updateModelFor(AiProviderType.anthropic, model);
+  Future<void> updateGroqModel(String model) =>
+      updateModelFor(AiProviderType.groq, model);
+  Future<void> updateOpenRouterModel(String model) =>
+      updateModelFor(AiProviderType.openRouter, model);
+  Future<void> updateDeepSeekModel(String model) =>
+      updateModelFor(AiProviderType.deepSeek, model);
+  Future<void> updateCustomModel(String model) =>
+      updateModelFor(AiProviderType.custom, model);
 
-  Future<void> updateApiKey(String apiKey) => updateApiKeyFor(state.providerType, apiKey);
-  Future<void> updateModel(String model) => updateModelFor(state.providerType, model);
+  Future<void> updateApiKey(String apiKey) =>
+      updateApiKeyFor(state.providerType, apiKey);
+  Future<void> updateModel(String model) =>
+      updateModelFor(state.providerType, model);
 
   Future<void> _saveConfig() async {
     try {
@@ -280,8 +321,8 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
 
 final aiProviderConfigProvider =
     StateNotifierProvider<AiProviderConfigNotifier, AiProviderConfig>((ref) {
-  return AiProviderConfigNotifier();
-});
+      return AiProviderConfigNotifier();
+    });
 
 /// Context provider giving up-to-date financial numbers formatted for AI reasoning
 final aiFinancialContextProvider = Provider<String>((ref) {
@@ -293,7 +334,13 @@ final aiFinancialContextProvider = Provider<String>((ref) {
   final topCategories = ref.watch(monthlyCategoryBreakdownProvider);
   final accounts = ref.watch(activeBankAccountsProvider);
   final cards = ref.watch(activeCreditCardsProvider);
-  final recurring = ref.watch(recurringListNotifierProvider).valueOrNull?.where((r) => r.isActive).toList() ?? [];
+  final recurring =
+      ref
+          .watch(recurringListNotifierProvider)
+          .valueOrNull
+          ?.where((r) => r.isActive)
+          .toList() ??
+      [];
 
   return FinancialCalculator.generateFinancialContextSummary(
     monthlyIncome: financialSummary.totalIncome,
@@ -327,7 +374,12 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
       final reports = await repository.getAllReports();
       state = AsyncValue.data(reports);
     } catch (e, st) {
-      LogService.error('AiReportsNotifier', 'Failed to load persisted AI reports', e, st);
+      LogService.error(
+        'AiReportsNotifier',
+        'Failed to load persisted AI reports',
+        e,
+        st,
+      );
       state = const AsyncValue.data([]);
     }
   }
@@ -367,14 +419,21 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
     } catch (e, st) {
       LogService.error('AiReportsNotifier', 'generateReport failed', e, st);
       if (currentReports.isNotEmpty) {
-        state = AsyncValue<List<AiReportItem>>.error(e, st).copyWithPrevious(AsyncValue.data(currentReports));
+        state = AsyncValue<List<AiReportItem>>.error(
+          e,
+          st,
+        ).copyWithPrevious(AsyncValue.data(currentReports));
       } else {
         state = AsyncValue.error(e, st);
       }
     }
   }
 
-  Future<void> regenerateReport(String id, {AiProviderType? provider, String? model}) async {
+  Future<void> regenerateReport(
+    String id, {
+    AiProviderType? provider,
+    String? model,
+  }) async {
     final currentReports = state.value ?? [];
     final existingIndex = currentReports.indexWhere((r) => r.id == id);
     if (existingIndex == -1) return;
@@ -417,7 +476,10 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
     } catch (e, st) {
       LogService.error('AiReportsNotifier', 'regenerateReport failed', e, st);
       if (currentReports.isNotEmpty) {
-        state = AsyncValue<List<AiReportItem>>.error(e, st).copyWithPrevious(AsyncValue.data(currentReports));
+        state = AsyncValue<List<AiReportItem>>.error(
+          e,
+          st,
+        ).copyWithPrevious(AsyncValue.data(currentReports));
       } else {
         state = AsyncValue.error(e, st);
       }
@@ -432,7 +494,12 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
       final repository = ref.read(aiReportsRepositoryProvider);
       await repository.deleteReport(id);
     } catch (e, st) {
-      LogService.error('AiReportsNotifier', 'Failed to delete report from repository', e, st);
+      LogService.error(
+        'AiReportsNotifier',
+        'Failed to delete report from repository',
+        e,
+        st,
+      );
     }
   }
 
@@ -442,15 +509,22 @@ class AiReportsNotifier extends StateNotifier<AsyncValue<List<AiReportItem>>> {
       final repository = ref.read(aiReportsRepositoryProvider);
       await repository.clearAllReports();
     } catch (e, st) {
-      LogService.error('AiReportsNotifier', 'Failed to clear all reports from repository', e, st);
+      LogService.error(
+        'AiReportsNotifier',
+        'Failed to clear all reports from repository',
+        e,
+        st,
+      );
     }
   }
 }
 
 final aiReportsProvider =
-    StateNotifierProvider<AiReportsNotifier, AsyncValue<List<AiReportItem>>>((ref) {
-  return AiReportsNotifier(ref);
-});
+    StateNotifierProvider<AiReportsNotifier, AsyncValue<List<AiReportItem>>>((
+      ref,
+    ) {
+      return AiReportsNotifier(ref);
+    });
 
 /// Legacy compatibility wrapper for Audit notifier
 class AiAuditNotifier extends StateNotifier<AsyncValue<AiAuditReport?>> {
@@ -479,7 +553,9 @@ class AiAuditNotifier extends StateNotifier<AsyncValue<AiAuditReport?>> {
       state = AsyncValue.data(report);
 
       // Also create an AiReportItem in aiReportsProvider
-      ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit);
+      ref
+          .read(aiReportsProvider.notifier)
+          .generateReport(type: AiReportType.fullAudit);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
@@ -492,8 +568,8 @@ class AiAuditNotifier extends StateNotifier<AsyncValue<AiAuditReport?>> {
 
 final aiAuditProvider =
     StateNotifierProvider<AiAuditNotifier, AsyncValue<AiAuditReport?>>((ref) {
-  return AiAuditNotifier(ref);
-});
+      return AiAuditNotifier(ref);
+    });
 
 /// Combined state containing persistent chat sessions, active messages, and generation state
 class AiChatState {
@@ -520,7 +596,9 @@ class AiChatState {
     bool? isLoadingHistory,
   }) {
     return AiChatState(
-      currentSession: clearCurrentSession ? null : (currentSession ?? this.currentSession),
+      currentSession: clearCurrentSession
+          ? null
+          : (currentSession ?? this.currentSession),
       sessions: sessions ?? this.sessions,
       messages: messages ?? this.messages,
       isGenerating: isGenerating ?? this.isGenerating,
@@ -557,20 +635,21 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       final sessions = await _chatRepo.getAllSessions();
       // If user has already initiated an in-flight prompt, avoid clobbering state
       if (state.messages.any((m) => m.isUser)) {
-        state = state.copyWith(
-          sessions: sessions,
-          isLoadingHistory: false,
-        );
+        state = state.copyWith(sessions: sessions, isLoadingHistory: false);
         return;
       }
 
       if (sessions.isNotEmpty) {
         final activeSession = sessions.first;
-        final messages = await _chatRepo.getMessagesForSession(activeSession.id);
+        final messages = await _chatRepo.getMessagesForSession(
+          activeSession.id,
+        );
         state = state.copyWith(
           sessions: sessions,
           currentSession: activeSession,
-          messages: messages.isNotEmpty ? messages : [_createWelcomeMessage(activeSession.id)],
+          messages: messages.isNotEmpty
+              ? messages
+              : [_createWelcomeMessage(activeSession.id)],
           isLoadingHistory: false,
         );
       } else {
@@ -613,7 +692,9 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       final messages = await _chatRepo.getMessagesForSession(sessionId);
       state = state.copyWith(
         currentSession: session,
-        messages: messages.isNotEmpty ? messages : [_createWelcomeMessage(sessionId)],
+        messages: messages.isNotEmpty
+            ? messages
+            : [_createWelcomeMessage(sessionId)],
       );
     } catch (e, st) {
       LogService.error('AiChatNotifier', 'selectSession error', e, st);
@@ -628,13 +709,20 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       final session = await _chatRepo.getSessionById(sessionId);
       if (session == null) return;
 
-      final updated = session.copyWith(title: trimmed, updatedAt: DateTime.now());
+      final updated = session.copyWith(
+        title: trimmed,
+        updatedAt: DateTime.now(),
+      );
       await _chatRepo.saveSession(updated);
 
-      final updatedSessions = state.sessions.map((s) => s.id == sessionId ? updated : s).toList();
+      final updatedSessions = state.sessions
+          .map((s) => s.id == sessionId ? updated : s)
+          .toList();
       state = state.copyWith(
         sessions: updatedSessions,
-        currentSession: state.currentSession?.id == sessionId ? updated : state.currentSession,
+        currentSession: state.currentSession?.id == sessionId
+            ? updated
+            : state.currentSession,
       );
     } catch (e, st) {
       LogService.error('AiChatNotifier', 'renameSession error', e, st);
@@ -644,16 +732,22 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   Future<void> deleteSession(String sessionId) async {
     try {
       await _chatRepo.deleteSession(sessionId);
-      final updatedSessions = state.sessions.where((s) => s.id != sessionId).toList();
+      final updatedSessions = state.sessions
+          .where((s) => s.id != sessionId)
+          .toList();
 
       if (state.currentSession?.id == sessionId) {
         if (updatedSessions.isNotEmpty) {
           final nextSession = updatedSessions.first;
-          final messages = await _chatRepo.getMessagesForSession(nextSession.id);
+          final messages = await _chatRepo.getMessagesForSession(
+            nextSession.id,
+          );
           state = state.copyWith(
             sessions: updatedSessions,
             currentSession: nextSession,
-            messages: messages.isNotEmpty ? messages : [_createWelcomeMessage(nextSession.id)],
+            messages: messages.isNotEmpty
+                ? messages
+                : [_createWelcomeMessage(nextSession.id)],
           );
         } else {
           state = state.copyWith(
@@ -781,11 +875,13 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       final responseText = await aiService.sendChatMessage(
         config: config,
         history: state.messages
-            .where((m) =>
-                m.id != loadingMsgId &&
-                m.id != 'welcome' &&
-                !m.text.startsWith('❌') &&
-                !m.text.startsWith('⚠️'))
+            .where(
+              (m) =>
+                  m.id != loadingMsgId &&
+                  m.id != 'welcome' &&
+                  !m.text.startsWith('❌') &&
+                  !m.text.startsWith('⚠️'),
+            )
             .toList(),
         userMessage: trimmedText,
         financialContext: contextText,
@@ -815,7 +911,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       final errorMsg = AiChatMessage(
         id: const Uuid().v4(),
         sessionId: activeSession.id,
-        text: '❌ **Error connecting to ${config.providerType.displayName}**:\n$e',
+        text:
+            '❌ **Error connecting to ${config.providerType.displayName}**:\n$e',
         isUser: false,
         timestamp: DateTime.now(),
       );
@@ -844,7 +941,8 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   }
 }
 
-final aiChatProvider =
-    StateNotifierProvider<AiChatNotifier, AiChatState>((ref) {
+final aiChatProvider = StateNotifierProvider<AiChatNotifier, AiChatState>((
+  ref,
+) {
   return AiChatNotifier(ref);
 });

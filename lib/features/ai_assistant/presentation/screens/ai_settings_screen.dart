@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
@@ -29,11 +30,14 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
   final TextEditingController _openAiKeyController = TextEditingController();
   final TextEditingController _anthropicKeyController = TextEditingController();
   final TextEditingController _groqKeyController = TextEditingController();
-  final TextEditingController _openRouterKeyController = TextEditingController();
+  final TextEditingController _openRouterKeyController =
+      TextEditingController();
   final TextEditingController _deepSeekKeyController = TextEditingController();
   final TextEditingController _customKeyController = TextEditingController();
-  final TextEditingController _customBaseUrlController = TextEditingController();
-  final TextEditingController _customNewModelController = TextEditingController();
+  final TextEditingController _customBaseUrlController =
+      TextEditingController();
+  final TextEditingController _customNewModelController =
+      TextEditingController();
 
   late AiProviderType _focusedProvider;
   _ProviderCategory _selectedCategory = _ProviderCategory.all;
@@ -160,7 +164,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     if (_selectedCategory == _ProviderCategory.all) {
       return AiProviderType.values;
     }
-    return AiProviderType.values.where((p) => _categoryFor(p) == _selectedCategory).toList();
+    return AiProviderType.values
+        .where((p) => _categoryFor(p) == _selectedCategory)
+        .toList();
   }
 
   Future<void> _testKey(AiProviderType provider) async {
@@ -170,16 +176,19 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     if (provider != AiProviderType.custom && key.isEmpty) {
       AppHaptics.warning();
       setState(() {
-        _testStatuses[provider] = 'Please enter an API key for ${provider.displayName}.';
+        _testStatuses[provider] =
+            'Please enter an API key for ${provider.displayName}.';
         _testLatencies[provider] = null;
       });
       return;
     }
 
-    if (provider == AiProviderType.custom && _customBaseUrlController.text.trim().isEmpty) {
+    if (provider == AiProviderType.custom &&
+        _customBaseUrlController.text.trim().isEmpty) {
       AppHaptics.warning();
       setState(() {
-        _testStatuses[provider] = 'Please specify a Base URL for the custom endpoint.';
+        _testStatuses[provider] =
+            'Please specify a Base URL for the custom endpoint.';
         _testLatencies[provider] = null;
       });
       return;
@@ -198,7 +207,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
       await notifier.updateCustomBaseUrl(_customBaseUrlController.text.trim());
     }
 
-    final config = ref.read(aiProviderConfigProvider).copyWith(providerType: provider);
+    final config = ref
+        .read(aiProviderConfigProvider)
+        .copyWith(providerType: provider);
     final aiService = ref.read(aiServiceProvider);
 
     final stopwatch = Stopwatch()..start();
@@ -232,7 +243,8 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
   Future<void> _pasteKeyFromClipboard(AiProviderType provider) async {
     try {
       final data = await Clipboard.getData(Clipboard.kTextPlain);
-      final text = data?.text?.trim().replaceAll(RegExp(r'["\x27\r\n]'), '') ?? '';
+      final text =
+          data?.text?.trim().replaceAll(RegExp(r'["\x27\r\n]'), '') ?? '';
       if (text.isEmpty) {
         if (mounted) {
           AppHaptics.warning();
@@ -248,12 +260,16 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
       }
 
       _controllerFor(provider).text = text;
-      await ref.read(aiProviderConfigProvider.notifier).updateApiKeyFor(provider, text);
+      await ref
+          .read(aiProviderConfigProvider.notifier)
+          .updateApiKeyFor(provider, text);
       AppHaptics.success();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Pasted ${provider.displayName} API key from clipboard'),
+            content: Text(
+              'Pasted ${provider.displayName} API key from clipboard',
+            ),
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
           ),
@@ -297,7 +313,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
             onPressed: () {
               Navigator.pop(ctx);
               _controllerFor(provider).clear();
-              ref.read(aiProviderConfigProvider.notifier).updateApiKeyFor(provider, '');
+              ref
+                  .read(aiProviderConfigProvider.notifier)
+                  .updateApiKeyFor(provider, '');
               setState(() {
                 _testStatuses[provider] = null;
                 _testLatencies[provider] = null;
@@ -353,7 +371,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
 
   void _handleRemoveCustomModel(String modelName) {
     AppHaptics.deleteAction();
-    ref.read(aiProviderConfigProvider.notifier).removeCustomSavedModel(modelName);
+    ref
+        .read(aiProviderConfigProvider.notifier)
+        .removeCustomSavedModel(modelName);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Removed "$modelName"'),
@@ -389,24 +409,21 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               _buildInfoBullet(
                 icon: Icons.lock_outline_rounded,
                 title: 'Hardware-Backed Encryption',
-                description:
-                    'All API keys are encrypted with AES-256 on-device in Android Keystore / Apple Keychain via FlutterSecureStorage.',
+                description: 'All API keys are encrypted with AES-256 on-device in Android Keystore / Apple Keychain via FlutterSecureStorage.',
                 isDark: isDark,
               ),
               const SizedBox(height: 12),
               _buildInfoBullet(
                 icon: Icons.sync_alt_rounded,
                 title: 'Direct Peer-to-Provider Streaming',
-                description:
-                    'EmptyPocket communicates directly from your device to your selected provider or local IP without intermediary proxies or telemetry.',
+                description: 'EmptyPocket communicates directly from your device to your selected provider or local IP without intermediary proxies or telemetry.',
                 isDark: isDark,
               ),
               const SizedBox(height: 12),
               _buildInfoBullet(
                 icon: Icons.dns_rounded,
                 title: 'Offline & Sovereign LLMs',
-                description:
-                    'Use custom local endpoints (Ollama, LM Studio, vLLM) for 100% air-gapped, sovereign financial analysis without internet access.',
+                description: 'Use custom local endpoints (Ollama, LM Studio, vLLM) for 100% air-gapped, sovereign financial analysis without internet access.',
                 isDark: isDark,
               ),
             ],
@@ -446,7 +463,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -454,7 +474,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.35,
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                 ),
               ),
             ],
@@ -610,7 +632,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               runSpacing: 8,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: activeColor.withAlpha(isDark ? 40 : 25),
                     borderRadius: BorderRadius.circular(12),
@@ -641,7 +666,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: (isConfigured ? AppColors.income : AppColors.warning)
                         .withAlpha(isDark ? 35 : 20),
@@ -651,15 +679,21 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isConfigured ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                        isConfigured
+                            ? Icons.check_circle_rounded
+                            : Icons.error_outline_rounded,
                         size: 13,
-                        color: isConfigured ? AppColors.income : AppColors.warning,
+                        color: isConfigured
+                            ? AppColors.income
+                            : AppColors.warning,
                       ),
                       const SizedBox(width: 5),
                       Text(
                         isConfigured ? 'Ready & Verified' : 'Setup Required',
                         style: TextStyle(
-                          color: isConfigured ? AppColors.income : AppColors.warning,
+                          color: isConfigured
+                              ? AppColors.income
+                              : AppColors.warning,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
@@ -680,9 +714,16 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                   decoration: BoxDecoration(
                     color: activeColor.withAlpha(isDark ? 50 : 30),
                     shape: BoxShape.circle,
-                    border: Border.all(color: activeColor.withAlpha(120), width: 1.5),
+                    border: Border.all(
+                      color: activeColor.withAlpha(120),
+                      width: 1.5,
+                    ),
                   ),
-                  child: Icon(activeProvider.icon, color: activeColor, size: 24),
+                  child: Icon(
+                    activeProvider.icon,
+                    color: activeColor,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -701,7 +742,11 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Icon(Icons.memory_rounded, size: 14, color: activeColor),
+                          Icon(
+                            Icons.memory_rounded,
+                            size: 14,
+                            color: activeColor,
+                          ),
                           const SizedBox(width: 5),
                           Expanded(
                             child: Text(
@@ -741,7 +786,11 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.lock_rounded, size: 13, color: financialColors.textMuted),
+                        Icon(
+                          Icons.lock_rounded,
+                          size: 13,
+                          color: financialColors.textMuted,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Direct SSL Stream',
@@ -756,7 +805,11 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.shield_outlined, size: 13, color: financialColors.textMuted),
+                        Icon(
+                          Icons.shield_outlined,
+                          size: 13,
+                          color: financialColors.textMuted,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Zero Telemetry',
@@ -773,7 +826,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                 FilledButton.tonalIcon(
                   style: FilledButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     backgroundColor: activeColor.withAlpha(isDark ? 40 : 25),
                     foregroundColor: isDark ? Colors.white : activeColor,
                   ),
@@ -789,7 +845,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                       : Icon(Icons.bolt_rounded, size: 16, color: activeColor),
                   label: Text(
                     isTesting ? 'Pinging...' : 'Quick Test Ping',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   onPressed: isTesting ? null : () => _testKey(activeProvider),
                 ),
@@ -824,7 +883,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
           children: [
             Text(
               'Intelligence Engine Hub',
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
             ),
             Text(
               '${config.configuredProviders.length} of ${AiProviderType.values.length} configured',
@@ -860,15 +921,23 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     cat.label,
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: isCatSelected ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: isCatSelected
+                          ? FontWeight.w800
+                          : FontWeight.w600,
                     ),
                   ),
                   selected: isCatSelected,
-                  selectedColor: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 30),
+                  selectedColor: AppColors.primaryEmerald.withAlpha(
+                    isDark ? 45 : 30,
+                  ),
                   labelStyle: TextStyle(
                     color: isCatSelected
-                        ? (isDark ? AppColors.primaryMint : AppColors.primaryTeal)
-                        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                        ? (isDark
+                              ? AppColors.primaryMint
+                              : AppColors.primaryTeal)
+                        : (isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary),
                   ),
                   onSelected: (selected) {
                     if (selected) {
@@ -894,7 +963,8 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
           builder: (context, constraints) {
             final width = constraints.maxWidth;
             final int crossAxisCount = width > 540 ? 4 : (width > 360 ? 3 : 2);
-            final double itemWidth = (width - ((crossAxisCount - 1) * 10)) / crossAxisCount;
+            final double itemWidth =
+                (width - ((crossAxisCount - 1) * 10)) / crossAxisCount;
 
             return Wrap(
               spacing: 10,
@@ -918,18 +988,24 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                       duration: const Duration(milliseconds: 220),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                        color: isDark
+                            ? AppColors.darkSurface
+                            : AppColors.lightSurface,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isFocused
                               ? providerColor
-                              : (isActive ? providerColor.withAlpha(120) : financialColors.cardBorder),
+                              : (isActive
+                                    ? providerColor.withAlpha(120)
+                                    : financialColors.cardBorder),
                           width: isFocused ? 2 : 1,
                         ),
                         boxShadow: isFocused
                             ? [
                                 BoxShadow(
-                                  color: providerColor.withAlpha(isDark ? 40 : 20),
+                                  color: providerColor.withAlpha(
+                                    isDark ? 40 : 20,
+                                  ),
                                   blurRadius: 10,
                                   offset: const Offset(0, 3),
                                 ),
@@ -947,10 +1023,16 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: providerColor.withAlpha(isDark ? 40 : 25),
+                                  color: providerColor.withAlpha(
+                                    isDark ? 40 : 25,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
-                                child: Icon(provider.icon, color: providerColor, size: 18),
+                                child: Icon(
+                                  provider.icon,
+                                  color: providerColor,
+                                  size: 18,
+                                ),
                               ),
                               Container(
                                 width: 8,
@@ -958,7 +1040,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                                 decoration: BoxDecoration(
                                   color: isConfigured
                                       ? AppColors.income
-                                      : (isDark ? Colors.white24 : Colors.black12),
+                                      : (isDark
+                                            ? Colors.white24
+                                            : Colors.black12),
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -973,7 +1057,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                                 provider.displayName,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  fontWeight: isFocused ? FontWeight.w900 : FontWeight.w700,
+                                  fontWeight: isFocused
+                                      ? FontWeight.w900
+                                      : FontWeight.w700,
                                   color: isFocused ? providerColor : null,
                                 ),
                                 maxLines: 1,
@@ -987,7 +1073,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                                   fontWeight: FontWeight.w600,
                                   color: isConfigured
                                       ? AppColors.income
-                                      : (isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted),
+                                      : (isDark
+                                            ? AppColors.darkTextMuted
+                                            : AppColors.lightTextMuted),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -998,7 +1086,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                           // Active Engine Badge or Action
                           if (isActive)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: providerColor,
                                 borderRadius: BorderRadius.circular(6),
@@ -1015,9 +1106,14 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                             )
                           else if (isFocused)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: providerColor.withAlpha(isDark ? 30 : 20),
+                                color: providerColor.withAlpha(
+                                  isDark ? 30 : 20,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -1069,15 +1165,18 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     final modelOptions = config.getModelOptionsFor(provider);
     final currentModel = config.getModelFor(provider);
     final isModelInOptions = modelOptions.any((o) => o.id == currentModel);
-    final effectiveModel =
-        isModelInOptions ? currentModel : (modelOptions.isNotEmpty ? modelOptions.first.id : currentModel);
+    final effectiveModel = isModelInOptions
+        ? currentModel
+        : (modelOptions.isNotEmpty ? modelOptions.first.id : currentModel);
 
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
         side: BorderSide(
-          color: isActive ? providerColor.withAlpha(160) : financialColors.cardBorder,
+          color: isActive
+              ? providerColor.withAlpha(160)
+              : financialColors.cardBorder,
           width: isActive ? 2 : 1,
         ),
       ),
@@ -1099,7 +1198,11 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                           color: providerColor.withAlpha(isDark ? 40 : 25),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(provider.icon, color: providerColor, size: 22),
+                        child: Icon(
+                          provider.icon,
+                          color: providerColor,
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1111,10 +1214,11 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                                 Flexible(
                                   child: Text(
                                     provider.displayName,
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 16,
-                                    ),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 16,
+                                        ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -1122,7 +1226,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                                 if (isActive) ...[
                                   const SizedBox(width: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: providerColor,
                                       borderRadius: BorderRadius.circular(8),
@@ -1145,7 +1252,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                color: isDark
+                                    ? AppColors.darkTextMuted
+                                    : AppColors.lightTextMuted,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1160,17 +1269,27 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                   FilledButton.tonal(
                     style: FilledButton.styleFrom(
                       visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      backgroundColor: providerColor.withAlpha(isDark ? 40 : 25),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      backgroundColor: providerColor.withAlpha(
+                        isDark ? 40 : 25,
+                      ),
                       foregroundColor: isDark ? Colors.white : providerColor,
                     ),
                     onPressed: () {
                       AppHaptics.selectionClick();
-                      ref.read(aiProviderConfigProvider.notifier).updateProvider(provider);
+                      ref
+                          .read(aiProviderConfigProvider.notifier)
+                          .updateProvider(provider);
                     },
                     child: const Text(
                       'Set Active',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
               ],
@@ -1185,7 +1304,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w800,
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
             const SizedBox(height: 6),
@@ -1196,8 +1317,13 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               isDense: true,
               decoration: InputDecoration(
                 prefixIcon: Icon(Icons.memory_rounded, color: providerColor),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               items: modelOptions.map((opt) {
                 return DropdownMenuItem(
@@ -1206,14 +1332,19 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     opt.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
                 );
               }).toList(),
               onChanged: (newModel) {
                 if (newModel != null) {
                   AppHaptics.selectionClick();
-                  ref.read(aiProviderConfigProvider.notifier).updateModelFor(provider, newModel);
+                  ref
+                      .read(aiProviderConfigProvider.notifier)
+                      .updateModelFor(provider, newModel);
                 }
               },
             ),
@@ -1226,7 +1357,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -1240,15 +1373,24 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                           icon: const Icon(Icons.clear_rounded, size: 18),
                           onPressed: () {
                             _customBaseUrlController.clear();
-                            ref.read(aiProviderConfigProvider.notifier).updateCustomBaseUrl('');
+                            ref
+                                .read(aiProviderConfigProvider.notifier)
+                                .updateCustomBaseUrl('');
                           },
                         )
                       : null,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 onChanged: (url) {
-                  ref.read(aiProviderConfigProvider.notifier).updateCustomBaseUrl(url);
+                  ref
+                      .read(aiProviderConfigProvider.notifier)
+                      .updateCustomBaseUrl(url);
                 },
               ),
               const SizedBox(height: 8),
@@ -1258,10 +1400,26 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  _buildPresetChip('Ollama (Emulator)', 'http://10.0.2.2:11434/v1', providerColor),
-                  _buildPresetChip('Ollama (Localhost)', 'http://localhost:11434/v1', providerColor),
-                  _buildPresetChip('LM Studio', 'http://10.0.2.2:1234/v1', providerColor),
-                  _buildPresetChip('vLLM', 'http://10.0.2.2:8000/v1', providerColor),
+                  _buildPresetChip(
+                    'Ollama (Emulator)',
+                    'http://10.0.2.2:11434/v1',
+                    providerColor,
+                  ),
+                  _buildPresetChip(
+                    'Ollama (Localhost)',
+                    'http://localhost:11434/v1',
+                    providerColor,
+                  ),
+                  _buildPresetChip(
+                    'LM Studio',
+                    'http://10.0.2.2:1234/v1',
+                    providerColor,
+                  ),
+                  _buildPresetChip(
+                    'vLLM',
+                    'http://10.0.2.2:8000/v1',
+                    providerColor,
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -1275,11 +1433,15 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               runSpacing: 4,
               children: [
                 Text(
-                  isCustom ? 'Custom API Key (Optional)' : '${provider.displayName} API Key',
+                  isCustom
+                      ? 'Custom API Key (Optional)'
+                      : '${provider.displayName} API Key',
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
                   ),
                 ),
                 if (controller.text.isNotEmpty)
@@ -1287,7 +1449,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     onTap: () => _confirmClearKey(provider),
                     borderRadius: BorderRadius.circular(6),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
                       child: Text(
                         'Clear Key',
                         style: TextStyle(
@@ -1305,18 +1470,23 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               controller: controller,
               obscureText: obscureKey,
               decoration: InputDecoration(
-                hintText: isCustom ? 'Leave empty if unauthenticated' : 'Enter or paste API key',
+                hintText: isCustom
+                    ? 'Leave empty if unauthenticated'
+                    : 'Enter or paste API key',
                 prefixIcon: Icon(Icons.key_rounded, color: providerColor),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
                       icon: Icon(
-                        obscureKey ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        obscureKey
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
                         size: 20,
                       ),
                       tooltip: obscureKey ? 'Show Key' : 'Hide Key',
-                      onPressed: () => setState(() => _obscureKeys[provider] = !obscureKey),
+                      onPressed: () =>
+                          setState(() => _obscureKeys[provider] = !obscureKey),
                     ),
                     IconButton(
                       icon: const Icon(Icons.content_paste_rounded, size: 20),
@@ -1325,11 +1495,18 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     ),
                   ],
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               onChanged: (val) {
-                ref.read(aiProviderConfigProvider.notifier).updateApiKeyFor(provider, val);
+                ref
+                    .read(aiProviderConfigProvider.notifier)
+                    .updateApiKeyFor(provider, val);
               },
             ),
             const SizedBox(height: 6),
@@ -1339,7 +1516,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                   : 'Encrypted securely in hardware-backed Keystore on this device.',
               style: TextStyle(
                 fontSize: 11,
-                color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                color: isDark
+                    ? AppColors.darkTextMuted
+                    : AppColors.lightTextMuted,
               ),
             ),
             const SizedBox(height: 14),
@@ -1354,10 +1533,18 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                       decoration: InputDecoration(
                         labelText: 'Add Custom Model Name',
                         hintText: 'e.g. mistral-nemo, deepseek-r1:8b',
-                        prefixIcon: Icon(Icons.add_box_outlined, color: providerColor),
+                        prefixIcon: Icon(
+                          Icons.add_box_outlined,
+                          color: providerColor,
+                        ),
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onSubmitted: (_) => _handleAddCustomModel(),
                     ),
@@ -1365,7 +1552,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                   const SizedBox(width: 8),
                   FilledButton.tonal(
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                     ),
                     onPressed: _handleAddCustomModel,
                     child: const Text('Add'),
@@ -1379,7 +1569,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                    color: isDark
+                        ? AppColors.darkTextMuted
+                        : AppColors.lightTextMuted,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -1394,7 +1586,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                         savedModel,
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w500,
+                          fontWeight: isCurrent
+                              ? FontWeight.w800
+                              : FontWeight.w500,
                           color: isCurrent ? providerColor : null,
                         ),
                       ),
@@ -1427,11 +1621,18 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     onTap: () => _copyKeyUrl(provider),
                     borderRadius: BorderRadius.circular(8),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 4,
+                        horizontal: 4,
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.copy_rounded, size: 14, color: providerColor),
+                          Icon(
+                            Icons.copy_rounded,
+                            size: 14,
+                            color: providerColor,
+                          ),
                           const SizedBox(width: 5),
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 200),
@@ -1456,13 +1657,18 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isConfigured ? AppColors.income : financialColors.textMuted,
+                      color: isConfigured
+                          ? AppColors.income
+                          : financialColors.textMuted,
                     ),
                   ),
                 FilledButton.icon(
                   style: FilledButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     backgroundColor: providerColor,
                     foregroundColor: Colors.white,
                   ),
@@ -1470,12 +1676,21 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                       ? const SizedBox(
                           width: 14,
                           height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Icon(Icons.check_circle_outline_rounded, size: 16),
+                      : const Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: 16,
+                        ),
                   label: Text(
                     isTesting ? 'Verifying...' : 'Test Connection',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
                   ),
                   onPressed: isTesting ? null : () => _testKey(provider),
                 ),
@@ -1522,7 +1737,8 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: testStatus.startsWith('Connection verified')
+                              color:
+                                  testStatus.startsWith('Connection verified')
                                   ? AppColors.income
                                   : AppColors.expense,
                             ),
@@ -1556,7 +1772,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
   Widget _buildPresetChip(String label, String url, Color providerColor) {
     return ActionChip(
       visualDensity: VisualDensity.compact,
-      label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+      ),
       onPressed: () {
         AppHaptics.selectionClick();
         _customBaseUrlController.text = url;
@@ -1578,7 +1797,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurfaceVariant.withAlpha(70) : AppColors.lightSurfaceVariant,
+        color: isDark
+            ? AppColors.darkSurfaceVariant.withAlpha(70)
+            : AppColors.lightSurfaceVariant,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: financialColors.cardBorder),
       ),
@@ -1587,12 +1808,18 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.shield_outlined, color: AppColors.primaryEmerald, size: 20),
+              const Icon(
+                Icons.shield_outlined,
+                color: AppColors.primaryEmerald,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '100% Private BYOK Architecture',
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],
@@ -1603,7 +1830,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
             style: TextStyle(
               fontSize: 11.5,
               height: 1.4,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
             ),
           ),
           const SizedBox(height: 12),
@@ -1612,8 +1841,16 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
             runSpacing: 6,
             children: [
               _buildSecurityTag(Icons.lock_rounded, 'AES-256 Keystore', isDark),
-              _buildSecurityTag(Icons.wifi_off_rounded, 'Zero Proxy Middleware', isDark),
-              _buildSecurityTag(Icons.visibility_off_rounded, 'No Data Logging', isDark),
+              _buildSecurityTag(
+                Icons.wifi_off_rounded,
+                'Zero Proxy Middleware',
+                isDark,
+              ),
+              _buildSecurityTag(
+                Icons.visibility_off_rounded,
+                'No Data Logging',
+                isDark,
+              ),
             ],
           ),
         ],

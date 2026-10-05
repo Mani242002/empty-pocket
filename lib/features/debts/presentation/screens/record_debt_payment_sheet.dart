@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/debt_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 import '../state/debts_provider.dart';
 
 class RecordDebtPaymentSheet extends ConsumerStatefulWidget {
@@ -41,8 +43,8 @@ class _RecordDebtPaymentSheetState
     super.initState();
     final defaultAmount = widget.debt.monthlyEmi > 0
         ? (widget.debt.monthlyEmi == widget.debt.monthlyEmi.roundToDouble()
-            ? widget.debt.monthlyEmi.toInt().toString()
-            : widget.debt.monthlyEmi.toString())
+              ? widget.debt.monthlyEmi.toInt().toString()
+              : widget.debt.monthlyEmi.toString())
         : '';
     _amountController = TextEditingController(text: defaultAmount);
     _notesController = TextEditingController();
@@ -70,14 +72,20 @@ class _RecordDebtPaymentSheetState
     }
 
     final bankAccounts = ref.read(activeBankAccountsProvider);
-    final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+    final selectedAcc = bankAccounts
+        .where((a) => a.id == _selectedAccountId)
+        .firstOrNull;
     final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
 
     try {
-      await ref.read(debtListNotifierProvider.notifier).recordPayment(
+      await ref
+          .read(debtListNotifierProvider.notifier)
+          .recordPayment(
             debt: widget.debt,
             amount: amount,
-            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
             logAsTransaction: _deductAndLog,
             paymentSource: paymentSource,
             accountId: _deductAndLog ? _selectedAccountId : null,
@@ -112,12 +120,17 @@ class _RecordDebtPaymentSheetState
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+    final currency =
+        ref.watch(currencyProvider).valueOrNull ??
+        CurrencyFormatter.activeCurrency;
+    final currencySymbol = currency.symbol;
 
     final bankAccounts = ref.watch(activeBankAccountsProvider);
     final defaultAcc = ref.watch(defaultBankAccountProvider);
 
     if (_selectedAccountId == null && bankAccounts.isNotEmpty) {
-      final hasLinked = widget.debt.linkedAccountId != null &&
+      final hasLinked =
+          widget.debt.linkedAccountId != null &&
           bankAccounts.any((a) => a.id == widget.debt.linkedAccountId);
       _selectedAccountId = hasLinked
           ? widget.debt.linkedAccountId
@@ -172,7 +185,9 @@ class _RecordDebtPaymentSheetState
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      color: isDark
+                          ? AppColors.darkSurfaceVariant
+                          : AppColors.lightSurfaceVariant,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: financialColors.cardBorder),
                     ),
@@ -181,7 +196,11 @@ class _RecordDebtPaymentSheetState
                       children: [
                         Row(
                           children: [
-                            Icon(debt.type.icon, color: financialColors.expense, size: 20),
+                            Icon(
+                              debt.type.icon,
+                              color: financialColors.expense,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -271,20 +290,25 @@ class _RecordDebtPaymentSheetState
                   TextFormField(
                     controller: _amountController,
                     autofocus: true,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}'),
+                      ),
                     ],
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: financialColors.warning,
                     ),
                     decoration: InputDecoration(
-                      prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                      prefixText: '$currencySymbol ',
                       hintText: '10,000',
                     ),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Please enter payment amount' : null,
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Please enter payment amount'
+                        : null,
                   ),
                   const SizedBox(height: 10),
 
@@ -297,18 +321,24 @@ class _RecordDebtPaymentSheetState
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ActionChip(
-                              label: Text('Monthly EMI (${CurrencyFormatter.format(debt.monthlyEmi)})'),
+                              label: Text(
+                                'Monthly EMI (${CurrencyFormatter.format(debt.monthlyEmi)})',
+                              ),
                               labelStyle: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: financialColors.warning,
                               ),
                               onPressed: () {
-                                _amountController.text = (debt.monthlyEmi == debt.monthlyEmi.roundToDouble()
+                                _amountController.text =
+                                    (debt.monthlyEmi ==
+                                        debt.monthlyEmi.roundToDouble()
                                     ? debt.monthlyEmi.toInt().toString()
                                     : debt.monthlyEmi.toString());
                                 _amountController.selection =
-                                    TextSelection.collapsed(offset: _amountController.text.length);
+                                    TextSelection.collapsed(
+                                      offset: _amountController.text.length,
+                                    );
                               },
                             ),
                           ),
@@ -316,16 +346,20 @@ class _RecordDebtPaymentSheetState
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ActionChip(
-                              label: Text('+${CurrencyFormatter.activeCurrency.symbol}$amt'),
+                              label: Text('+$currencySymbol$amt'),
                               labelStyle: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
                               ),
                               onPressed: () {
                                 _amountController.text = amt.toString();
                                 _amountController.selection =
-                                    TextSelection.collapsed(offset: _amountController.text.length);
+                                    TextSelection.collapsed(
+                                      offset: _amountController.text.length,
+                                    );
                               },
                             ),
                           );
@@ -334,17 +368,25 @@ class _RecordDebtPaymentSheetState
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ActionChip(
-                              avatar: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                              label: Text('Full Payoff (${CurrencyFormatter.format(remaining)})'),
+                              avatar: const Icon(
+                                Icons.check_circle_outline_rounded,
+                                size: 16,
+                              ),
+                              label: Text(
+                                'Full Payoff (${CurrencyFormatter.format(remaining)})',
+                              ),
                               labelStyle: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: financialColors.income,
                               ),
                               onPressed: () {
-                                _amountController.text = remaining.toStringAsFixed(0);
+                                _amountController.text = remaining
+                                    .toStringAsFixed(0);
                                 _amountController.selection =
-                                    TextSelection.collapsed(offset: _amountController.text.length);
+                                    TextSelection.collapsed(
+                                      offset: _amountController.text.length,
+                                    );
                               },
                             ),
                           ),
@@ -355,7 +397,9 @@ class _RecordDebtPaymentSheetState
 
                   // Deep Account Linking: ON/OFF Toggle
                   Material(
-                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.lightSurfaceVariant,
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       padding: const EdgeInsets.all(12),
@@ -367,16 +411,23 @@ class _RecordDebtPaymentSheetState
                         children: [
                           SwitchListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: const Text('Deduct from Account', style: TextStyle(fontWeight: FontWeight.w700)),
+                            title: const Text(
+                              'Deduct from Account',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                             subtitle: Text(
                               _deductAndLog
                                   ? 'Deducts EMI payment from bank balance and records expense in daily ledger'
                                   : 'Only update debt remaining amount (No bank balance deduction)',
-                              style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: financialColors.textMuted,
+                              ),
                             ),
                             value: _deductAndLog,
                             activeThumbColor: AppColors.primaryEmerald,
-                            onChanged: (val) => setState(() => _deductAndLog = val),
+                            onChanged: (val) =>
+                                setState(() => _deductAndLog = val),
                           ),
                           if (_deductAndLog && bankAccounts.isNotEmpty) ...[
                             const Divider(height: 16),
@@ -399,7 +450,9 @@ class _RecordDebtPaymentSheetState
                                 );
                               }).toList(),
                               onChanged: (val) {
-                                if (val != null) setState(() => _selectedAccountId = val);
+                                if (val != null) {
+                                  setState(() => _selectedAccountId = val);
+                                }
                               },
                             ),
                           ],
@@ -438,7 +491,10 @@ class _RecordDebtPaymentSheetState
                       onPressed: _submitPayment,
                       child: const Text(
                         'Record Debt Payment',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),

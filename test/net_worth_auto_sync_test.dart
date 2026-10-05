@@ -47,7 +47,9 @@ void main() {
         ),
       ];
 
-      final summary = FinancialCalculator.calculateOverallLiabilitiesSummary(debts);
+      final summary = FinancialCalculator.calculateOverallLiabilitiesSummary(
+        debts,
+      );
 
       // Real liabilities: Home Loan (4,500,000) + Credit Card (30,000) = 4,530,000
       expect(summary.totalOutstanding, 4530000.0);
@@ -154,7 +156,11 @@ void main() {
       // Without deduplication, liquid cash = 100k (bank) + 100k (emergency fund) = 200k (8 months, falsely reporting 6+ fully funded).
       // With deduplication:
       final effectiveEmergencyFund = goals
-          .where((g) => g.isEmergencyFund && !(g.autoSyncAccount && g.linkedAccountId != null))
+          .where(
+            (g) =>
+                g.isEmergencyFund &&
+                !(g.autoSyncAccount && g.linkedAccountId != null),
+          )
           .fold<double>(0.0, (sum, g) => sum + g.currentAmount);
 
       expect(effectiveEmergencyFund, 0.0);

@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
@@ -91,14 +93,18 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
       angle += 2 * math.pi;
     }
 
-    final totalAmount = widget.categories.fold<double>(0.0, (sum, c) => sum + c.amount);
+    final totalAmount = widget.categories.fold<double>(
+      0.0,
+      (sum, c) => sum + c.amount,
+    );
     if (totalAmount <= 0) return;
 
     double currentAngle = 0.0;
     int? tappedIndex;
 
     for (int i = 0; i < widget.categories.length; i++) {
-      final sweepAngle = (widget.categories[i].amount / totalAmount) * 2 * math.pi;
+      final sweepAngle =
+          (widget.categories[i].amount / totalAmount) * 2 * math.pi;
       if (angle >= currentAngle && angle <= currentAngle + sweepAngle) {
         tappedIndex = i;
         break;
@@ -108,7 +114,9 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
 
     if (tappedIndex != null) {
       AppHaptics.selectionClick();
-      final newIndex = (_internalSelectedIndex == tappedIndex) ? null : tappedIndex;
+      final newIndex = (_internalSelectedIndex == tappedIndex)
+          ? null
+          : tappedIndex;
       setState(() => _internalSelectedIndex = newIndex);
       widget.onSliceSelected?.call(newIndex);
     }
@@ -124,9 +132,13 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
       return const SizedBox.shrink();
     }
 
-    final totalAmount = widget.categories.fold<double>(0.0, (sum, c) => sum + c.amount);
+    final totalAmount = widget.categories.fold<double>(
+      0.0,
+      (sum, c) => sum + c.amount,
+    );
 
-    final selectedCategory = (_internalSelectedIndex != null &&
+    final selectedCategory =
+        (_internalSelectedIndex != null &&
             _internalSelectedIndex! >= 0 &&
             _internalSelectedIndex! < widget.categories.length)
         ? widget.categories[_internalSelectedIndex!]
@@ -150,7 +162,8 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
                 width: chartSize,
                 height: chartSize,
                 child: GestureDetector(
-                  onTapDown: (details) => _handleTapDown(details, Size(chartSize, chartSize)),
+                  onTapDown: (details) =>
+                      _handleTapDown(details, Size(chartSize, chartSize)),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -166,7 +179,9 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
                                 selectedIndex: _internalSelectedIndex,
                                 progress: _animation.value,
                                 isDark: isDark,
-                                dividerColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                                dividerColor: isDark
+                                    ? AppColors.darkSurface
+                                    : AppColors.lightSurface,
                               ),
                             ),
                           );
@@ -185,23 +200,32 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
                             padding: const EdgeInsets.all(4.0),
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 250),
-                              transitionBuilder: (child, anim) => FadeTransition(
-                                opacity: anim,
-                                child: ScaleTransition(scale: anim, child: child),
-                              ),
+                              transitionBuilder: (child, anim) =>
+                                  FadeTransition(
+                                    opacity: anim,
+                                    child: ScaleTransition(
+                                      scale: anim,
+                                      child: child,
+                                    ),
+                                  ),
                               child: selectedCategory != null
                                   ? Column(
-                                      key: ValueKey('selected_${selectedCategory.category}'),
+                                      key: ValueKey(
+                                        'selected_${selectedCategory.category}',
+                                      ),
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Container(
                                           padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
-                                            color: selectedColor?.withAlpha(isDark ? 50 : 30),
+                                            color: selectedColor?.withAlpha(
+                                              isDark ? 50 : 30,
+                                            ),
                                             shape: BoxShape.circle,
                                           ),
                                           child: Icon(
-                                            selectedIcon ?? Icons.category_rounded,
+                                            selectedIcon ??
+                                                Icons.category_rounded,
                                             size: 18,
                                             color: selectedColor,
                                           ),
@@ -209,9 +233,10 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
                                         const SizedBox(height: 4),
                                         Text(
                                           selectedCategory.category,
-                                          style: theme.textTheme.labelMedium?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -219,11 +244,14 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
                                         FittedBox(
                                           fit: BoxFit.scaleDown,
                                           child: Text(
-                                            CurrencyFormatter.format(selectedCategory.amount),
-                                            style: theme.textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: -0.5,
+                                            CurrencyFormatter.format(
+                                              selectedCategory.amount,
                                             ),
+                                            style: theme.textTheme.titleMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: -0.5,
+                                                ),
                                           ),
                                         ),
                                         Text(
@@ -253,11 +281,14 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart>
                                         FittedBox(
                                           fit: BoxFit.scaleDown,
                                           child: Text(
-                                            CurrencyFormatter.format(totalAmount),
-                                            style: theme.textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: -0.5,
+                                            CurrencyFormatter.format(
+                                              totalAmount,
                                             ),
+                                            style: theme.textTheme.titleMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: -0.5,
+                                                ),
                                           ),
                                         ),
                                         const SizedBox(height: 2),
@@ -323,7 +354,10 @@ class _DonutChartPainter extends CustomPainter {
     final baseInnerRadius = baseOuterRadius * 0.58;
     final strokeWidth = baseOuterRadius - baseInnerRadius;
 
-    final totalAmount = categories.fold<double>(0.0, (sum, c) => sum + c.amount);
+    final totalAmount = categories.fold<double>(
+      0.0,
+      (sum, c) => sum + c.amount,
+    );
     if (totalAmount <= 0) return;
 
     final paint = Paint()
@@ -336,7 +370,10 @@ class _DonutChartPainter extends CustomPainter {
     for (int i = 0; i < categories.length; i++) {
       final category = categories[i];
       final rawSweep = (category.amount / totalAmount) * 2 * math.pi;
-      final sweepAngle = math.min(rawSweep, math.max(0.0, maxTotalSweep - (currentAngle - (-math.pi / 2))));
+      final sweepAngle = math.min(
+        rawSweep,
+        math.max(0.0, maxTotalSweep - (currentAngle - (-math.pi / 2))),
+      );
 
       if (sweepAngle <= 0) break;
 

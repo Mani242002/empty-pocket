@@ -1,9 +1,11 @@
 import 'dart:isolate';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/domain/entities/transaction_entity.dart';
@@ -29,13 +31,17 @@ class MainNavigationScaffold extends ConsumerStatefulWidget {
   const MainNavigationScaffold({super.key});
 
   @override
-  ConsumerState<MainNavigationScaffold> createState() => _MainNavigationScaffoldState();
+  ConsumerState<MainNavigationScaffold> createState() =>
+      _MainNavigationScaffoldState();
 }
 
 class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
     with WidgetsBindingObserver {
-  static const MethodChannel _overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
+  static const MethodChannel _overlayChannel = MethodChannel(
+    'dev.emptypocket.app/overlay',
+  );
   int _currentIndex = 0;
+  final Set<int> _visitedTabs = {0};
   DateTime? _lastPausedTime;
   ReceivePort? _crossIsolateReceivePort;
 
@@ -45,6 +51,20 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
     WidgetsBinding.instance.addObserver(this);
     _setupOverlayListener();
     _setupCrossIsolateSync();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        if (!mounted) return;
+        final size = MediaQuery.of(context).size;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('device_screen_width_dp', size.width);
+        await prefs.setDouble('device_screen_height_dp', size.height);
+      } catch (_) {}
+    });
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         if (!mounted) return;
@@ -66,7 +86,10 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
       );
       _crossIsolateReceivePort!.listen((message) {
         if (message == 'refresh_ledger' && mounted) {
-          LogService.debug('MainNavigationScaffold', 'Received cross-engine refresh_ledger event');
+          LogService.debug(
+            'MainNavigationScaffold',
+            'Received cross-engine refresh_ledger event',
+          );
           ref.invalidate(transactionListNotifierProvider);
           ref.invalidate(bankAccountListProvider);
           ref.invalidate(creditCardListProvider);
@@ -75,7 +98,10 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
         }
       });
     } catch (e) {
-      LogService.debug('MainNavigationScaffold', 'Cross-engine sync setup failed: $e');
+      LogService.debug(
+        'MainNavigationScaffold',
+        'Cross-engine sync setup failed: $e',
+      );
     }
   }
 
@@ -130,6 +156,27 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
         }
       }
     });
+    // Handshake: Notify native MainActivity that Flutter client is mounted & ready to receive intents
+    Future<void> sendClientReady({int retries = 3}) async {
+      for (int i = 0; i < retries; i++) {
+        try {
+          await _overlayChannel.invokeMethod('clientReady');
+          return;
+        } catch (e, st) {
+          LogService.error(
+            'MainNavigationScaffold',
+            'clientReady handshake failed (attempt ${i + 1}/$retries)',
+            e,
+            st,
+          );
+          if (i < retries - 1) {
+            await Future.delayed(const Duration(milliseconds: 300));
+          }
+        }
+      }
+    }
+
+    sendClientReady();
   }
 
   void _onTabSelected(int index) {
@@ -137,6 +184,7 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
       AppHaptics.selectionClick();
       setState(() {
         _currentIndex = index;
+        _visitedTabs.add(index);
       });
     }
   }
@@ -316,7 +364,9 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
     final isDark = theme.brightness == Brightness.dark;
 
     return Material(
-      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+      color: isDark
+          ? AppColors.darkSurfaceVariant
+          : AppColors.lightSurfaceVariant,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -384,7 +434,10 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
         } else {
           // Smoothly minimize the app to background instead of killing process
           _overlayChannel.invokeMethod('minimizeApp').catchError((e) {
-            LogService.warning('MainNavigationScaffold', 'minimizeApp channel failed: $e');
+            LogService.warning(
+              'MainNavigationScaffold',
+              'minimizeApp channel failed: $e',
+            );
             SystemNavigator.pop();
           });
         }
@@ -392,7 +445,11 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
       child: Scaffold(
         body: IndexedStack(
           index: _currentIndex,
-          children: screens,
+          children: List.generate(screens.length, (i) {
+            return _visitedTabs.contains(i)
+                ? screens[i]
+                : const SizedBox.shrink();
+          }),
         ),
         floatingActionButton: _currentIndex == 4
             ? null

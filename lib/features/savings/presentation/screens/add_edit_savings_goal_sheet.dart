@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/savings_goals_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class AddEditSavingsGoalSheet extends ConsumerStatefulWidget {
   final SavingsGoalEntity? initialGoal;
@@ -80,25 +82,29 @@ class _AddEditSavingsGoalSheetState
     _allocationPercentage = goal?.allocationPercentage ?? 100.0;
     _autoSyncAccount = goal?.autoSyncAccount ?? false;
     _titleController = TextEditingController(
-      text: goal?.title ?? (_isEmergencyFund ? 'Emergency Fund (6 Months)' : ''),
+      text:
+          goal?.title ?? (_isEmergencyFund ? 'Emergency Fund (6 Months)' : ''),
     );
     _targetAmountController = TextEditingController(
       text: goal != null
           ? (goal.targetAmount == goal.targetAmount.roundToDouble()
-              ? goal.targetAmount.toInt().toString()
-              : goal.targetAmount.toString())
+                ? goal.targetAmount.toInt().toString()
+                : goal.targetAmount.toString())
           : (_isEmergencyFund ? '150000' : ''),
     );
     _currentAmountController = TextEditingController(
       text: goal != null
           ? (goal.currentAmount == goal.currentAmount.roundToDouble()
-              ? goal.currentAmount.toInt().toString()
-              : goal.currentAmount.toString())
+                ? goal.currentAmount.toInt().toString()
+                : goal.currentAmount.toString())
           : '0',
     );
 
-    _selectedCategory = goal?.category ?? (_isEmergencyFund ? 'Emergency Fund' : _goalCategories.first);
-    _targetDate = goal?.targetDate ?? DateTime.now().add(const Duration(days: 365));
+    _selectedCategory =
+        goal?.category ??
+        (_isEmergencyFund ? 'Emergency Fund' : _goalCategories.first);
+    _targetDate =
+        goal?.targetDate ?? DateTime.now().add(const Duration(days: 365));
   }
 
   @override
@@ -136,16 +142,21 @@ class _AddEditSavingsGoalSheetState
       return;
     }
 
-    final current = double.tryParse(_currentAmountController.text.trim()) ?? 0.0;
+    final current =
+        double.tryParse(_currentAmountController.text.trim()) ?? 0.0;
     final title = _titleController.text.trim();
     final now = DateTime.now();
 
     double finalCurrent = current;
     if (_autoSyncAccount && _selectedAccountId != null) {
       final bankAccounts = ref.read(activeBankAccountsProvider);
-      final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+      final selectedAcc = bankAccounts
+          .where((a) => a.id == _selectedAccountId)
+          .firstOrNull;
       if (selectedAcc != null) {
-        finalCurrent = (selectedAcc.currentBalance * (_allocationPercentage / 100.0)).clamp(0.0, double.infinity);
+        finalCurrent =
+            (selectedAcc.currentBalance * (_allocationPercentage / 100.0))
+                .clamp(0.0, double.infinity);
       }
     }
 
@@ -168,10 +179,14 @@ class _AddEditSavingsGoalSheetState
     try {
       if (!_isEditMode && finalCurrent > 0 && !_autoSyncAccount) {
         final bankAccounts = ref.read(activeBankAccountsProvider);
-        final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+        final selectedAcc = bankAccounts
+            .where((a) => a.id == _selectedAccountId)
+            .firstOrNull;
         final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
 
-        await ref.read(savingsGoalsListNotifierProvider.notifier).createGoalWithInitialDeposit(
+        await ref
+            .read(savingsGoalsListNotifierProvider.notifier)
+            .createGoalWithInitialDeposit(
               goal: goal,
               initialAmount: finalCurrent,
               deductFromAccount: _deductInitialFromAccount,
@@ -179,14 +194,18 @@ class _AddEditSavingsGoalSheetState
               paymentSource: paymentSource,
             );
       } else {
-        await ref.read(savingsGoalsListNotifierProvider.notifier).saveGoal(goal);
+        await ref
+            .read(savingsGoalsListNotifierProvider.notifier)
+            .saveGoal(goal);
       }
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Saved goal "${goal.title}" (${CurrencyFormatter.format(goal.targetAmount)} target).'),
+            content: Text(
+              'Saved goal "${goal.title}" (${CurrencyFormatter.format(goal.targetAmount)} target).',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -211,7 +230,9 @@ class _AddEditSavingsGoalSheetState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Savings Goal?'),
-        content: Text('Permanently remove "${widget.initialGoal!.title}" and all its history?'),
+        content: Text(
+          'Permanently remove "${widget.initialGoal!.title}" and all its history?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -257,6 +278,7 @@ class _AddEditSavingsGoalSheetState
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -283,225 +305,55 @@ class _AddEditSavingsGoalSheetState
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: financialColors.cardBorder,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        _isEditMode ? 'Edit Savings Goal' : 'New Savings Goal',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: financialColors.cardBorder,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    if (_isEditMode)
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
-                        onPressed: _deleteGoal,
-                        tooltip: 'Delete',
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Goal Title
-                Text(
-                  'GOAL TITLE',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
                   ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(
-                    hintText: 'e.g. Bali Trip, Emergency Fund, New Laptop',
-                    prefixIcon: Icon(Icons.savings_rounded),
-                  ),
-                  validator: (val) =>
-                      val == null || val.trim().isEmpty ? 'Please enter goal title' : null,
-                ),
-                const SizedBox(height: 18),
+                  const SizedBox(height: 16),
 
-                // Target Amount & Initial Saved Amount Row
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'TARGET AMOUNT',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.1,
-                                color: financialColors.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _targetAmountController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                              ],
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: financialColors.savings,
-                              ),
-                              decoration: InputDecoration(
-                                prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
-                                hintText: '1,00,000',
-                              ),
-                              validator: (val) =>
-                                  val == null || val.trim().isEmpty ? 'Enter target' : null,
-                            ),
-                          ],
+                      Flexible(
+                        child: Text(
+                          _isEditMode
+                              ? 'Edit Savings Goal'
+                              : 'New Savings Goal',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ALREADY SAVED',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.1,
-                                color: financialColors.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _currentAmountController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                              ],
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
-                              decoration: InputDecoration(
-                                prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
-                                hintText: '0',
-                              ),
-                            ),
-                          ],
+                      if (_isEditMode)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: AppColors.expense,
+                          ),
+                          onPressed: _deleteGoal,
+                          tooltip: 'Delete',
                         ),
-                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 18),
+                  const SizedBox(height: 20),
 
-                // Category Selector
-                Text(
-                  'CATEGORY',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.category_rounded),
-                  ),
-                  items: _goalCategories.map((c) {
-                    return DropdownMenuItem(value: c, child: Text(c));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _selectedCategory = val;
-                        if (val == 'Emergency Fund') {
-                          _isEmergencyFund = true;
-                        }
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 18),
-
-                // Target Date Picker
-                Text(
-                  'TARGET COMPLETION DATE',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: _pickTargetDate,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: financialColors.cardBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today_rounded, size: 20),
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: Text(
-                            DateFormat('dd MMMM yyyy').format(_targetDate),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '(${((_targetDate.difference(DateTime.now()).inDays) / 30).ceil()} months)',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: financialColors.textMuted,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Deep Account Linking: Primary Bank Account & Deduct Toggle
-                if (bankAccounts.isNotEmpty) ...[
+                  // Goal Title
                   Text(
-                    'PRIMARY LINKED ACCOUNT',
+                    'GOAL TITLE',
                     style: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.1,
@@ -509,217 +361,466 @@ class _AddEditSavingsGoalSheetState
                     ),
                   ),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<String?>(
-                    initialValue: _selectedAccountId,
-                    isExpanded: true,
-                    isDense: true,
+                  TextFormField(
+                    controller: _titleController,
                     decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.account_balance_rounded),
+                      hintText: 'e.g. Bali Trip, Emergency Fund, New Laptop',
+                      prefixIcon: Icon(Icons.savings_rounded),
                     ),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text(
-                          'None (Standalone Goal)',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Please enter goal title'
+                        : null,
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Target Amount & Initial Saved Amount Row
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'TARGET AMOUNT',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.1,
+                                  color: financialColors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _targetAmountController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                  ),
+                                ],
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: financialColors.savings,
+                                ),
+                                decoration: InputDecoration(
+                                  prefixText:
+                                      '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  hintText: '1,00,000',
+                                ),
+                                validator: (val) =>
+                                    val == null || val.trim().isEmpty
+                                    ? 'Enter target'
+                                    : null,
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ALREADY SAVED',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.1,
+                                  color: financialColors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _currentAmountController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                  ),
+                                ],
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                decoration: InputDecoration(
+                                  prefixText:
+                                      '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  hintText: '0',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Category Selector
+                  Text(
+                    'CATEGORY',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedCategory,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.category_rounded),
+                    ),
+                    items: _goalCategories.map((c) {
+                      return DropdownMenuItem(value: c, child: Text(c));
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedCategory = val;
+                          if (val == 'Emergency Fund') {
+                            _isEmergencyFund = true;
+                          }
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Target Date Picker
+                  Text(
+                    'TARGET COMPLETION DATE',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: _pickTargetDate,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
                       ),
-                      ...bankAccounts.map((acc) {
-                        return DropdownMenuItem<String?>(
-                          value: acc.id,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.darkSurfaceVariant
+                            : AppColors.lightSurfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: financialColors.cardBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, size: 20),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text(
+                              DateFormat('dd MMMM yyyy').format(_targetDate),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '(${((_targetDate.difference(DateTime.now()).inDays) / 30).ceil()} months)',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: financialColors.textMuted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Deep Account Linking: Primary Bank Account & Deduct Toggle
+                  if (bankAccounts.isNotEmpty) ...[
+                    Text(
+                      'PRIMARY LINKED ACCOUNT',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        color: financialColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String?>(
+                      initialValue: _selectedAccountId,
+                      isExpanded: true,
+                      isDense: true,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.account_balance_rounded),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
                           child: Text(
-                            '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                            'None (Standalone Goal)',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        );
-                      }),
-                    ],
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedAccountId = val;
-                        if (val == null) {
-                          _autoSyncAccount = false;
-                        }
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  if (_selectedAccountId != null) ...[
-                    Material(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: financialColors.cardBorder),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Auto-Sync with Account Balance', style: TextStyle(fontWeight: FontWeight.w700)),
-                              subtitle: Text(
-                                _autoSyncAccount
-                                    ? 'Goal dynamically tracks ${_allocationPercentage.toInt()}% of linked bank account balance'
-                                    : 'Manual contribution mode (deposit funds when saving)',
-                                style: TextStyle(fontSize: 12, color: financialColors.textMuted),
-                              ),
-                              value: _autoSyncAccount,
-                              activeThumbColor: AppColors.primaryEmerald,
-                              onChanged: (val) {
-                                setState(() {
-                                  _autoSyncAccount = val;
-                                  if (val) {
-                                    final acc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
-                                    if (acc != null) {
-                                      final calc = (acc.currentBalance * (_allocationPercentage / 100.0)).clamp(0.0, double.infinity);
-                                      _currentAmountController.text = calc == calc.roundToDouble()
-                                          ? calc.toInt().toString()
-                                          : calc.toStringAsFixed(2);
-                                    }
-                                  }
-                                });
-                              },
+                        ...bankAccounts.map((acc) {
+                          return DropdownMenuItem<String?>(
+                            value: acc.id,
+                            child: Text(
+                              '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const Divider(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'ALLOCATION SHARE',
+                          );
+                        }),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedAccountId = val;
+                          if (val == null) {
+                            _autoSyncAccount = false;
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    if (_selectedAccountId != null) ...[
+                      Material(
+                        color: isDark
+                            ? AppColors.darkSurfaceVariant
+                            : AppColors.lightSurfaceVariant,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: financialColors.cardBorder,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SwitchListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text(
+                                  'Auto-Sync with Account Balance',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                subtitle: Text(
+                                  _autoSyncAccount
+                                      ? 'Goal dynamically tracks ${_allocationPercentage.toInt()}% of linked bank account balance'
+                                      : 'Manual contribution mode (deposit funds when saving)',
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
+                                    fontSize: 12,
                                     color: financialColors.textMuted,
                                   ),
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryEmerald.withAlpha(isDark ? 50 : 30),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    '${_allocationPercentage.toInt()}% of Balance',
-                                    style: const TextStyle(
-                                      color: AppColors.primaryEmerald,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 12,
+                                value: _autoSyncAccount,
+                                activeThumbColor: AppColors.primaryEmerald,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _autoSyncAccount = val;
+                                    if (val) {
+                                      final acc = bankAccounts
+                                          .where(
+                                            (a) => a.id == _selectedAccountId,
+                                          )
+                                          .firstOrNull;
+                                      if (acc != null) {
+                                        final calc =
+                                            (acc.currentBalance *
+                                                    (_allocationPercentage /
+                                                        100.0))
+                                                .clamp(0.0, double.infinity);
+                                        _currentAmountController.text =
+                                            calc == calc.roundToDouble()
+                                            ? calc.toInt().toString()
+                                            : calc.toStringAsFixed(2);
+                                      }
+                                    }
+                                  });
+                                },
+                              ),
+                              const Divider(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'ALLOCATION SHARE',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.8,
+                                      color: financialColors.textMuted,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            Slider(
-                              value: _allocationPercentage,
-                              min: 5,
-                              max: 100,
-                              divisions: 19,
-                              label: '${_allocationPercentage.toInt()}%',
-                              activeColor: AppColors.primaryEmerald,
-                              onChanged: (val) {
-                                setState(() {
-                                  _allocationPercentage = val;
-                                  if (_autoSyncAccount) {
-                                    final acc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
-                                    if (acc != null) {
-                                      final calc = (acc.currentBalance * (val / 100.0)).clamp(0.0, double.infinity);
-                                      _currentAmountController.text = calc == calc.roundToDouble()
-                                          ? calc.toInt().toString()
-                                          : calc.toStringAsFixed(2);
-                                    }
-                                  }
-                                });
-                              },
-                            ),
-                            Builder(
-                              builder: (context) {
-                                final acc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
-                                final bal = acc?.currentBalance ?? 0.0;
-                                final allocated = bal * (_allocationPercentage / 100.0);
-                                final remaining = bal - allocated;
-                                return Text(
-                                  '• Allocated: ${CurrencyFormatter.format(allocated)} • Remaining/Idle: ${CurrencyFormatter.format(remaining)}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: financialColors.textMuted,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryEmerald.withAlpha(
+                                        isDark ? 50 : 30,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${_allocationPercentage.toInt()}% of Balance',
+                                      style: const TextStyle(
+                                        color: AppColors.primaryEmerald,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  if (!_isEditMode && !_autoSyncAccount) ...[
-                    Material(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: financialColors.cardBorder),
-                        ),
-                        child: SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Deduct Initial Amount from Account', style: TextStyle(fontWeight: FontWeight.w700)),
-                          subtitle: Text(
-                            _deductInitialFromAccount
-                                ? 'Deducts saved portion from bank balance and records expense in daily ledger'
-                                : 'Set initial savings progress without deducting bank balance',
-                            style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                                ],
+                              ),
+                              Slider(
+                                value: _allocationPercentage,
+                                min: 5,
+                                max: 100,
+                                divisions: 19,
+                                label: '${_allocationPercentage.toInt()}%',
+                                activeColor: AppColors.primaryEmerald,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _allocationPercentage = val;
+                                    if (_autoSyncAccount) {
+                                      final acc = bankAccounts
+                                          .where(
+                                            (a) => a.id == _selectedAccountId,
+                                          )
+                                          .firstOrNull;
+                                      if (acc != null) {
+                                        final calc =
+                                            (acc.currentBalance * (val / 100.0))
+                                                .clamp(0.0, double.infinity);
+                                        _currentAmountController.text =
+                                            calc == calc.roundToDouble()
+                                            ? calc.toInt().toString()
+                                            : calc.toStringAsFixed(2);
+                                      }
+                                    }
+                                  });
+                                },
+                              ),
+                              Builder(
+                                builder: (context) {
+                                  final acc = bankAccounts
+                                      .where((a) => a.id == _selectedAccountId)
+                                      .firstOrNull;
+                                  final bal = acc?.currentBalance ?? 0.0;
+                                  final allocated =
+                                      bal * (_allocationPercentage / 100.0);
+                                  final remaining = bal - allocated;
+                                  return Text(
+                                    '• Allocated: ${CurrencyFormatter.format(allocated)} • Remaining/Idle: ${CurrencyFormatter.format(remaining)}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: financialColors.textMuted,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
-                          value: _deductInitialFromAccount,
-                          activeThumbColor: AppColors.primaryEmerald,
-                          onChanged: (val) => setState(() => _deductInitialFromAccount = val),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                    ],
+                    if (!_isEditMode && !_autoSyncAccount) ...[
+                      Material(
+                        color: isDark
+                            ? AppColors.darkSurfaceVariant
+                            : AppColors.lightSurfaceVariant,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: financialColors.cardBorder,
+                            ),
+                          ),
+                          child: SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text(
+                              'Deduct Initial Amount from Account',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: Text(
+                              _deductInitialFromAccount
+                                  ? 'Deducts saved portion from bank balance and records expense in daily ledger'
+                                  : 'Set initial savings progress without deducting bank balance',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: financialColors.textMuted,
+                              ),
+                            ),
+                            value: _deductInitialFromAccount,
+                            activeThumbColor: AppColors.primaryEmerald,
+                            onChanged: (val) =>
+                                setState(() => _deductInitialFromAccount = val),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ],
-                ],
 
-                // Emergency Fund Switch Tile
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Mark as Emergency Fund', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Highlighted with safety metrics on your dashboard'),
-                  value: _isEmergencyFund,
-                  activeTrackColor: AppColors.primaryEmerald,
-                  onChanged: (val) => setState(() => _isEmergencyFund = val),
-                ),
-                const SizedBox(height: 24),
-
-                // Save Action
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: financialColors.savings,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                  // Emergency Fund Switch Tile
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Mark as Emergency Fund',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    onPressed: _saveGoal,
-                    child: Text(
-                      _isEditMode ? 'Update Goal' : 'Create Savings Goal',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    subtitle: const Text(
+                      'Highlighted with safety metrics on your dashboard',
+                    ),
+                    value: _isEmergencyFund,
+                    activeTrackColor: AppColors.primaryEmerald,
+                    onChanged: (val) => setState(() => _isEmergencyFund = val),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Save Action
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: financialColors.savings,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      onPressed: _saveGoal,
+                      child: Text(
+                        _isEditMode ? 'Update Goal' : 'Create Savings Goal',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

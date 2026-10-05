@@ -65,17 +65,23 @@ void main() {
     ];
 
     test('calculateTotalIncome sums only income transactions', () {
-      final totalIncome = FinancialCalculator.calculateTotalIncome(sampleTransactions);
+      final totalIncome = FinancialCalculator.calculateTotalIncome(
+        sampleTransactions,
+      );
       expect(totalIncome, 110000.0);
     });
 
     test('calculateTotalExpense sums only expense transactions', () {
-      final totalExpense = FinancialCalculator.calculateTotalExpense(sampleTransactions);
+      final totalExpense = FinancialCalculator.calculateTotalExpense(
+        sampleTransactions,
+      );
       expect(totalExpense, 30000.0);
     });
 
     test('calculateNetBalance calculates income minus expenses', () {
-      final netBalance = FinancialCalculator.calculateNetBalance(sampleTransactions);
+      final netBalance = FinancialCalculator.calculateNetBalance(
+        sampleTransactions,
+      );
       expect(netBalance, 80000.0);
     });
 
@@ -123,39 +129,49 @@ void main() {
       expect(expenseOnly.length, 2);
     });
 
-    test('searchTransactions matches title, category, notes, or payment source', () {
-      final titleMatch = FinancialCalculator.searchTransactions(
-        sampleTransactions,
-        'Rent',
-      );
-      expect(titleMatch.length, 1);
-      expect(titleMatch.first.id, '3');
+    test(
+      'searchTransactions matches title, category, notes, or payment source',
+      () {
+        final titleMatch = FinancialCalculator.searchTransactions(
+          sampleTransactions,
+          'Rent',
+        );
+        expect(titleMatch.length, 1);
+        expect(titleMatch.first.id, '3');
 
-      final categoryMatch = FinancialCalculator.searchTransactions(
-        sampleTransactions,
-        'Groceries',
-      );
-      expect(categoryMatch.length, 1);
+        final categoryMatch = FinancialCalculator.searchTransactions(
+          sampleTransactions,
+          'Groceries',
+        );
+        expect(categoryMatch.length, 1);
 
-      final sourceMatch = FinancialCalculator.searchTransactions(
-        sampleTransactions,
-        'UPI',
-      );
-      expect(sourceMatch.length, 1);
-    });
+        final sourceMatch = FinancialCalculator.searchTransactions(
+          sampleTransactions,
+          'UPI',
+        );
+        expect(sourceMatch.length, 1);
+      },
+    );
 
     test('groupTransactionsByDate groups by date key', () {
-      final grouped = FinancialCalculator.groupTransactionsByDate(sampleTransactions);
+      final grouped = FinancialCalculator.groupTransactionsByDate(
+        sampleTransactions,
+      );
       expect(grouped.keys.length, 2); // August 21 and July 15
     });
 
-    test('calculateCategoryBreakdown groups expenses and computes percentages', () {
-      final breakdown = FinancialCalculator.calculateCategoryBreakdown(sampleTransactions);
-      expect(breakdown.length, 2);
-      expect(breakdown.first.category, 'Housing & Rent');
-      expect(breakdown.first.amount, 25000.0);
-      expect(breakdown.first.percentage, closeTo(83.33, 0.01));
-    });
+    test(
+      'calculateCategoryBreakdown groups expenses and computes percentages',
+      () {
+        final breakdown = FinancialCalculator.calculateCategoryBreakdown(
+          sampleTransactions,
+        );
+        expect(breakdown.length, 2);
+        expect(breakdown.first.category, 'Housing & Rent');
+        expect(breakdown.first.amount, 25000.0);
+        expect(breakdown.first.percentage, closeTo(83.33, 0.01));
+      },
+    );
 
     test('roundMoney eliminates floating point inaccuracies', () {
       expect(FinancialCalculator.roundMoney(0.1 + 0.2), 0.3);
@@ -305,18 +321,30 @@ void main() {
     }
 
     test('returns 0 when transaction list is empty', () {
-      expect(FinancialCalculator.calculateLoggingStreak([], referenceDate: today), 0);
+      expect(
+        FinancialCalculator.calculateLoggingStreak([], referenceDate: today),
+        0,
+      );
     });
 
     test('returns 1 when transaction logged today only', () {
       final txs = [createTx('t1', DateTime(2026, 9, 13, 9, 30))];
-      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 1);
+      expect(
+        FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today),
+        1,
+      );
     });
 
-    test('returns 1 when transaction logged yesterday only (active streak grace)', () {
-      final txs = [createTx('t1', DateTime(2026, 9, 12, 19, 0))];
-      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 1);
-    });
+    test(
+      'returns 1 when transaction logged yesterday only (active streak grace)',
+      () {
+        final txs = [createTx('t1', DateTime(2026, 9, 12, 19, 0))];
+        expect(
+          FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today),
+          1,
+        );
+      },
+    );
 
     test('returns 3 when transactions logged today, yesterday, and day before yesterday', () {
       final txs = [
@@ -324,7 +352,10 @@ void main() {
         createTx('t2', DateTime(2026, 9, 12, 14, 0)),
         createTx('t3', DateTime(2026, 9, 11, 20, 0)),
       ];
-      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 3);
+      expect(
+        FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today),
+        3,
+      );
     });
 
     test('deduplicates multiple transactions on the same day', () {
@@ -334,7 +365,10 @@ void main() {
         createTx('t3', DateTime(2026, 9, 12, 9, 0)),
         createTx('t4', DateTime(2026, 9, 12, 21, 0)),
       ];
-      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 2);
+      expect(
+        FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today),
+        2,
+      );
     });
 
     test('returns 0 when last transaction was 2 days ago (broken streak)', () {
@@ -342,7 +376,10 @@ void main() {
         createTx('t1', DateTime(2026, 9, 11, 10, 0)),
         createTx('t2', DateTime(2026, 9, 10, 10, 0)),
       ];
-      expect(FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today), 0);
+      expect(
+        FinancialCalculator.calculateLoggingStreak(txs, referenceDate: today),
+        0,
+      );
     });
   });
 

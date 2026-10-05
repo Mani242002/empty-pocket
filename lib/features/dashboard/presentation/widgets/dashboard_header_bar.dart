@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utilities/app_haptics.dart';
@@ -9,10 +10,7 @@ import '../../../transactions/presentation/state/transactions_provider.dart';
 class DashboardHeaderBar extends ConsumerWidget {
   final String todayFormatted;
 
-  const DashboardHeaderBar({
-    super.key,
-    required this.todayFormatted,
-  });
+  const DashboardHeaderBar({super.key, required this.todayFormatted});
 
   void _showStreakDialog(BuildContext context, int streak) {
     AppHaptics.selectionClick();
@@ -48,17 +46,26 @@ class DashboardHeaderBar extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: AppColors.primaryEmerald.withAlpha(20),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryEmerald.withAlpha(60)),
+                  border: Border.all(
+                    color: AppColors.primaryEmerald.withAlpha(60),
+                  ),
                 ),
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.lightbulb_outline_rounded, color: AppColors.primaryEmerald, size: 20),
+                    Icon(
+                      Icons.lightbulb_outline_rounded,
+                      color: AppColors.primaryEmerald,
+                      size: 20,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Daily expense tracking builds mindful spending habits and eliminates surprise month-end deficits.',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -153,9 +160,13 @@ class DashboardHeaderBar extends ConsumerWidget {
                     child: Container(
                       height: 32,
                       alignment: Alignment.center,
-                      padding: EdgeInsets.symmetric(horizontal: isCompact ? 7 : 10),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isCompact ? 7 : 10,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                        color: AppColors.primaryEmerald.withAlpha(
+                          isDark ? 40 : 25,
+                        ),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: AppColors.primaryEmerald.withAlpha(80),
@@ -190,9 +201,13 @@ class DashboardHeaderBar extends ConsumerWidget {
                   Container(
                     height: 32,
                     alignment: Alignment.center,
-                    padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 10),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 8 : 10,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      color: isDark
+                          ? AppColors.darkSurfaceVariant
+                          : AppColors.lightSurfaceVariant,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: financialColors.cardBorder,
@@ -214,7 +229,9 @@ class DashboardHeaderBar extends ConsumerWidget {
                             'Offline',
                             style: theme.textTheme.labelSmall?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
                               height: 1.1,
                             ),
                           ),
@@ -246,14 +263,21 @@ class DashboardHeaderBar extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => _showStreakDialog(context, streak),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: streak > 0
                         ? Colors.orange.withAlpha(isDark ? 40 : 25)
-                        : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                        : (isDark
+                              ? AppColors.darkSurfaceVariant
+                              : AppColors.lightSurfaceVariant),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: streak > 0 ? Colors.orange.withAlpha(140) : financialColors.cardBorder,
+                      color: streak > 0
+                          ? Colors.orange.withAlpha(140)
+                          : financialColors.cardBorder,
                       width: 1,
                     ),
                   ),
@@ -266,12 +290,16 @@ class DashboardHeaderBar extends ConsumerWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        streak > 0 ? '$streak Day${streak == 1 ? '' : 's'}' : 'Start Streak',
+                        streak > 0
+                            ? '$streak Day${streak == 1 ? '' : 's'}'
+                            : 'Start Streak',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: streak > 0
-                              ? (isDark ? Colors.orangeAccent : Colors.deepOrange)
+                              ? (isDark
+                                    ? Colors.orangeAccent
+                                    : Colors.deepOrange)
                               : financialColors.textMuted,
                         ),
                       ),

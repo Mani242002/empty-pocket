@@ -17,17 +17,19 @@ class SplitPersonShare {
       isSettled ? 0.0 : (amount - reimbursedAmount).clamp(0.0, double.infinity);
 
   Map<String, dynamic> toMap() => {
-        'name': personName,
-        'amount': amount,
-        if (reimbursedAmount > 0) 'reimbursed': reimbursedAmount,
-        if (isSettled) 'settled': true,
-      };
+    'name': personName,
+    'amount': amount,
+    if (reimbursedAmount > 0) 'reimbursed': reimbursedAmount,
+    if (isSettled) 'settled': true,
+  };
 
-  factory SplitPersonShare.fromMap(Map<String, dynamic> map) => SplitPersonShare(
+  factory SplitPersonShare.fromMap(Map<String, dynamic> map) =>
+      SplitPersonShare(
         personName: (map['name'] ?? map['personName'] ?? '') as String,
         amount: ((map['amount'] ?? 0) as num).toDouble(),
         reimbursedAmount:
-            ((map['reimbursed'] ?? map['reimbursedAmount'] ?? 0) as num).toDouble(),
+            ((map['reimbursed'] ?? map['reimbursedAmount'] ?? 0) as num)
+                .toDouble(),
         isSettled: map['settled'] == true || map['isSettled'] == true,
       );
 
@@ -56,5 +58,6 @@ class SplitPersonShare {
           isSettled == other.isSettled;
 
   @override
-  int get hashCode => Object.hash(personName, amount, reimbursedAmount, isSettled);
+  int get hashCode =>
+      Object.hash(personName, amount, reimbursedAmount, isSettled);
 }

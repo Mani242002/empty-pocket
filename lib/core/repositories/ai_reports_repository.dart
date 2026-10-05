@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../database/app_database.dart';
 import '../domain/entities/ai_assistant_entity.dart';
 
@@ -14,7 +15,8 @@ abstract class AiReportsRepository {
 class SqliteAiReportsRepository implements AiReportsRepository {
   final AppDatabase _db;
 
-  SqliteAiReportsRepository({AppDatabase? db}) : _db = db ?? AppDatabase.instance;
+  SqliteAiReportsRepository({AppDatabase? db})
+    : _db = db ?? AppDatabase.instance;
 
   @override
   Future<List<AiReportItem>> getAllReports() async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/category_constants.dart';
@@ -9,12 +10,21 @@ import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../screens/add_recurring_sheet.dart';
 import '../state/recurring_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
-class RecurringBillsTab extends ConsumerWidget {
+class RecurringBillsTab extends ConsumerStatefulWidget {
   const RecurringBillsTab({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RecurringBillsTab> createState() => _RecurringBillsTabState();
+}
+
+class _RecurringBillsTabState extends ConsumerState<RecurringBillsTab> {
+  final Set<String> _payingItemIds = {};
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -43,7 +53,9 @@ class RecurringBillsTab extends ConsumerWidget {
                       : [const Color(0xFFF3E8FF), const Color(0xFFFFFFFF)],
                 ),
                 border: Border.all(
-                  color: isDark ? AppColors.savings.withAlpha(60) : AppColors.savings.withAlpha(40),
+                  color: isDark
+                      ? AppColors.savings.withAlpha(60)
+                      : AppColors.savings.withAlpha(40),
                   width: 1.5,
                 ),
               ),
@@ -56,7 +68,11 @@ class RecurringBillsTab extends ConsumerWidget {
                       color: AppColors.savings.withAlpha(isDark ? 50 : 30),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.repeat_rounded, color: AppColors.savings, size: 24),
+                    child: const Icon(
+                      Icons.repeat_rounded,
+                      color: AppColors.savings,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -106,7 +122,9 @@ class RecurringBillsTab extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'Subscriptions & Fixed Bills (${items.length})',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -127,7 +145,10 @@ class RecurringBillsTab extends ConsumerWidget {
             if (items.isEmpty)
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 36,
+                    horizontal: 20,
+                  ),
                   child: Column(
                     children: [
                       Container(
@@ -135,7 +156,9 @@ class RecurringBillsTab extends ConsumerWidget {
                         height: 64,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: financialColors.savings.withAlpha(isDark ? 40 : 25),
+                          color: financialColors.savings.withAlpha(
+                            isDark ? 40 : 25,
+                          ),
                         ),
                         child: Icon(
                           Icons.repeat_rounded,
@@ -146,7 +169,9 @@ class RecurringBillsTab extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         'No Subscriptions or Bills',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -159,7 +184,9 @@ class RecurringBillsTab extends ConsumerWidget {
                       ),
                       const SizedBox(height: 20),
                       FilledButton.icon(
-                        style: FilledButton.styleFrom(backgroundColor: financialColors.savings),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: financialColors.savings,
+                        ),
                         onPressed: () => AddRecurringSheet.show(context),
                         icon: const Icon(Icons.add_rounded, size: 18),
                         label: const Text('Add First Subscription'),
@@ -172,7 +199,7 @@ class RecurringBillsTab extends ConsumerWidget {
               ...items.map((item) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildRecurringItemCard(context, ref, item),
+                  child: _buildRecurringItemCard(context, item),
                 );
               }),
           ],
@@ -181,7 +208,11 @@ class RecurringBillsTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildRecurringItemCard(BuildContext context, WidgetRef ref, RecurringExpenseEntity item) {
+  Widget _buildRecurringItemCard(
+    BuildContext context,
+    RecurringExpenseEntity item,
+  ) {
+    final isPaying = _payingItemIds.contains(item.id);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -223,7 +254,9 @@ class RecurringBillsTab extends ConsumerWidget {
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.expense,
+                ),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Delete'),
               ),
@@ -232,7 +265,9 @@ class RecurringBillsTab extends ConsumerWidget {
         );
       },
       onDismissed: (_) {
-        ref.read(recurringListNotifierProvider.notifier).deleteRecurring(item.id);
+        ref
+            .read(recurringListNotifierProvider.notifier)
+            .deleteRecurring(item.id);
       },
       background: Container(
         alignment: Alignment.centerRight,
@@ -248,7 +283,10 @@ class RecurringBillsTab extends ConsumerWidget {
             SizedBox(width: 8),
             Text(
               'Remove',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -275,7 +313,11 @@ class RecurringBillsTab extends ConsumerWidget {
                         color: categoryItem.color.withAlpha(isDark ? 45 : 30),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(categoryItem.icon, color: categoryItem.color, size: 22),
+                      child: Icon(
+                        categoryItem.icon,
+                        color: categoryItem.color,
+                        size: 22,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -292,19 +334,30 @@ class RecurringBillsTab extends ConsumerWidget {
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                                  color: isDark
+                                      ? AppColors.darkSurfaceVariant
+                                      : AppColors.lightSurfaceVariant,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
                                   item.frequency.displayName,
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: dueColor.withAlpha(isDark ? 40 : 25),
                                   borderRadius: BorderRadius.circular(6),
@@ -365,7 +418,9 @@ class RecurringBillsTab extends ConsumerWidget {
                             value: item.isActive,
                             activeTrackColor: AppColors.primaryEmerald,
                             onChanged: (_) {
-                              ref.read(recurringListNotifierProvider.notifier).toggleActive(item.id);
+                              ref
+                                  .read(recurringListNotifierProvider.notifier)
+                                  .toggleActive(item.id);
                             },
                           ),
                           Flexible(
@@ -373,7 +428,9 @@ class RecurringBillsTab extends ConsumerWidget {
                               item.isActive ? 'Active' : 'Paused',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: item.isActive ? null : financialColors.textMuted,
+                                color: item.isActive
+                                    ? null
+                                    : financialColors.textMuted,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -386,31 +443,79 @@ class RecurringBillsTab extends ConsumerWidget {
                     Flexible(
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                           visualDensity: VisualDensity.compact,
                         ),
-                        icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                        label: const FittedBox(
+                        icon: isPaying
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.check_circle_outline_rounded,
+                                size: 16,
+                              ),
+                        label: FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text('Log Payment'),
+                          child: Text(isPaying ? 'Logging...' : 'Log Payment'),
                         ),
-                      onPressed: () async {
-                        await ref
-                            .read(recurringListNotifierProvider.notifier)
-                            .logPaymentAsTransaction(item);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Logged ${item.title} (${CurrencyFormatter.format(item.amount)}) as transaction and moved next due date.'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      },
+                        onPressed: isPaying
+                            ? null
+                            : () async {
+                                setState(() => _payingItemIds.add(item.id));
+                                try {
+                                  await ref
+                                      .read(
+                                        recurringListNotifierProvider.notifier,
+                                      )
+                                      .logPaymentAsTransaction(item);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Logged ${item.title} (${CurrencyFormatter.format(item.amount)}) as transaction and moved next due date.',
+                                        ),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    final msg = e
+                                        .toString()
+                                        .replaceAll('Exception: ', '')
+                                        .replaceAll('StateError: ', '')
+                                        .replaceAll('ArgumentError: ', '');
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to log payment: $msg',
+                                        ),
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .error,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted) {
+                                    setState(
+                                      () => _payingItemIds.remove(item.id),
+                                    );
+                                  }
+                                }
+                              },
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               ],
             ),
           ),

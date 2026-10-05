@@ -115,7 +115,8 @@ void main() {
         cashBalance: 50000.0,
         monthlyIncome: 100000.0,
         monthlyExpense: 30000.0,
-        savingsGoalsAmount: 180000.0, // 6 months emergency buffer (180k / 30k = 6)
+        savingsGoalsAmount:
+            180000.0, // 6 months emergency buffer (180k / 30k = 6)
         emergencyFundSaved: 180000.0,
         investmentsAmount: 300000.0,
         distinctAssetClassesCount: 3, // Equity, Gold, Debt

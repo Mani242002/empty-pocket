@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart';
+
 import '../database/app_database.dart';
 import '../domain/entities/credit_card_entity.dart';
 import 'transaction_repository.dart';
@@ -6,10 +8,14 @@ import 'transaction_repository.dart';
 abstract class CreditCardRepository {
   Future<List<CreditCardEntity>> getAllCards();
   Future<CreditCardEntity?> getCardById(String id);
-  Future<void> saveCard(CreditCardEntity card);
-  Future<void> updateCard(CreditCardEntity card);
-  Future<void> adjustUsedAmount(String id, double delta);
-  Future<void> deleteCard(String id);
+  Future<void> saveCard(CreditCardEntity card, {DatabaseExecutor? executor});
+  Future<void> updateCard(CreditCardEntity card, {DatabaseExecutor? executor});
+  Future<void> adjustUsedAmount(
+    String id,
+    double delta, {
+    DatabaseExecutor? executor,
+  });
+  Future<void> deleteCard(String id, {DatabaseExecutor? executor});
 }
 
 class SqliteCreditCardRepository implements CreditCardRepository {
@@ -28,23 +34,33 @@ class SqliteCreditCardRepository implements CreditCardRepository {
   }
 
   @override
-  Future<void> saveCard(CreditCardEntity card) async {
-    await _db.insertCreditCard(card);
+  Future<void> saveCard(
+    CreditCardEntity card, {
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.insertCreditCard(card, executor: executor);
   }
 
   @override
-  Future<void> updateCard(CreditCardEntity card) async {
-    await _db.updateCreditCard(card);
+  Future<void> updateCard(
+    CreditCardEntity card, {
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.updateCreditCard(card, executor: executor);
   }
 
   @override
-  Future<void> adjustUsedAmount(String id, double delta) async {
-    await _db.adjustCreditCardUsedAmount(id, delta);
+  Future<void> adjustUsedAmount(
+    String id,
+    double delta, {
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.adjustCreditCardUsedAmount(id, delta, executor: executor);
   }
 
   @override
-  Future<void> deleteCard(String id) async {
-    await _db.deleteCreditCard(id);
+  Future<void> deleteCard(String id, {DatabaseExecutor? executor}) async {
+    await _db.deleteCreditCard(id, executor: executor);
   }
 }
 
@@ -69,13 +85,19 @@ class InMemoryCreditCardRepository implements CreditCardRepository {
   }
 
   @override
-  Future<void> saveCard(CreditCardEntity card) async {
+  Future<void> saveCard(
+    CreditCardEntity card, {
+    DatabaseExecutor? executor,
+  }) async {
     _cards.removeWhere((c) => c.id == card.id);
     _cards.add(card);
   }
 
   @override
-  Future<void> updateCard(CreditCardEntity card) async {
+  Future<void> updateCard(
+    CreditCardEntity card, {
+    DatabaseExecutor? executor,
+  }) async {
     final index = _cards.indexWhere((c) => c.id == card.id);
     if (index != -1) {
       _cards[index] = card;
@@ -85,7 +107,11 @@ class InMemoryCreditCardRepository implements CreditCardRepository {
   }
 
   @override
-  Future<void> adjustUsedAmount(String id, double delta) async {
+  Future<void> adjustUsedAmount(
+    String id,
+    double delta, {
+    DatabaseExecutor? executor,
+  }) async {
     final index = _cards.indexWhere((c) => c.id == id);
     if (index != -1) {
       final old = _cards[index];
@@ -94,7 +120,7 @@ class InMemoryCreditCardRepository implements CreditCardRepository {
   }
 
   @override
-  Future<void> deleteCard(String id) async {
+  Future<void> deleteCard(String id, {DatabaseExecutor? executor}) async {
     _cards.removeWhere((c) => c.id == id);
   }
 }

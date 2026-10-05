@@ -88,8 +88,12 @@ class RecurringExpenseEntity {
       category: category ?? this.category,
       frequency: frequency ?? this.frequency,
       paymentSource: paymentSource ?? this.paymentSource,
-      accountId: identical(accountId, _sentinel) ? this.accountId : (accountId as String?),
-      creditCardId: identical(creditCardId, _sentinel) ? this.creditCardId : (creditCardId as String?),
+      accountId: identical(accountId, _sentinel)
+          ? this.accountId
+          : (accountId as String?),
+      creditCardId: identical(creditCardId, _sentinel)
+          ? this.creditCardId
+          : (creditCardId as String?),
       startDate: startDate ?? this.startDate,
       nextDueDate: nextDueDate ?? this.nextDueDate,
       isActive: isActive ?? this.isActive,
@@ -127,7 +131,9 @@ class RecurringExpenseEntity {
       accountId: map['account_id'] as String?,
       creditCardId: map['credit_card_id'] as String?,
       startDate: DateTime.fromMillisecondsSinceEpoch(map['start_date'] as int),
-      nextDueDate: DateTime.fromMillisecondsSinceEpoch(map['next_due_date'] as int),
+      nextDueDate: DateTime.fromMillisecondsSinceEpoch(
+        map['next_due_date'] as int,
+      ),
       isActive: (map['is_active'] as int) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
@@ -160,15 +166,15 @@ class RecurringExpenseEntity {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        title,
-        amount,
-        category,
-        frequency,
-        accountId,
-        creditCardId,
-        startDate,
-        nextDueDate,
-        isActive,
-      );
+    id,
+    title,
+    amount,
+    category,
+    frequency,
+    accountId,
+    creditCardId,
+    startDate,
+    nextDueDate,
+    isActive,
+  );
 }

@@ -1,12 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart';
+
 import '../database/app_database.dart';
+import '../domain/entities/bank_account_entity.dart';
 import '../domain/entities/investment_entity.dart';
+import '../domain/entities/transaction_entity.dart';
 import 'transaction_repository.dart';
 
 abstract class InvestmentRepository {
   Future<List<InvestmentEntity>> getAllInvestments();
   Future<void> saveInvestment(InvestmentEntity investment);
   Future<void> deleteInvestment(String id);
+  Future<void> saveInvestmentAtomic({
+    required InvestmentEntity investment,
+    BankAccountEntity? sourceAccount,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  });
 }
 
 class SqliteInvestmentRepository implements InvestmentRepository {
@@ -27,6 +37,21 @@ class SqliteInvestmentRepository implements InvestmentRepository {
   @override
   Future<void> deleteInvestment(String id) async {
     await _db.deleteInvestment(id);
+  }
+
+  @override
+  Future<void> saveInvestmentAtomic({
+    required InvestmentEntity investment,
+    BankAccountEntity? sourceAccount,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.saveInvestmentAtomic(
+      investment: investment,
+      sourceAccount: sourceAccount,
+      transaction: transaction,
+      executor: executor,
+    );
   }
 }
 
@@ -52,6 +77,17 @@ class InMemoryInvestmentRepository implements InvestmentRepository {
   @override
   Future<void> deleteInvestment(String id) async {
     _investments.removeWhere((i) => i.id == id);
+  }
+
+  @override
+  Future<void> saveInvestmentAtomic({
+    required InvestmentEntity investment,
+    BankAccountEntity? sourceAccount,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    _investments.removeWhere((i) => i.id == investment.id);
+    _investments.add(investment);
   }
 }
 

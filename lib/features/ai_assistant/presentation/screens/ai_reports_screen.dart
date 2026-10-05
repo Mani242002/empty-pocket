@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
@@ -37,10 +38,9 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
       builder: (ctx) => _NewReportBottomSheet(
         onSelectType: (type, customPrompt) {
           Navigator.pop(ctx);
-          ref.read(aiReportsProvider.notifier).generateReport(
-                type: type,
-                customPrompt: customPrompt,
-              );
+          ref
+              .read(aiReportsProvider.notifier)
+              .generateReport(type: type, customPrompt: customPrompt);
         },
       ),
     );
@@ -72,135 +72,169 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white24 : Colors.black12,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.tune_rounded, color: AppColors.primaryEmerald, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'AI Provider & Model',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Provider switcher chips in responsive Wrap
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: AiProviderType.values.map((provider) {
-                    final isSelected = liveConfig.providerType == provider;
-                    final isConfigured = liveConfig.isProviderConfigured(provider);
-
-                    return ChoiceChip(
-                      avatar: Icon(provider.icon, size: 16),
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white24 : Colors.black12,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
                         children: [
+                          const Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.primaryEmerald,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
                           Text(
-                            provider.displayName,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            'AI Provider & Model',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          if (isConfigured) ...[
-                            const SizedBox(width: 4),
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: AppColors.income,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ],
                         ],
                       ),
-                      selected: isSelected,
-                      onSelected: (sel) {
-                        if (sel) {
-                          ref.read(aiProviderConfigProvider.notifier).updateProvider(provider);
-                        }
-                      },
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                Text(
-                  'SELECT MODEL (${liveConfig.providerType.displayName.toUpperCase()})',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
+                      // Provider switcher chips in responsive Wrap
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: AiProviderType.values.map((provider) {
+                          final isSelected =
+                              liveConfig.providerType == provider;
+                          final isConfigured = liveConfig.isProviderConfigured(
+                            provider,
+                          );
 
-                // Scrollable Model Options
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: liveConfig.activeModelOptions.map((opt) {
-                      final isSelected = liveConfig.activeModel == opt.id;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.primaryEmerald
-                                : (isDark ? Colors.white10 : Colors.black12),
-                          ),
-                        ),
-                        child: ListTile(
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                          title: Text(
-                            opt.displayName,
-                            style: TextStyle(
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                              color: isSelected ? AppColors.primaryEmerald : null,
+                          return ChoiceChip(
+                            avatar: Icon(provider.icon, size: 16),
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  provider.displayName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                  ),
+                                ),
+                                if (isConfigured) ...[
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.income,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ),
-                          subtitle: Text(
-                            opt.id,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                            ),
-                          ),
-                          trailing: isSelected
-                              ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryEmerald, size: 20)
-                              : null,
-                          onTap: () {
-                            ref.read(aiProviderConfigProvider.notifier).updateModel(opt.id);
-                            Navigator.pop(ctx);
-                          },
+                            selected: isSelected,
+                            onSelected: (sel) {
+                              if (sel) {
+                                ref
+                                    .read(aiProviderConfigProvider.notifier)
+                                    .updateProvider(provider);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+
+                      Text(
+                        'SELECT MODEL (${liveConfig.providerType.displayName.toUpperCase()})',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted,
                         ),
-                      );
-                    }).toList(),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Scrollable Model Options
+                      Flexible(
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: liveConfig.activeModelOptions.map((opt) {
+                            final isSelected = liveConfig.activeModel == opt.id;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primaryEmerald.withAlpha(
+                                        isDark ? 40 : 25,
+                                      )
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.primaryEmerald
+                                      : (isDark
+                                            ? Colors.white10
+                                            : Colors.black12),
+                                ),
+                              ),
+                              child: ListTile(
+                                dense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 2,
+                                ),
+                                title: Text(
+                                  opt.displayName,
+                                  style: TextStyle(
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? AppColors.primaryEmerald
+                                        : null,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  opt.id,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted,
+                                  ),
+                                ),
+                                trailing: isSelected
+                                    ? const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: AppColors.primaryEmerald,
+                                        size: 20,
+                                      )
+                                    : null,
+                                onTap: () {
+                                  ref
+                                      .read(aiProviderConfigProvider.notifier)
+                                      .updateModel(opt.id);
+                                  Navigator.pop(ctx);
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
                 ),
               ),
             );
@@ -258,7 +292,8 @@ class _AiReportsScreenState extends ConsumerState<AiReportsScreen> {
 
   void _shareReport(AiReportItem report) {
     AppHaptics.selectionClick();
-    final shareText = '''
+    final shareText =
+        '''
 ${report.title}
 Generated by EmptyPocket PocketAI (${report.providerUsed.displayName} • ${report.modelDisplayName})
 Date: ${DateFormat('dd MMM yyyy, h:mm a').format(report.createdAt)}
@@ -268,10 +303,7 @@ Date: ${DateFormat('dd MMM yyyy, h:mm a').format(report.createdAt)}
 ${report.markdownContent}
 ''';
     SharePlus.instance.share(
-      ShareParams(
-        text: shareText,
-        subject: report.title,
-      ),
+      ShareParams(text: shareText, subject: report.title),
     );
   }
 
@@ -315,24 +347,40 @@ ${report.markdownContent}
                 onTap: () => _showModelPickerSheet(context, config),
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.lightSurfaceVariant,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppColors.primaryEmerald.withAlpha(isDark ? 80 : 50),
+                      color: AppColors.primaryEmerald.withAlpha(
+                        isDark ? 80 : 50,
+                      ),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(config.providerType.icon, size: 13, color: AppColors.primaryEmerald),
+                      Icon(
+                        config.providerType.icon,
+                        size: 13,
+                        color: AppColors.primaryEmerald,
+                      ),
                       const SizedBox(width: 4),
                       ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.3),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.3,
+                        ),
                         child: Text(
                           config.activeModelDisplayName,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -372,26 +420,46 @@ ${report.markdownContent}
           if (!config.isConfigured)
             SliverToBoxAdapter(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 color: AppColors.warning.withAlpha(25),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 18),
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: AppColors.warning,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'No API key configured for report generation.',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     TextButton(
-                      style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const AiSettingsScreen(),
+                          ),
                         );
                       },
-                      child: const Text('Configure', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                      child: const Text(
+                        'Configure',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -411,9 +479,15 @@ ${report.markdownContent}
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 30),
+                          color: AppColors.primaryEmerald.withAlpha(
+                            isDark ? 45 : 30,
+                          ),
                         ),
-                        child: const Icon(Icons.description_outlined, color: AppColors.primaryEmerald, size: 16),
+                        child: const Icon(
+                          Icons.description_outlined,
+                          color: AppColors.primaryEmerald,
+                          size: 16,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -447,7 +521,9 @@ ${report.markdownContent}
                           color: AppColors.primaryEmerald,
                           onTap: () {
                             AppHaptics.buttonPress();
-                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit);
+                            ref
+                                .read(aiReportsProvider.notifier)
+                                .generateReport(type: AiReportType.fullAudit);
                           },
                           isDark: isDark,
                           financialColors: financialColors,
@@ -459,7 +535,11 @@ ${report.markdownContent}
                           color: AppColors.info,
                           onTap: () {
                             AppHaptics.buttonPress();
-                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.budgetOptimization);
+                            ref
+                                .read(aiReportsProvider.notifier)
+                                .generateReport(
+                                  type: AiReportType.budgetOptimization,
+                                );
                           },
                           isDark: isDark,
                           financialColors: financialColors,
@@ -471,7 +551,9 @@ ${report.markdownContent}
                           color: AppColors.expense,
                           onTap: () {
                             AppHaptics.buttonPress();
-                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.debtPayoff);
+                            ref
+                                .read(aiReportsProvider.notifier)
+                                .generateReport(type: AiReportType.debtPayoff);
                           },
                           isDark: isDark,
                           financialColors: financialColors,
@@ -483,7 +565,11 @@ ${report.markdownContent}
                           color: AppColors.investment,
                           onTap: () {
                             AppHaptics.buttonPress();
-                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.investmentReview);
+                            ref
+                                .read(aiReportsProvider.notifier)
+                                .generateReport(
+                                  type: AiReportType.investmentReview,
+                                );
                           },
                           isDark: isDark,
                           financialColors: financialColors,
@@ -495,7 +581,11 @@ ${report.markdownContent}
                           color: AppColors.income,
                           onTap: () {
                             AppHaptics.buttonPress();
-                            ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.emergencyRunway);
+                            ref
+                                .read(aiReportsProvider.notifier)
+                                .generateReport(
+                                  type: AiReportType.emergencyRunway,
+                                );
                           },
                           isDark: isDark,
                           financialColors: financialColors,
@@ -549,7 +639,10 @@ ${report.markdownContent}
                 return SliverToBoxAdapter(
                   child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 48,
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -557,33 +650,57 @@ ${report.markdownContent}
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 20),
+                              color: AppColors.primaryEmerald.withAlpha(
+                                isDark ? 40 : 20,
+                              ),
                             ),
-                            child: const Icon(Icons.analytics_outlined, size: 44, color: AppColors.primaryEmerald),
+                            child: const Icon(
+                              Icons.analytics_outlined,
+                              size: 44,
+                              color: AppColors.primaryEmerald,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           const Text(
                             'No AI Reports Generated Yet',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Choose an audit template above or tap "+ New Report" to analyze your offline financial health.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: financialColors.textMuted, fontSize: 13, height: 1.4),
+                            style: TextStyle(
+                              color: financialColors.textMuted,
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
                           ),
                           const SizedBox(height: 20),
                           FilledButton.icon(
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.primaryEmerald,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 12,
+                              ),
                             ),
-                            icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                            label: const Text('Generate Full Audit Report', style: TextStyle(fontWeight: FontWeight.w700)),
+                            icon: const Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 18,
+                            ),
+                            label: const Text(
+                              'Generate Full Audit Report',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                             onPressed: () {
                               AppHaptics.buttonPress();
-                              ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit);
+                              ref
+                                  .read(aiReportsProvider.notifier)
+                                  .generateReport(type: AiReportType.fullAudit);
                             },
                           ),
                         ],
@@ -596,13 +713,15 @@ ${report.markdownContent}
               return SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final report = reports[index];
-                      return _buildReportSummaryCard(context, report, isDark, financialColors);
-                    },
-                    childCount: reports.length,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final report = reports[index];
+                    return _buildReportSummaryCard(
+                      context,
+                      report,
+                      isDark,
+                      financialColors,
+                    );
+                  }, childCount: reports.length),
                 ),
               );
             },
@@ -612,11 +731,17 @@ ${report.markdownContent}
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(strokeWidth: 3, color: AppColors.primaryEmerald),
+                    CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: AppColors.primaryEmerald,
+                    ),
                     SizedBox(height: 16),
                     Text(
                       'Analyzing offline metrics & generating audit...',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -635,17 +760,28 @@ ${report.markdownContent}
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline_rounded, color: AppColors.expense, size: 32),
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: AppColors.expense,
+                        size: 32,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         'Error generating report:\n$err',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.expense, fontSize: 13),
+                        style: const TextStyle(
+                          color: AppColors.expense,
+                          fontSize: 13,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
-                        onPressed: () => ref.read(aiReportsProvider.notifier).generateReport(type: AiReportType.fullAudit),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.expense,
+                        ),
+                        onPressed: () => ref
+                            .read(aiReportsProvider.notifier)
+                            .generateReport(type: AiReportType.fullAudit),
                         child: const Text('Retry'),
                       ),
                     ],
@@ -670,13 +806,12 @@ ${report.markdownContent}
     return ActionChip(
       avatar: Icon(icon, size: 15, color: color),
       label: Text(title),
-      backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+      backgroundColor: isDark
+          ? AppColors.darkSurfaceVariant
+          : AppColors.lightSurfaceVariant,
       side: BorderSide(color: financialColors.cardBorder),
       visualDensity: VisualDensity.compact,
-      labelStyle: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      ),
+      labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       onPressed: onTap,
     );
   }
@@ -701,7 +836,9 @@ ${report.markdownContent}
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+        color: isDark
+            ? AppColors.darkSurfaceVariant
+            : AppColors.lightSurfaceVariant,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40),
@@ -730,10 +867,16 @@ ${report.markdownContent}
                   Container(
                     padding: const EdgeInsets.all(9),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 30),
+                      color: AppColors.primaryEmerald.withAlpha(
+                        isDark ? 45 : 30,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(report.type.icon, color: AppColors.primaryEmerald, size: 20),
+                    child: Icon(
+                      report.type.icon,
+                      color: AppColors.primaryEmerald,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -772,16 +915,22 @@ ${report.markdownContent}
                         _copyMarkdown(report);
                       } else if (action == 'regenerate') {
                         AppHaptics.buttonPress();
-                        ref.read(aiReportsProvider.notifier).regenerateReport(report.id);
+                        ref
+                            .read(aiReportsProvider.notifier)
+                            .regenerateReport(report.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Regenerating report in background...'),
+                            content: Text(
+                              'Regenerating report in background...',
+                            ),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
                       } else if (action == 'delete') {
                         AppHaptics.warning();
-                        ref.read(aiReportsProvider.notifier).deleteReport(report.id);
+                        ref
+                            .read(aiReportsProvider.notifier)
+                            .deleteReport(report.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Report deleted'),
@@ -815,7 +964,11 @@ ${report.markdownContent}
                         value: 'regenerate',
                         child: Row(
                           children: [
-                            Icon(Icons.refresh_rounded, size: 18, color: AppColors.primaryEmerald),
+                            Icon(
+                              Icons.refresh_rounded,
+                              size: 18,
+                              color: AppColors.primaryEmerald,
+                            ),
                             SizedBox(width: 8),
                             Text('Regenerate Report'),
                           ],
@@ -825,9 +978,16 @@ ${report.markdownContent}
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.expense),
+                            Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                              color: AppColors.expense,
+                            ),
                             SizedBox(width: 8),
-                            Text('Delete Report', style: TextStyle(color: AppColors.expense)),
+                            Text(
+                              'Delete Report',
+                              style: TextStyle(color: AppColors.expense),
+                            ),
                           ],
                         ),
                       ),
@@ -843,7 +1003,9 @@ ${report.markdownContent}
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.45,
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -855,9 +1017,14 @@ ${report.markdownContent}
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryEmerald.withAlpha(isDark ? 30 : 20),
+                      color: AppColors.primaryEmerald.withAlpha(
+                        isDark ? 30 : 20,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -880,7 +1047,11 @@ ${report.markdownContent}
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primaryEmerald),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 14,
+                        color: AppColors.primaryEmerald,
+                      ),
                     ],
                   ),
                 ],
@@ -941,7 +1112,9 @@ class _NewReportBottomSheetState extends State<_NewReportBottomSheet> {
             const SizedBox(height: 16),
             Text(
               'Generate New Financial Report',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -959,14 +1132,17 @@ class _NewReportBottomSheetState extends State<_NewReportBottomSheet> {
             ),
             _buildReportOption(
               title: 'Budget & Expense Optimization',
-              subtitle: 'Category spending analysis & 50/30/20 rebalancing plan',
+              subtitle:
+                  'Category spending analysis & 50/30/20 rebalancing plan',
               icon: Icons.pie_chart_rounded,
               color: AppColors.info,
-              onTap: () => widget.onSelectType(AiReportType.budgetOptimization, null),
+              onTap: () =>
+                  widget.onSelectType(AiReportType.budgetOptimization, null),
             ),
             _buildReportOption(
               title: 'Debt Freedom & Loan Payoff Plan',
-              subtitle: 'Avalanche vs Snowball payoff timeline & interest savings',
+              subtitle:
+                  'Avalanche vs Snowball payoff timeline & interest savings',
               icon: Icons.credit_card_off_rounded,
               color: AppColors.expense,
               onTap: () => widget.onSelectType(AiReportType.debtPayoff, null),
@@ -976,14 +1152,16 @@ class _NewReportBottomSheetState extends State<_NewReportBottomSheet> {
               subtitle: 'Asset allocation balance & strategic diversification',
               icon: Icons.trending_up_rounded,
               color: AppColors.investment,
-              onTap: () => widget.onSelectType(AiReportType.investmentReview, null),
+              onTap: () =>
+                  widget.onSelectType(AiReportType.investmentReview, null),
             ),
             _buildReportOption(
               title: 'Emergency Runway & Safety Buffer',
               subtitle: 'Survival months calculation & emergency fund roadmap',
               icon: Icons.shield_rounded,
               color: AppColors.income,
-              onTap: () => widget.onSelectType(AiReportType.emergencyRunway, null),
+              onTap: () =>
+                  widget.onSelectType(AiReportType.emergencyRunway, null),
             ),
 
             const Divider(height: 24),
@@ -993,18 +1171,29 @@ class _NewReportBottomSheetState extends State<_NewReportBottomSheet> {
               contentPadding: EdgeInsets.zero,
               leading: const CircleAvatar(
                 backgroundColor: Colors.white10,
-                child: Icon(Icons.edit_note_rounded, color: AppColors.primaryEmerald),
+                child: Icon(
+                  Icons.edit_note_rounded,
+                  color: AppColors.primaryEmerald,
+                ),
               ),
-              title: const Text('Custom Financial Question / Audit', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              subtitle: const Text('Ask a custom question tailored to your data', style: TextStyle(fontSize: 12)),
-              onTap: () => setState(() => _isCustomSelected = !_isCustomSelected),
+              title: const Text(
+                'Custom Financial Question / Audit',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+              subtitle: const Text(
+                'Ask a custom question tailored to your data',
+                style: TextStyle(fontSize: 12),
+              ),
+              onTap: () =>
+                  setState(() => _isCustomSelected = !_isCustomSelected),
             ),
             if (_isCustomSelected) ...[
               const SizedBox(height: 8),
               TextField(
                 controller: _customPromptController,
                 decoration: InputDecoration(
-                  hintText: 'e.g. Can I afford to buy a ${CurrencyFormatter.currentSymbol}40,000 laptop in 2 months?',
+                  hintText:
+                      'e.g. Can I afford to buy a ${CurrencyFormatter.currentSymbol}40,000 laptop in 2 months?',
                   border: const OutlineInputBorder(),
                 ),
                 maxLines: 2,
@@ -1023,7 +1212,10 @@ class _NewReportBottomSheetState extends State<_NewReportBottomSheet> {
                       widget.onSelectType(AiReportType.custom, text);
                     }
                   },
-                  child: const Text('Generate Custom Report', style: TextStyle(fontWeight: FontWeight.w700)),
+                  child: const Text(
+                    'Generate Custom Report',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             ],
@@ -1046,7 +1238,10 @@ class _NewReportBottomSheetState extends State<_NewReportBottomSheet> {
         backgroundColor: color.withAlpha(30),
         child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+      ),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
       trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
       onTap: onTap,

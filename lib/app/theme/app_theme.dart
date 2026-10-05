@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'app_colors.dart';
 
 /// Theme extension for EmptyPocket custom financial semantic colors
@@ -86,30 +87,53 @@ class AppFinancialColors extends ThemeExtension<AppFinancialColors> {
 
 extension FinancialColorsExtension on BuildContext {
   AppFinancialColors get financialColors =>
-      Theme.of(this).extension<AppFinancialColors>() ?? AppFinancialColors.light;
+      Theme.of(this).extension<AppFinancialColors>() ??
+      AppFinancialColors.light;
 }
 
 extension AppThemeContextExtension on BuildContext {
   bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
-  Color get surfaceColor => isDarkMode ? AppColors.darkSurface : AppColors.lightSurface;
-  Color get surfaceVariantColor => isDarkMode ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant;
-  Color get textSecondaryColor => isDarkMode ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-  Color get borderColor => isDarkMode ? AppColors.darkBorder : AppColors.lightBorder;
+  Color get surfaceColor =>
+      isDarkMode ? AppColors.darkSurface : AppColors.lightSurface;
+  Color get surfaceVariantColor =>
+      isDarkMode ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant;
+  Color get textSecondaryColor =>
+      isDarkMode ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+  Color get borderColor =>
+      isDarkMode ? AppColors.darkBorder : AppColors.lightBorder;
 }
 
 /// Main App Themes
 abstract class AppTheme {
   static TextTheme _buildTabularTextTheme(TextTheme base) {
     return base.copyWith(
-      headlineLarge: base.headlineLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      headlineMedium: base.headlineMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      headlineSmall: base.headlineSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      titleLarge: base.titleLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      titleMedium: base.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      titleSmall: base.titleSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      bodyLarge: base.bodyLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      bodyMedium: base.bodyMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-      labelLarge: base.labelLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+      headlineLarge: base.headlineLarge?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      headlineMedium: base.headlineMedium?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      headlineSmall: base.headlineSmall?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      titleLarge: base.titleLarge?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      titleMedium: base.titleMedium?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      titleSmall: base.titleSmall?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      bodyLarge: base.bodyLarge?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      bodyMedium: base.bodyMedium?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+      labelLarge: base.labelLarge?.copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
     );
   }
 
@@ -165,7 +189,9 @@ abstract class AppTheme {
           return TextStyle(
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? AppColors.primaryTeal : AppColors.lightTextSecondary,
+            color: isSelected
+                ? AppColors.primaryTeal
+                : AppColors.lightTextSecondary,
             letterSpacing: -0.3,
             height: 1.2,
             overflow: TextOverflow.ellipsis,
@@ -174,7 +200,9 @@ abstract class AppTheme {
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final isSelected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: isSelected ? AppColors.primaryTeal : AppColors.lightTextSecondary,
+            color: isSelected
+                ? AppColors.primaryTeal
+                : AppColors.lightTextSecondary,
             size: 22,
           );
         }),
@@ -191,7 +219,9 @@ abstract class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
         ),
       ),
@@ -208,9 +238,15 @@ abstract class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primaryEmerald, width: 2),
+          borderSide: const BorderSide(
+            color: AppColors.primaryEmerald,
+            width: 2,
+          ),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.lightBorder,
@@ -285,7 +321,9 @@ abstract class AppTheme {
           return TextStyle(
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? AppColors.primaryMint : AppColors.darkTextSecondary,
+            color: isSelected
+                ? AppColors.primaryMint
+                : AppColors.darkTextSecondary,
             letterSpacing: -0.3,
             height: 1.2,
             overflow: TextOverflow.ellipsis,
@@ -294,7 +332,9 @@ abstract class AppTheme {
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final isSelected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: isSelected ? AppColors.primaryMint : AppColors.darkTextSecondary,
+            color: isSelected
+                ? AppColors.primaryMint
+                : AppColors.darkTextSecondary,
             size: 22,
           );
         }),
@@ -311,7 +351,9 @@ abstract class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
         ),
       ),
@@ -328,9 +370,15 @@ abstract class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primaryEmerald, width: 2),
+          borderSide: const BorderSide(
+            color: AppColors.primaryEmerald,
+            width: 2,
+          ),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.darkBorder,

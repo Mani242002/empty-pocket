@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import '../domain/entities/split_person_share.dart';
 import '../domain/entities/transaction_entity.dart';
 import 'currency_formatter.dart';
@@ -53,7 +54,10 @@ class SplitHelper {
   }
 
   /// Returns a clean human-readable representation of split shares, e.g. "Raji: ₹100, Susmitha: ₹50"
-  static String formatDisplay(List<SplitPersonShare> shares, [String? fallbackText]) {
+  static String formatDisplay(
+    List<SplitPersonShare> shares, [
+    String? fallbackText,
+  ]) {
     if (shares.isEmpty) return fallbackText ?? '';
 
     return shares
@@ -102,7 +106,9 @@ class SplitHelper {
       final shares = parseShares(sharedWith);
       if (shares.isNotEmpty) {
         return encodeShares(
-          shares.map((s) => s.copyWith(reimbursedAmount: 0.0, isSettled: false)).toList(),
+          shares
+              .map((s) => s.copyWith(reimbursedAmount: 0.0, isSettled: false))
+              .toList(),
         );
       }
     }
@@ -125,7 +131,9 @@ class SplitHelper {
       final loan = LoanShareHelper.parseLoan(tx.sharedWith);
       if (loan != null) {
         final borrower = loan.borrowerName.trim();
-        final pending = loan.pendingAmount > 0 ? loan.pendingAmount : tx.pendingReimbursement;
+        final pending = loan.pendingAmount > 0
+            ? loan.pendingAmount
+            : tx.pendingReimbursement;
         if (borrower.isNotEmpty && pending > 0) {
           final lookupKey = borrower.toLowerCase();
           final acc = accumulators.putIfAbsent(

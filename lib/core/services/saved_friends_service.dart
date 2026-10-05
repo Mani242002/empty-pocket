@@ -21,7 +21,8 @@ class SavedFriendsService {
 
     final current = await getSavedFriends();
     if (!current.any((f) => f.toLowerCase() == clean.toLowerCase())) {
-      final updated = [...current, clean]..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final updated = [...current, clean]
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
       await saveFriends(updated);
       return updated;
     }
@@ -31,7 +32,9 @@ class SavedFriendsService {
   Future<List<String>> removeFriend(String name) async {
     final clean = name.trim();
     final current = await getSavedFriends();
-    final updated = current.where((f) => f.toLowerCase() != clean.toLowerCase()).toList();
+    final updated = current
+        .where((f) => f.toLowerCase() != clean.toLowerCase())
+        .toList();
     await saveFriends(updated);
     return updated;
   }
@@ -67,6 +70,6 @@ class SavedFriendsNotifier extends StateNotifier<List<String>> {
 
 final savedFriendsProvider =
     StateNotifierProvider<SavedFriendsNotifier, List<String>>((ref) {
-  final service = ref.watch(savedFriendsServiceProvider);
-  return SavedFriendsNotifier(service);
-});
+      final service = ref.watch(savedFriendsServiceProvider);
+      return SavedFriendsNotifier(service);
+    });

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/financial_health_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../state/net_worth_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class FinancialHealthScreen extends ConsumerWidget {
   const FinancialHealthScreen({super.key});
@@ -15,13 +17,12 @@ class FinancialHealthScreen extends ConsumerWidget {
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
 
+    ref.watch(currencyProvider);
     final healthSummary = ref.watch(financialHealthSummaryProvider);
     final netWorth = healthSummary.netWorth;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Financial Health & Net Worth'),
-      ),
+      appBar: AppBar(title: const Text('Financial Health & Net Worth')),
       body: ListView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
@@ -70,18 +71,29 @@ class FinancialHealthScreen extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: healthSummary.grade.color.withAlpha(isDark ? 40 : 25),
+                          color: healthSummary.grade.color.withAlpha(
+                            isDark ? 40 : 25,
+                          ),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: healthSummary.grade.color.withAlpha(isDark ? 90 : 50),
+                            color: healthSummary.grade.color.withAlpha(
+                              isDark ? 90 : 50,
+                            ),
                           ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(healthSummary.grade.icon, color: healthSummary.grade.color, size: 14),
+                            Icon(
+                              healthSummary.grade.icon,
+                              color: healthSummary.grade.color,
+                              size: 14,
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -116,7 +128,9 @@ class FinancialHealthScreen extends ConsumerWidget {
                         backgroundColor: isDark
                             ? AppColors.darkSurfaceVariant
                             : AppColors.lightSurfaceVariant,
-                        valueColor: AlwaysStoppedAnimation<Color>(healthSummary.grade.color),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          healthSummary.grade.color,
+                        ),
                         strokeCap: StrokeCap.round,
                       ),
                     ),
@@ -149,7 +163,9 @@ class FinancialHealthScreen extends ConsumerWidget {
                   _getGradeDescription(healthSummary.grade),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
                     height: 1.4,
                   ),
                 ),
@@ -170,7 +186,9 @@ class FinancialHealthScreen extends ConsumerWidget {
                     : [const Color(0xFFECFDF5), const Color(0xFFFFFFFF)],
               ),
               border: Border.all(
-                color: isDark ? AppColors.income.withAlpha(70) : AppColors.income.withAlpha(50),
+                color: isDark
+                    ? AppColors.income.withAlpha(70)
+                    : AppColors.income.withAlpha(50),
                 width: 1.5,
               ),
             ),
@@ -195,18 +213,28 @@ class FinancialHealthScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color: (netWorth.isPositive ? financialColors.income : financialColors.expense)
-                            .withAlpha(isDark ? 40 : 25),
+                        color:
+                            (netWorth.isPositive
+                                    ? financialColors.income
+                                    : financialColors.expense)
+                                .withAlpha(isDark ? 40 : 25),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        netWorth.isPositive ? 'SOLVENT' : 'LIABILITIES EXCEED ASSETS',
+                        netWorth.isPositive
+                            ? 'SOLVENT'
+                            : 'LIABILITIES EXCEED ASSETS',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
-                          color: netWorth.isPositive ? financialColors.income : financialColors.expense,
+                          color: netWorth.isPositive
+                              ? financialColors.income
+                              : financialColors.expense,
                         ),
                       ),
                     ),
@@ -221,7 +249,9 @@ class FinancialHealthScreen extends ConsumerWidget {
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.5,
-                      color: netWorth.isPositive ? financialColors.income : financialColors.expense,
+                      color: netWorth.isPositive
+                          ? financialColors.income
+                          : financialColors.expense,
                     ),
                   ),
                 ),
@@ -236,9 +266,13 @@ class FinancialHealthScreen extends ConsumerWidget {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkSurface.withAlpha(150) : Colors.white,
+                            color: isDark
+                                ? AppColors.darkSurface.withAlpha(150)
+                                : Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: financialColors.cardBorder),
+                            border: Border.all(
+                              color: financialColors.cardBorder,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,7 +290,9 @@ class FinancialHealthScreen extends ConsumerWidget {
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  CurrencyFormatter.format(netWorth.totalAssets),
+                                  CurrencyFormatter.format(
+                                    netWorth.totalAssets,
+                                  ),
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w800,
                                     color: financialColors.income,
@@ -272,9 +308,13 @@ class FinancialHealthScreen extends ConsumerWidget {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkSurface.withAlpha(150) : Colors.white,
+                            color: isDark
+                                ? AppColors.darkSurface.withAlpha(150)
+                                : Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: financialColors.cardBorder),
+                            border: Border.all(
+                              color: financialColors.cardBorder,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,7 +332,9 @@ class FinancialHealthScreen extends ConsumerWidget {
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  CurrencyFormatter.format(netWorth.totalLiabilities),
+                                  CurrencyFormatter.format(
+                                    netWorth.totalLiabilities,
+                                  ),
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w800,
                                     color: netWorth.totalLiabilities > 0
@@ -320,17 +362,23 @@ class FinancialHealthScreen extends ConsumerWidget {
                         children: [
                           if (netWorth.cashPercentage > 0)
                             Expanded(
-                              flex: (netWorth.cashPercentage * 10).round().clamp(1, 1000),
+                              flex: (netWorth.cashPercentage * 10)
+                                  .round()
+                                  .clamp(1, 1000),
                               child: Container(color: AppColors.income),
                             ),
                           if (netWorth.savingsPercentage > 0)
                             Expanded(
-                              flex: (netWorth.savingsPercentage * 10).round().clamp(1, 1000),
+                              flex: (netWorth.savingsPercentage * 10)
+                                  .round()
+                                  .clamp(1, 1000),
                               child: Container(color: AppColors.savings),
                             ),
                           if (netWorth.investmentsPercentage > 0)
                             Expanded(
-                              flex: (netWorth.investmentsPercentage * 10).round().clamp(1, 1000),
+                              flex: (netWorth.investmentsPercentage * 10)
+                                  .round()
+                                  .clamp(1, 1000),
                               child: Container(color: AppColors.investment),
                             ),
                         ],
@@ -342,9 +390,21 @@ class FinancialHealthScreen extends ConsumerWidget {
                     spacing: 12,
                     runSpacing: 4,
                     children: [
-                      _buildCompositionLegend('Liquid Cash', netWorth.cashPercentage, AppColors.income),
-                      _buildCompositionLegend('Savings Goals', netWorth.savingsPercentage, AppColors.savings),
-                      _buildCompositionLegend('Investments', netWorth.investmentsPercentage, AppColors.investment),
+                      _buildCompositionLegend(
+                        'Liquid Cash',
+                        netWorth.cashPercentage,
+                        AppColors.income,
+                      ),
+                      _buildCompositionLegend(
+                        'Savings Goals',
+                        netWorth.savingsPercentage,
+                        AppColors.savings,
+                      ),
+                      _buildCompositionLegend(
+                        'Investments',
+                        netWorth.investmentsPercentage,
+                        AppColors.investment,
+                      ),
                     ],
                   ),
                 ],
@@ -358,7 +418,9 @@ class FinancialHealthScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: Text(
               '4 Pillars of Financial Fitness',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -377,7 +439,9 @@ class FinancialHealthScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: Text(
                 'Personalized Recommendations',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -396,7 +460,9 @@ class FinancialHealthScreen extends ConsumerWidget {
                             height: 28,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                              color: AppColors.primaryEmerald.withAlpha(
+                                isDark ? 40 : 25,
+                              ),
                             ),
                             child: const Icon(
                               Icons.lightbulb_outline_rounded,
@@ -429,7 +495,9 @@ class FinancialHealthScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: Text(
               'Complete Balance Sheet',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -492,7 +560,9 @@ class FinancialHealthScreen extends ConsumerWidget {
                             CurrencyFormatter.format(netWorth.netWorth),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w900,
-                              color: netWorth.isPositive ? financialColors.income : financialColors.expense,
+                              color: netWorth.isPositive
+                                  ? financialColors.income
+                                  : financialColors.expense,
                             ),
                           ),
                         ),
@@ -601,7 +671,9 @@ class FinancialHealthScreen extends ConsumerWidget {
             child: LinearProgressIndicator(
               value: pillar.percentage / 100,
               minHeight: 6,
-              backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              backgroundColor: isDark
+                  ? AppColors.darkSurfaceVariant
+                  : AppColors.lightSurfaceVariant,
               valueColor: AlwaysStoppedAnimation<Color>(pillar.color),
             ),
           ),
@@ -609,7 +681,9 @@ class FinancialHealthScreen extends ConsumerWidget {
           Text(
             pillar.tip,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -651,7 +725,11 @@ class FinancialHealthScreen extends ConsumerWidget {
             '${isAsset ? '+' : '-'}${CurrencyFormatter.format(amount)}',
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,
-              color: isAsset ? financialColors.income : (amount > 0 ? financialColors.expense : financialColors.textMuted),
+              color: isAsset
+                  ? financialColors.income
+                  : (amount > 0
+                        ? financialColors.expense
+                        : financialColors.textMuted),
             ),
           ),
         ),

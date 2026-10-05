@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
@@ -120,20 +121,17 @@ class DashboardRecentActivityList extends StatelessWidget {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final tx = recentTransactions[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: TransactionListItem(
-                transaction: tx,
-                onTap: () => onTapTransaction(tx),
-                onDelete: () => onDeleteTransaction(tx.id),
-              ),
-            );
-          },
-          childCount: recentTransactions.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final tx = recentTransactions[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: TransactionListItem(
+              transaction: tx,
+              onTap: () => onTapTransaction(tx),
+              onDelete: () => onDeleteTransaction(tx.id),
+            ),
+          );
+        }, childCount: recentTransactions.length),
       ),
     );
   }

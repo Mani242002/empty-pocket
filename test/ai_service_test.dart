@@ -18,7 +18,10 @@ Hello! 👋
 How can I assist you with your finances today?''';
 
       final result = AiService.stripThinkingTags(input);
-      expect(result, equals('Hello! 👋\n\nHow can I assist you with your finances today?'));
+      expect(
+        result,
+        equals('Hello! 👋\n\nHow can I assist you with your finances today?'),
+      );
     });
 
     test('removes thinking text when opening tag is omitted by tokenizer', () {
@@ -33,18 +36,28 @@ I see your financial dashboard is currently a blank slate (all metrics are at �
       final result = AiService.stripThinkingTags(input);
       expect(
         result,
-        equals('Hello! 👋\n\nI see your financial dashboard is currently a blank slate (all metrics are at ₹0.00).'),
+        equals(
+          'Hello! 👋\n\nI see your financial dashboard is currently a blank slate (all metrics are at ₹0.00).',
+        ),
       );
     });
 
     test('removes <thought>, <thinking>, <reasoning> tags case-insensitively', () {
       const input1 = '<THOUGHT>Secret thoughts</THOUGHT>Final message';
-      const input2 = '<reasoning>Some chain of thought</reasoning>Actual recommendation: Save 20%';
-      const input3 = '<Thinking>\nStep 1: Check budget\n</Thinking>\nHere is your budget.';
+      const input2 =
+          '<reasoning>Some chain of thought</reasoning>Actual recommendation: Save 20%';
+      const input3 =
+          '<Thinking>\nStep 1: Check budget\n</Thinking>\nHere is your budget.';
 
       expect(AiService.stripThinkingTags(input1), equals('Final message'));
-      expect(AiService.stripThinkingTags(input2), equals('Actual recommendation: Save 20%'));
-      expect(AiService.stripThinkingTags(input3), equals('Here is your budget.'));
+      expect(
+        AiService.stripThinkingTags(input2),
+        equals('Actual recommendation: Save 20%'),
+      );
+      expect(
+        AiService.stripThinkingTags(input3),
+        equals('Here is your budget.'),
+      );
     });
 
     test('handles multiple thinking blocks', () {
@@ -60,7 +73,10 @@ Part 2 of answer.''';
 
     test('handles text without any thinking tags without modification', () {
       const input = 'Hello! How can I help you?';
-      expect(AiService.stripThinkingTags(input), equals('Hello! How can I help you?'));
+      expect(
+        AiService.stripThinkingTags(input),
+        equals('Hello! How can I help you?'),
+      );
     });
   });
 
@@ -89,7 +105,10 @@ ACTIONABLE RECOMMENDATIONS
 
       expect(report.overview, contains('Your overall cash balance is stable'));
       expect(report.strengths.length, equals(3));
-      expect(report.strengths.first, contains('Consistent monthly investments'));
+      expect(
+        report.strengths.first,
+        contains('Consistent monthly investments'),
+      );
       expect(report.risks.length, equals(2));
       expect(report.risks.first, contains('High dining out expenses'));
       expect(report.recommendations.length, equals(3));
@@ -97,7 +116,8 @@ ACTIONABLE RECOMMENDATIONS
     });
 
     test('falls back gracefully to safe defaults when LLM output lacks explicit headings', () {
-      const unstructuredText = 'You are doing great with your money. Keep saving consistently.';
+      const unstructuredText =
+          'You are doing great with your money. Keep saving consistently.';
 
       final report = AiService.parseAuditResponse(unstructuredText);
 

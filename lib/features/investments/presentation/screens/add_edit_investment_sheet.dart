@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/investment_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 import '../state/investments_provider.dart';
 
 class AddEditInvestmentSheet extends ConsumerStatefulWidget {
@@ -14,7 +16,10 @@ class AddEditInvestmentSheet extends ConsumerStatefulWidget {
 
   const AddEditInvestmentSheet({super.key, this.initialInvestment});
 
-  static Future<void> show(BuildContext context, {InvestmentEntity? investment}) {
+  static Future<void> show(
+    BuildContext context, {
+    InvestmentEntity? investment,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -24,10 +29,12 @@ class AddEditInvestmentSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<AddEditInvestmentSheet> createState() => _AddEditInvestmentSheetState();
+  ConsumerState<AddEditInvestmentSheet> createState() =>
+      _AddEditInvestmentSheetState();
 }
 
-class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet> {
+class _AddEditInvestmentSheetState
+    extends ConsumerState<AddEditInvestmentSheet> {
   late TextEditingController _nameController;
   late TextEditingController _investedController;
   late TextEditingController _currentValueController;
@@ -52,15 +59,15 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
     _investedController = TextEditingController(
       text: inv != null
           ? (inv.investedAmount == inv.investedAmount.roundToDouble()
-              ? inv.investedAmount.toInt().toString()
-              : inv.investedAmount.toString())
+                ? inv.investedAmount.toInt().toString()
+                : inv.investedAmount.toString())
           : '',
     );
     _currentValueController = TextEditingController(
       text: inv != null
           ? (inv.currentValue == inv.currentValue.roundToDouble()
-              ? inv.currentValue.toInt().toString()
-              : inv.currentValue.toString())
+                ? inv.currentValue.toInt().toString()
+                : inv.currentValue.toString())
           : '',
     );
     _unitsController = TextEditingController(
@@ -69,7 +76,9 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
     _priceController = TextEditingController(
       text: inv?.currentPrice != null ? inv!.currentPrice.toString() : '',
     );
-    _institutionController = TextEditingController(text: inv?.institution ?? '');
+    _institutionController = TextEditingController(
+      text: inv?.institution ?? '',
+    );
     _notesController = TextEditingController(text: inv?.notes ?? '');
     _selectedAssetClass = inv?.assetClass ?? AssetClass.equity;
     if (_isEditMode) {
@@ -118,12 +127,17 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
       return;
     }
 
-    final currentVal = double.tryParse(_currentValueController.text.trim()) ?? invested;
+    final currentVal =
+        double.tryParse(_currentValueController.text.trim()) ?? invested;
     final units = double.tryParse(_unitsController.text.trim());
     final price = double.tryParse(_priceController.text.trim());
     final name = _nameController.text.trim();
-    final institution = _institutionController.text.trim().isEmpty ? null : _institutionController.text.trim();
-    final notes = _notesController.text.trim().isEmpty ? null : _notesController.text.trim();
+    final institution = _institutionController.text.trim().isEmpty
+        ? null
+        : _institutionController.text.trim();
+    final notes = _notesController.text.trim().isEmpty
+        ? null
+        : _notesController.text.trim();
     final now = DateTime.now();
 
     final investment = InvestmentEntity(
@@ -146,21 +160,29 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
 
     try {
       final bankAccounts = ref.read(activeBankAccountsProvider);
-      final selectedAcc = bankAccounts.where((a) => a.id == _selectedAccountId).firstOrNull;
+      final selectedAcc = bankAccounts
+          .where((a) => a.id == _selectedAccountId)
+          .firstOrNull;
       final paymentSource = selectedAcc?.accountName ?? 'Bank Account';
 
-      await ref.read(investmentListNotifierProvider.notifier).saveInvestment(
+      await ref
+          .read(investmentListNotifierProvider.notifier)
+          .saveInvestment(
             investment,
             logAsTransaction: !_isEditMode && _fundFromAccount,
             paymentSource: paymentSource,
-            accountId: (!_isEditMode && _fundFromAccount) ? _selectedAccountId : null,
+            accountId: (!_isEditMode && _fundFromAccount)
+                ? _selectedAccountId
+                : null,
           );
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Saved "${investment.name}" in ${investment.assetClass.displayName}.'),
+            content: Text(
+              'Saved "${investment.name}" in ${investment.assetClass.displayName}.',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -185,7 +207,9 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Investment Holding?'),
-        content: Text('Permanently remove "${widget.initialInvestment!.name}" from your portfolio?'),
+        content: Text(
+          'Permanently remove "${widget.initialInvestment!.name}" from your portfolio?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -202,7 +226,9 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
 
     if (confirmed == true && mounted) {
       try {
-        await ref.read(investmentListNotifierProvider.notifier).deleteInvestment(widget.initialInvestment!.id);
+        await ref
+            .read(investmentListNotifierProvider.notifier)
+            .deleteInvestment(widget.initialInvestment!.id);
 
         if (mounted) {
           Navigator.of(context).pop();
@@ -232,6 +258,10 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+    final currency =
+        ref.watch(currencyProvider).valueOrNull ??
+        CurrencyFormatter.activeCurrency;
+    final currencySymbol = currency.symbol;
 
     final bankAccounts = ref.watch(activeBankAccountsProvider);
     final defaultAcc = ref.watch(defaultBankAccountProvider);
@@ -288,7 +318,10 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                       ),
                       if (_isEditMode)
                         IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: AppColors.expense,
+                          ),
                           onPressed: _deleteInvestment,
                           tooltip: 'Delete',
                         ),
@@ -309,11 +342,13 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      hintText: 'e.g. Parag Parikh Flexi Cap, Reliance, SBI FD, PPF',
+                      hintText:
+                          'e.g. Parag Parikh Flexi Cap, Reliance, SBI FD, PPF',
                       prefixIcon: Icon(Icons.show_chart_rounded),
                     ),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Please enter holding name' : null,
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Please enter holding name'
+                        : null,
                   ),
                   const SizedBox(height: 18),
 
@@ -332,7 +367,10 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                     isExpanded: true,
                     isDense: true,
                     decoration: InputDecoration(
-                      prefixIcon: Icon(_selectedAssetClass.icon, color: _selectedAssetClass.color),
+                      prefixIcon: Icon(
+                        _selectedAssetClass.icon,
+                        color: _selectedAssetClass.color,
+                      ),
                     ),
                     items: AssetClass.values.map((c) {
                       return DropdownMenuItem(
@@ -360,7 +398,9 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                       );
                     }).toList(),
                     onChanged: (val) {
-                      if (val != null) setState(() => _selectedAssetClass = val);
+                      if (val != null) {
+                        setState(() => _selectedAssetClass = val);
+                      }
                     },
                   ),
                   const SizedBox(height: 18),
@@ -385,24 +425,33 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _investedController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                  ),
                                 ],
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
                                 decoration: InputDecoration(
-                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  prefixText: '$currencySymbol ',
                                   hintText: '50,000',
                                 ),
                                 onChanged: (val) {
-                                  if (_currentValueController.text.trim().isEmpty) {
+                                  if (_currentValueController.text
+                                      .trim()
+                                      .isEmpty) {
                                     _currentValueController.text = val;
                                   }
                                 },
                                 validator: (val) =>
-                                    val == null || val.trim().isEmpty ? 'Enter invested amount' : null,
+                                    val == null || val.trim().isEmpty
+                                    ? 'Enter invested amount'
+                                    : null,
                               ),
                             ],
                           ),
@@ -423,16 +472,21 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _currentValueController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                  ),
                                 ],
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
                                   color: financialColors.income,
                                 ),
                                 decoration: InputDecoration(
-                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  prefixText: '$currencySymbol ',
                                   hintText: '62,500',
                                 ),
                               ),
@@ -464,7 +518,10 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _unitsController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 decoration: const InputDecoration(
                                   hintText: '100.5',
                                 ),
@@ -489,9 +546,12 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _priceController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 decoration: InputDecoration(
-                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  prefixText: '$currencySymbol ',
                                   hintText: '245.80',
                                 ),
                                 onChanged: (_) => _onUnitsOrPriceChanged(),
@@ -526,7 +586,9 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                   // Deep Account Linking: ON/OFF Toggle (for new investments)
                   if (!_isEditMode) ...[
                     Material(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      color: isDark
+                          ? AppColors.darkSurfaceVariant
+                          : AppColors.lightSurfaceVariant,
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         padding: const EdgeInsets.all(12),
@@ -538,18 +600,26 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                           children: [
                             SwitchListTile(
                               contentPadding: EdgeInsets.zero,
-                              title: const Text('Fund from Bank/Cash Account', style: TextStyle(fontWeight: FontWeight.w700)),
+                              title: const Text(
+                                'Fund from Bank/Cash Account',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
                               subtitle: Text(
                                 _fundFromAccount
                                     ? 'Deducts invested amount from bank balance and records expense in daily ledger'
                                     : 'Track portfolio only (No bank balance deduction)',
-                                style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
                               value: _fundFromAccount,
                               activeThumbColor: AppColors.primaryEmerald,
-                              onChanged: (val) => setState(() => _fundFromAccount = val),
+                              onChanged: (val) =>
+                                  setState(() => _fundFromAccount = val),
                             ),
-                            if (_fundFromAccount && bankAccounts.isNotEmpty) ...[
+                            if (_fundFromAccount &&
+                                bankAccounts.isNotEmpty) ...[
                               const Divider(height: 16),
                               DropdownButtonFormField<String>(
                                 initialValue: _selectedAccountId,
@@ -557,7 +627,9 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                                 isDense: true,
                                 decoration: const InputDecoration(
                                   labelText: 'Funding Account',
-                                  prefixIcon: Icon(Icons.account_balance_rounded),
+                                  prefixIcon: Icon(
+                                    Icons.account_balance_rounded,
+                                  ),
                                 ),
                                 items: bankAccounts.map((acc) {
                                   return DropdownMenuItem(
@@ -570,7 +642,9 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                                   );
                                 }).toList(),
                                 onChanged: (val) {
-                                  if (val != null) setState(() => _selectedAccountId = val);
+                                  if (val != null) {
+                                    setState(() => _selectedAccountId = val);
+                                  }
                                 },
                               ),
                             ],
@@ -609,8 +683,13 @@ class _AddEditInvestmentSheetState extends ConsumerState<AddEditInvestmentSheet>
                       ),
                       onPressed: _saveInvestment,
                       child: Text(
-                        _isEditMode ? 'Update Holding' : 'Save Investment Holding',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        _isEditMode
+                            ? 'Update Holding'
+                            : 'Save Investment Holding',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),

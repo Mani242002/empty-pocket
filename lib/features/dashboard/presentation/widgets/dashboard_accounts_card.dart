@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
@@ -23,10 +24,10 @@ class DashboardAccountsCard extends ConsumerWidget {
     List<CreditCardEntity>? creditCards,
     double? combinedCash,
     CombinedCreditSummary? creditSummary,
-  })  : explicitBankAccounts = bankAccounts,
-        explicitCreditCards = creditCards,
-        explicitCombinedCash = combinedCash,
-        explicitCreditSummary = creditSummary;
+  }) : explicitBankAccounts = bankAccounts,
+       explicitCreditCards = creditCards,
+       explicitCombinedCash = combinedCash,
+       explicitCreditSummary = creditSummary;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,10 +35,14 @@ class DashboardAccountsCard extends ConsumerWidget {
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
 
-    final List<BankAccountEntity> bankAccounts = explicitBankAccounts ?? ref.watch(activeBankAccountsProvider);
-    final List<CreditCardEntity> creditCards = explicitCreditCards ?? ref.watch(activeCreditCardsProvider);
-    final double combinedCash = explicitCombinedCash ?? ref.watch(combinedLiquidCashProvider);
-    final CombinedCreditSummary creditSummary = explicitCreditSummary ?? ref.watch(combinedCreditSummaryProvider);
+    final List<BankAccountEntity> bankAccounts =
+        explicitBankAccounts ?? ref.watch(activeBankAccountsProvider);
+    final List<CreditCardEntity> creditCards =
+        explicitCreditCards ?? ref.watch(activeCreditCardsProvider);
+    final double combinedCash =
+        explicitCombinedCash ?? ref.watch(combinedLiquidCashProvider);
+    final CombinedCreditSummary creditSummary =
+        explicitCreditSummary ?? ref.watch(combinedCreditSummaryProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -53,7 +58,11 @@ class DashboardAccountsCard extends ConsumerWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryEmerald, size: 20),
+                        const Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: AppColors.primaryEmerald,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -76,7 +85,9 @@ class DashboardAccountsCard extends ConsumerWidget {
                     child: const Text('Manage'),
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AccountsCardsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const AccountsCardsScreen(),
+                        ),
                       );
                     },
                   ),
@@ -94,22 +105,28 @@ class DashboardAccountsCard extends ConsumerWidget {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => const AccountsCardsScreen(initialTabIndex: 0),
+                              builder: (_) =>
+                                  const AccountsCardsScreen(initialTabIndex: 0),
                             ),
                           );
                         },
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                            color: isDark
+                                ? AppColors.darkSurfaceVariant
+                                : AppColors.lightSurfaceVariant,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: financialColors.cardBorder),
+                            border: Border.all(
+                              color: financialColors.cardBorder,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
@@ -125,7 +142,11 @@ class DashboardAccountsCard extends ConsumerWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.account_balance_rounded, size: 14, color: AppColors.primaryEmerald),
+                                  const Icon(
+                                    Icons.account_balance_rounded,
+                                    size: 14,
+                                    color: AppColors.primaryEmerald,
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 6),
@@ -133,7 +154,9 @@ class DashboardAccountsCard extends ConsumerWidget {
                                 CurrencyFormatter.format(combinedCash),
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
-                                  color: combinedCash >= 0 ? financialColors.income : financialColors.expense,
+                                  color: combinedCash >= 0
+                                      ? financialColors.income
+                                      : financialColors.expense,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -162,22 +185,28 @@ class DashboardAccountsCard extends ConsumerWidget {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => const AccountsCardsScreen(initialTabIndex: 1),
+                              builder: (_) =>
+                                  const AccountsCardsScreen(initialTabIndex: 1),
                             ),
                           );
                         },
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                            color: isDark
+                                ? AppColors.darkSurfaceVariant
+                                : AppColors.lightSurfaceVariant,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: financialColors.cardBorder),
+                            border: Border.all(
+                              color: financialColors.cardBorder,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
@@ -193,15 +222,23 @@ class DashboardAccountsCard extends ConsumerWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.credit_card_rounded, size: 14, color: Color(0xFF6366F1)),
+                                  const Icon(
+                                    Icons.credit_card_rounded,
+                                    size: 14,
+                                    color: Color(0xFF6366F1),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                CurrencyFormatter.format(creditSummary.totalUsed),
+                                CurrencyFormatter.format(
+                                  creditSummary.totalUsed,
+                                ),
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
-                                  color: creditSummary.totalUsed > 0 ? const Color(0xFF6366F1) : null,
+                                  color: creditSummary.totalUsed > 0
+                                      ? const Color(0xFF6366F1)
+                                      : null,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -215,7 +252,9 @@ class DashboardAccountsCard extends ConsumerWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: creditCards.isNotEmpty ? creditSummary.overallHealth.color : financialColors.textMuted,
+                                  color: creditCards.isNotEmpty
+                                      ? creditSummary.overallHealth.color
+                                      : financialColors.textMuted,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -236,12 +275,18 @@ class DashboardAccountsCard extends ConsumerWidget {
                         style: OutlinedButton.styleFrom(
                           visualDensity: VisualDensity.compact,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                         icon: const Icon(Icons.swap_horiz_rounded, size: 16),
                         label: const FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text('Transfer', style: TextStyle(fontSize: 12), maxLines: 1),
+                          child: Text(
+                            'Transfer',
+                            style: TextStyle(fontSize: 12),
+                            maxLines: 1,
+                          ),
                         ),
                         onPressed: () => AccountTransferSheet.show(context),
                       ),
@@ -252,12 +297,18 @@ class DashboardAccountsCard extends ConsumerWidget {
                         style: OutlinedButton.styleFrom(
                           visualDensity: VisualDensity.compact,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                         icon: const Icon(Icons.credit_score_rounded, size: 16),
                         label: const FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text('Pay Card', style: TextStyle(fontSize: 12), maxLines: 1),
+                          child: Text(
+                            'Pay Card',
+                            style: TextStyle(fontSize: 12),
+                            maxLines: 1,
+                          ),
                         ),
                         onPressed: () => PayCreditCardSheet.show(context),
                       ),

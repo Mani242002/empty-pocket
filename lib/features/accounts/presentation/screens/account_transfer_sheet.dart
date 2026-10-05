@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../state/accounts_cards_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class AccountTransferSheet extends ConsumerStatefulWidget {
   final BankAccountEntity? initialFromAccount;
@@ -156,11 +158,15 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
     }
 
     try {
-      await ref.read(accountOperationsProvider).performTransfer(
+      await ref
+          .read(accountOperationsProvider)
+          .performTransfer(
             fromAccount: fromAccount,
             toAccount: toAccount,
             amount: amount,
-            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
             date: _selectedDate,
           );
 
@@ -190,6 +196,7 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -242,7 +249,9 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                          color: AppColors.primaryEmerald.withAlpha(
+                            isDark ? 40 : 25,
+                          ),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
@@ -272,11 +281,17 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                       decoration: BoxDecoration(
                         color: financialColors.expense.withAlpha(20),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: financialColors.expense.withAlpha(60)),
+                        border: Border.all(
+                          color: financialColors.expense.withAlpha(60),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline_rounded, color: financialColors.expense, size: 20),
+                          Icon(
+                            Icons.info_outline_rounded,
+                            color: financialColors.expense,
+                            size: 20,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -297,7 +312,9 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      color: isDark
+                          ? AppColors.darkSurfaceVariant
+                          : AppColors.lightSurfaceVariant,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: financialColors.cardBorder),
                     ),
@@ -310,10 +327,16 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: financialColors.expense.withAlpha(isDark ? 40 : 25),
+                                color: financialColors.expense.withAlpha(
+                                  isDark ? 40 : 25,
+                                ),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.arrow_upward_rounded, color: financialColors.expense, size: 16),
+                              child: Icon(
+                                Icons.arrow_upward_rounded,
+                                color: financialColors.expense,
+                                size: 16,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -339,11 +362,15 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                                             '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
                                           ),
                                         );
                                       }).toList(),
-                                      onChanged: (val) => setState(() => _fromAccountId = val),
+                                      onChanged: (val) =>
+                                          setState(() => _fromAccountId = val),
                                     ),
                                   ),
                                 ],
@@ -359,10 +386,16 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: financialColors.income.withAlpha(isDark ? 40 : 25),
+                                color: financialColors.income.withAlpha(
+                                  isDark ? 40 : 25,
+                                ),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.arrow_downward_rounded, color: financialColors.income, size: 16),
+                              child: Icon(
+                                Icons.arrow_downward_rounded,
+                                color: financialColors.income,
+                                size: 16,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -388,11 +421,15 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                                             '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
                                           ),
                                         );
                                       }).toList(),
-                                      onChanged: (val) => setState(() => _toAccountId = val),
+                                      onChanged: (val) =>
+                                          setState(() => _toAccountId = val),
                                     ),
                                   ),
                                 ],
@@ -417,9 +454,13 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}'),
+                      ),
                     ],
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
@@ -437,12 +478,19 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                           ),
                         ),
                       ),
-                      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                      prefixIconConstraints: const BoxConstraints(
+                        minWidth: 0,
+                        minHeight: 0,
+                      ),
                       hintText: '0.00',
                     ),
                     validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Enter transfer amount';
-                      if ((double.tryParse(val) ?? 0) <= 0) return 'Invalid amount';
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Enter transfer amount';
+                      }
+                      if ((double.tryParse(val) ?? 0) <= 0) {
+                        return 'Invalid amount';
+                      }
                       return null;
                     },
                   ),
@@ -456,17 +504,25 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ActionChip(
-                            label: Text('+${CurrencyFormatter.activeCurrency.symbol}$add'),
+                            label: Text(
+                              '+${CurrencyFormatter.activeCurrency.symbol}$add',
+                            ),
                             labelStyle: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
                             ),
                             onPressed: () {
-                              final curr = double.tryParse(_amountController.text) ?? 0;
+                              final curr =
+                                  double.tryParse(_amountController.text) ?? 0;
                               final next = curr + add;
                               _amountController.text = next.toStringAsFixed(0);
-                              _amountController.selection = TextSelection.collapsed(offset: _amountController.text.length);
+                              _amountController.selection =
+                                  TextSelection.collapsed(
+                                    offset: _amountController.text.length,
+                                  );
                             },
                           ),
                         );
@@ -489,9 +545,14 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                     onTap: _pickDate,
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                        color: isDark
+                            ? AppColors.darkSurfaceVariant
+                            : AppColors.lightSurfaceVariant,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: financialColors.cardBorder),
                       ),
@@ -501,7 +562,8 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              DateFormat('EEEE, dd MMM yyyy, h:mm a').format(_selectedDate),
+                              DateFormat('EEEE, dd MMM yyyy, h:mm a')
+                                  .format(_selectedDate),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -543,7 +605,10 @@ class _AccountTransferSheetState extends ConsumerState<AccountTransferSheet> {
                       icon: const Icon(Icons.swap_horiz_rounded, size: 20),
                       label: const Text(
                         'Transfer Funds',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       onPressed: accounts.length >= 2 ? _submitTransfer : null,
                     ),

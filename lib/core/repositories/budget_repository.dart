@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../database/app_database.dart';
 import '../domain/entities/budget_entity.dart';
 import 'transaction_repository.dart';
@@ -59,11 +60,13 @@ class InMemoryBudgetRepository implements BudgetRepository {
 
   @override
   Future<void> saveBudget(BudgetEntity budget) async {
-    _budgets.removeWhere((b) =>
-        b.id == budget.id ||
-        (b.category.toLowerCase() == budget.category.toLowerCase() &&
-            b.month.year == budget.month.year &&
-            b.month.month == budget.month.month));
+    _budgets.removeWhere(
+      (b) =>
+          b.id == budget.id ||
+          (b.category.toLowerCase() == budget.category.toLowerCase() &&
+              b.month.year == budget.month.year &&
+              b.month.month == budget.month.month),
+    );
     _budgets.add(budget);
   }
 

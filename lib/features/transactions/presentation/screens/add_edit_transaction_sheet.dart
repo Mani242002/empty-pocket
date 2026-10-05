@@ -1,9 +1,11 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
@@ -25,6 +27,7 @@ import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../state/transactions_provider.dart';
 import '../widgets/amount_calculator_field.dart';
 import '../widgets/transaction_type_toggle.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 enum TransferDestinationType {
   bankAccount('Bank Account', Icons.account_balance_rounded),
@@ -40,8 +43,8 @@ class _PersonSplitEntry {
   final TextEditingController amountController;
 
   _PersonSplitEntry({String name = '', String amount = ''})
-      : nameController = TextEditingController(text: name),
-        amountController = TextEditingController(text: amount);
+    : nameController = TextEditingController(text: name),
+      amountController = TextEditingController(text: amount);
 
   void dispose() {
     nameController.dispose();
@@ -113,13 +116,21 @@ class _AddEditTransactionSheetState
   late DateTime _selectedDate;
   bool _userManuallySelectedAccount = false;
 
-  TransferDestinationType _transferDestinationType = TransferDestinationType.bankAccount;
+  TransferDestinationType _transferDestinationType =
+      TransferDestinationType.bankAccount;
   final Map<String, TextEditingController> _goalAllocationControllers = {};
   bool _userManuallyEditedGoalAllocation = false;
 
   final _formKey = GlobalKey<FormState>();
 
   bool get _isEditMode => widget.initialTransaction != null;
+
+  bool get _isSettlement =>
+      _isEditMode &&
+      (widget.initialTransaction?.category ==
+              CategoryConstants.categorySharedReimbursement ||
+          widget.initialTransaction?.category ==
+              CategoryConstants.categoryLoanRepayment);
 
   @override
   void initState() {
@@ -134,11 +145,18 @@ class _AddEditTransactionSheetState
         : CategoryConstants.expenseCategories;
 
     _selectedCategory = tx?.category ?? categories.first.name;
-    _isIncomeReimbursement = _selectedCategory == CategoryConstants.categorySharedReimbursement;
-    _titleController = TextEditingController(text: tx?.title ?? _selectedCategory);
+    _isIncomeReimbursement =
+        _selectedCategory == CategoryConstants.categorySharedReimbursement;
+    _titleController = TextEditingController(
+      text: tx?.title ?? _selectedCategory,
+    );
     _titleController.addListener(_onTitleChanged);
     _amountController = TextEditingController(
-      text: tx != null ? (tx.amount == tx.amount.roundToDouble() ? tx.amount.toInt().toString() : tx.amount.toString()) : '',
+      text: tx != null
+          ? (tx.amount == tx.amount.roundToDouble()
+                ? tx.amount.toInt().toString()
+                : tx.amount.toString())
+          : '',
     );
     _notesController = TextEditingController(text: tx?.notes ?? '');
     _selectedPaymentSource = tx?.paymentSource ?? 'Bank Account';
@@ -151,8 +169,8 @@ class _AddEditTransactionSheetState
     _myShareController = TextEditingController(
       text: tx?.myShareAmount != null
           ? (tx!.myShareAmount == tx.myShareAmount!.roundToDouble()
-              ? tx.myShareAmount!.toInt().toString()
-              : tx.myShareAmount!.toString())
+                ? tx.myShareAmount!.toInt().toString()
+                : tx.myShareAmount!.toString())
           : '',
     );
     _sharedWithController = TextEditingController(text: tx?.sharedWith ?? '');
@@ -170,16 +188,20 @@ class _AddEditTransactionSheetState
 
     // Parse structured personal loan / money lent if present
     final parsedLoan = LoanShareHelper.parseLoan(tx?.sharedWith);
-    _borrowerNameController = TextEditingController(text: parsedLoan?.borrowerName ?? '');
+    _borrowerNameController = TextEditingController(
+      text: parsedLoan?.borrowerName ?? '',
+    );
     _loanInterestController = TextEditingController(
       text: parsedLoan != null && parsedLoan.expectedInterest > 0
           ? (parsedLoan.interestRate != null
-              ? (parsedLoan.interestRate == parsedLoan.interestRate!.roundToDouble()
-                  ? parsedLoan.interestRate!.toInt().toString()
-                  : parsedLoan.interestRate.toString())
-              : (parsedLoan.expectedInterest == parsedLoan.expectedInterest.roundToDouble()
-                  ? parsedLoan.expectedInterest.toInt().toString()
-                  : parsedLoan.expectedInterest.toString()))
+                ? (parsedLoan.interestRate ==
+                          parsedLoan.interestRate!.roundToDouble()
+                      ? parsedLoan.interestRate!.toInt().toString()
+                      : parsedLoan.interestRate.toString())
+                : (parsedLoan.expectedInterest ==
+                          parsedLoan.expectedInterest.roundToDouble()
+                      ? parsedLoan.expectedInterest.toInt().toString()
+                      : parsedLoan.expectedInterest.toString()))
           : '',
     );
     _isInterestPercentage = parsedLoan?.interestRate != null;
@@ -196,7 +218,9 @@ class _AddEditTransactionSheetState
           _transferDestinationType = TransferDestinationType.bankAccount;
           _selectedToAccountId = tx.toAccountId;
           _selectedCreditCardId = null;
-          _selectedCategory = tx.category.isNotEmpty ? tx.category : CategoryConstants.categoryAccountTransfer;
+          _selectedCategory = tx.category.isNotEmpty
+              ? tx.category
+              : CategoryConstants.categoryAccountTransfer;
         }
       }
       _selectedPaymentMode = PaymentMode.fromString(tx.paymentSource);
@@ -205,7 +229,8 @@ class _AddEditTransactionSheetState
             _selectedPaymentMode != PaymentMode.cash) {
           _selectedPaymentMode = PaymentMode.bankAccount;
         }
-      } else if (tx.creditCardId != null && _selectedPaymentMode != PaymentMode.upiWallet) {
+      } else if (tx.creditCardId != null &&
+          _selectedPaymentMode != PaymentMode.upiWallet) {
         _selectedPaymentMode = PaymentMode.creditCard;
       }
     } else {
@@ -216,18 +241,28 @@ class _AddEditTransactionSheetState
   }
 
   TextEditingController _getGoalAllocationController(String goalId) {
-    return _goalAllocationControllers.putIfAbsent(goalId, () => TextEditingController());
+    return _goalAllocationControllers.putIfAbsent(
+      goalId,
+      () => TextEditingController(),
+    );
   }
 
   void _updateDefaultGoalAllocations(String? targetAccountId) {
     if (targetAccountId == null) return;
-    final allGoals = ref.read(savingsGoalsListNotifierProvider).valueOrNull ?? [];
-    final linkedGoals = allGoals.where((g) => g.linkedAccountId == targetAccountId && !g.isCompleted).toList();
+    final allGoals =
+        ref.read(savingsGoalsListNotifierProvider).valueOrNull ?? [];
+    final linkedGoals = allGoals
+        .where((g) => g.linkedAccountId == targetAccountId && !g.isCompleted)
+        .toList();
     if (linkedGoals.length == 1 && !_userManuallyEditedGoalAllocation) {
-      final rawAmt = MathExpressionParser.tryEvaluate(_amountController.text.trim()) ?? 0.0;
+      final rawAmt =
+          MathExpressionParser.tryEvaluate(_amountController.text.trim()) ??
+          0.0;
       final controller = _getGoalAllocationController(linkedGoals.first.id);
       if (rawAmt > 0) {
-        final str = rawAmt == rawAmt.roundToDouble() ? rawAmt.toInt().toString() : rawAmt.toStringAsFixed(2);
+        final str = rawAmt == rawAmt.roundToDouble()
+            ? rawAmt.toInt().toString()
+            : rawAmt.toStringAsFixed(2);
         if (controller.text != str) {
           controller.text = str;
         }
@@ -236,20 +271,28 @@ class _AddEditTransactionSheetState
   }
 
   void _onAmountChanged() {
-    final rawAmt = MathExpressionParser.tryEvaluate(_amountController.text.trim()) ?? 0.0;
+    final rawAmt =
+        MathExpressionParser.tryEvaluate(_amountController.text.trim()) ?? 0.0;
     final targetAccountId = _selectedType == TransactionType.transfer
-        ? (_transferDestinationType == TransferDestinationType.bankAccount ? _selectedToAccountId : null)
+        ? (_transferDestinationType == TransferDestinationType.bankAccount
+              ? _selectedToAccountId
+              : null)
         : (_selectedType == TransactionType.income ? _selectedAccountId : null);
 
     if (targetAccountId != null) {
-      final allGoals = ref.read(savingsGoalsListNotifierProvider).valueOrNull ?? [];
-      final linkedGoals = allGoals.where((g) => g.linkedAccountId == targetAccountId && !g.isCompleted).toList();
+      final allGoals =
+          ref.read(savingsGoalsListNotifierProvider).valueOrNull ?? [];
+      final linkedGoals = allGoals
+          .where((g) => g.linkedAccountId == targetAccountId && !g.isCompleted)
+          .toList();
       if (linkedGoals.length == 1) {
         final goalId = linkedGoals.first.id;
         final c = _getGoalAllocationController(goalId);
         if (!_userManuallyEditedGoalAllocation) {
           final str = rawAmt > 0
-              ? (rawAmt == rawAmt.roundToDouble() ? rawAmt.toInt().toString() : rawAmt.toStringAsFixed(2))
+              ? (rawAmt == rawAmt.roundToDouble()
+                    ? rawAmt.toInt().toString()
+                    : rawAmt.toStringAsFixed(2))
               : '';
           if (c.text != str) {
             c.text = str;
@@ -288,15 +331,20 @@ class _AddEditTransactionSheetState
         final categories = _selectedType == TransactionType.income
             ? CategoryConstants.incomeCategories
             : CategoryConstants.expenseCategories;
-        if (categories.any((c) => c.name.toLowerCase() == detected.toLowerCase())) {
-          final matched = categories.firstWhere((c) => c.name.toLowerCase() == detected.toLowerCase());
+        if (categories.any(
+          (c) => c.name.toLowerCase() == detected.toLowerCase(),
+        )) {
+          final matched = categories.firstWhere(
+            (c) => c.name.toLowerCase() == detected.toLowerCase(),
+          );
           setState(() {
             _selectedCategory = matched.name;
             final bankAccounts = ref.read(activeBankAccountsProvider);
             final defaultAcc = ref.read(defaultBankAccountProvider);
             if (!_userManuallySelectedAccount &&
                 (_selectedPaymentMode == PaymentMode.bankAccount ||
-                (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null))) {
+                    (_selectedPaymentMode == PaymentMode.upiWallet &&
+                        _selectedCreditCardId == null))) {
               final acc = AccountPurposeTags.matchAccountForCategory(
                 matched.name,
                 bankAccounts,
@@ -320,18 +368,30 @@ class _AddEditTransactionSheetState
 
   void _onTypeChanged(TransactionType newType) {
     if (_selectedType == newType) return;
+    if (_isSettlement) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Transaction type cannot be changed on a settlement transaction.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     HapticFeedback.selectionClick();
     setState(() {
       final oldCategories = _selectedType == TransactionType.income
           ? CategoryConstants.incomeCategories
           : (_selectedType == TransactionType.expense
-              ? CategoryConstants.expenseCategories
-              : const <CategoryItem>[]);
+                ? CategoryConstants.expenseCategories
+                : const <CategoryItem>[]);
 
       _selectedType = newType;
 
       if (newType == TransactionType.transfer) {
-        if (_transferDestinationType == TransferDestinationType.creditCard && _selectedCreditCardId != null) {
+        if (_transferDestinationType == TransferDestinationType.creditCard &&
+            _selectedCreditCardId != null) {
           _selectedCategory = CategoryConstants.categoryCreditCardBillPay;
         } else {
           _selectedCategory = CategoryConstants.categoryAccountTransfer;
@@ -344,15 +404,22 @@ class _AddEditTransactionSheetState
         }
         if (_transferDestinationType == TransferDestinationType.bankAccount) {
           if (_selectedToAccountId == null && bankAccounts.length > 1) {
-            _selectedToAccountId = bankAccounts.firstWhere(
-              (a) => a.id != _selectedAccountId,
-              orElse: () => bankAccounts.last,
-            ).id;
+            _selectedToAccountId = bankAccounts
+                .firstWhere(
+                  (a) => a.id != _selectedAccountId,
+                  orElse: () => bankAccounts.last,
+                )
+                .id;
           }
         }
         final currentTitle = _titleController.text.trim();
-        final oldCategoryNames = oldCategories.map((c) => c.name.toLowerCase()).toSet();
-        if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase()) || currentTitle == 'Expense' || currentTitle == 'Income') {
+        final oldCategoryNames = oldCategories
+            .map((c) => c.name.toLowerCase())
+            .toSet();
+        if (currentTitle.isEmpty ||
+            oldCategoryNames.contains(currentTitle.toLowerCase()) ||
+            currentTitle == 'Expense' ||
+            currentTitle == 'Income') {
           _titleController.text = _selectedCategory;
         }
       } else {
@@ -362,11 +429,15 @@ class _AddEditTransactionSheetState
         _selectedCategory = newCategories.first.name;
 
         final currentTitle = _titleController.text.trim();
-        final oldCategoryNames = oldCategories.map((c) => c.name.toLowerCase()).toSet();
+        final oldCategoryNames = oldCategories
+            .map((c) => c.name.toLowerCase())
+            .toSet();
 
         // If title is empty, or equals any of the previous type's category names,
         // update to the new category name so old category titles are never carried over across tabs.
-        if (currentTitle.isEmpty || oldCategoryNames.contains(currentTitle.toLowerCase()) || currentTitle == CategoryConstants.categoryAccountTransfer) {
+        if (currentTitle.isEmpty ||
+            oldCategoryNames.contains(currentTitle.toLowerCase()) ||
+            currentTitle == CategoryConstants.categoryAccountTransfer) {
           _titleController.text = _selectedCategory;
         }
       }
@@ -425,7 +496,9 @@ class _AddEditTransactionSheetState
           _selectedPaymentSource = 'UPI (${acc.accountName})';
           _autoSelectedReason = '${acc.accountName} (${acc.usedFor})';
         } else {
-          final rupayCards = creditCards.where((c) => c.cardNetwork == CardNetwork.rupay).toList();
+          final rupayCards = creditCards
+              .where((c) => c.cardNetwork == CardNetwork.rupay)
+              .toList();
           if (rupayCards.isNotEmpty) {
             _selectedCreditCardId = rupayCards.first.id;
             _selectedAccountId = null;
@@ -440,7 +513,9 @@ class _AddEditTransactionSheetState
         }
         break;
       case PaymentMode.cash:
-        final cashAccounts = bankAccounts.where((a) => a.accountType == AccountType.cash).toList();
+        final cashAccounts = bankAccounts
+            .where((a) => a.accountType == AccountType.cash)
+            .toList();
         if (cashAccounts.isNotEmpty) {
           _selectedAccountId = cashAccounts.first.id;
           _selectedCreditCardId = null;
@@ -473,9 +548,8 @@ class _AddEditTransactionSheetState
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppColors.primaryEmerald,
-            ),
+            colorScheme: Theme.of(context).colorScheme
+                .copyWith(primary: AppColors.primaryEmerald),
           ),
           child: child!,
         );
@@ -503,9 +577,8 @@ class _AddEditTransactionSheetState
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppColors.primaryEmerald,
-            ),
+            colorScheme: Theme.of(context).colorScheme
+                .copyWith(primary: AppColors.primaryEmerald),
           ),
           child: child!,
         );
@@ -544,7 +617,9 @@ class _AddEditTransactionSheetState
       return;
     }
 
-    final amount = MathExpressionParser.tryEvaluate(_amountController.text.trim());
+    final amount = MathExpressionParser.tryEvaluate(
+      _amountController.text.trim(),
+    );
     if (amount == null || amount <= 0) {
       AppHaptics.warning();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -575,7 +650,9 @@ class _AddEditTransactionSheetState
         AppHaptics.warning();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please enter friend or relative\'s name for money lent.'),
+            content: Text(
+              'Please enter friend or relative\'s name for money lent.',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -598,7 +675,9 @@ class _AddEditTransactionSheetState
           AppHaptics.warning();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Please select both paying bank account and credit card to pay.'),
+              content: Text(
+                'Please select both paying bank account and credit card to pay.',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -612,16 +691,20 @@ class _AddEditTransactionSheetState
           _selectedPaymentSource = bankAccounts.first.accountName;
         }
         if (_selectedToAccountId == null && bankAccounts.length > 1) {
-          _selectedToAccountId = bankAccounts.firstWhere(
-            (a) => a.id != _selectedAccountId,
-            orElse: () => bankAccounts.last,
-          ).id;
+          _selectedToAccountId = bankAccounts
+              .firstWhere(
+                (a) => a.id != _selectedAccountId,
+                orElse: () => bankAccounts.last,
+              )
+              .id;
         }
         if (_selectedAccountId == null || _selectedToAccountId == null) {
           AppHaptics.warning();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Please select both source and destination accounts.'),
+              content: Text(
+                'Please select both source and destination accounts.',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -631,7 +714,9 @@ class _AddEditTransactionSheetState
           AppHaptics.warning();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Source and destination accounts must be different.'),
+              content: Text(
+                'Source and destination accounts must be different.',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -644,17 +729,26 @@ class _AddEditTransactionSheetState
     // Goal allocations validation (for transfers to bank account or income deposits)
     final goalAllocationsToApply = <String, double>{};
     final targetAccountIdForGoals = _selectedType == TransactionType.transfer
-        ? (_transferDestinationType == TransferDestinationType.bankAccount ? _selectedToAccountId : null)
+        ? (_transferDestinationType == TransferDestinationType.bankAccount
+              ? _selectedToAccountId
+              : null)
         : (_selectedType == TransactionType.income ? _selectedAccountId : null);
 
     if (targetAccountIdForGoals != null) {
-      final allGoals = ref.read(savingsGoalsListNotifierProvider).valueOrNull ?? [];
-      final linkedGoals = allGoals.where((g) => g.linkedAccountId == targetAccountIdForGoals && !g.isCompleted).toList();
+      final allGoals =
+          ref.read(savingsGoalsListNotifierProvider).valueOrNull ?? [];
+      final linkedGoals = allGoals
+          .where(
+            (g) =>
+                g.linkedAccountId == targetAccountIdForGoals && !g.isCompleted,
+          )
+          .toList();
       double totalAllocated = 0.0;
       for (final goal in linkedGoals) {
         final controller = _goalAllocationControllers[goal.id];
         if (controller != null && controller.text.trim().isNotEmpty) {
-          final amt = MathExpressionParser.tryEvaluate(controller.text.trim()) ?? 0.0;
+          final amt =
+              MathExpressionParser.tryEvaluate(controller.text.trim()) ?? 0.0;
           if (amt > 0) {
             goalAllocationsToApply[goal.id] = amt;
             totalAllocated += amt;
@@ -682,7 +776,8 @@ class _AddEditTransactionSheetState
       final prevTx = widget.initialTransaction!;
 
       final isExpense = _selectedType == TransactionType.expense;
-      final isMoneyLent = isExpense && _selectedCategory == CategoryConstants.categoryMoneyLent;
+      final isMoneyLent =
+          isExpense && _selectedCategory == CategoryConstants.categoryMoneyLent;
       final isSharedExpense = isExpense && (_isShared || isMoneyLent);
       double? myShare;
       String? sharedWith;
@@ -691,7 +786,9 @@ class _AddEditTransactionSheetState
       if (isMoneyLent) {
         final borrower = _borrowerNameController.text.trim();
         final expectedInterest = _calculateExpectedInterest(amount);
-        final rate = _isInterestPercentage ? double.tryParse(_loanInterestController.text.trim()) : null;
+        final rate = _isInterestPercentage
+            ? double.tryParse(_loanInterestController.text.trim())
+            : null;
         final prevLoan = LoanShareHelper.parseLoan(prevTx.sharedWith);
 
         final loanData = LoanShareData(
@@ -712,8 +809,11 @@ class _AddEditTransactionSheetState
         myShare = 0.0;
         isSettled = loanData.isRepaid;
       } else if (isSharedExpense) {
-        final parsedShare = MathExpressionParser.tryEvaluate(_myShareController.text.trim());
-        myShare = (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
+        final parsedShare = MathExpressionParser.tryEvaluate(
+          _myShareController.text.trim(),
+        );
+        myShare =
+            (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
             ? parsedShare
             : (amount / 2);
 
@@ -722,12 +822,20 @@ class _AddEditTransactionSheetState
             .where((p) => p.nameController.text.trim().isNotEmpty)
             .map((p) {
               final name = p.nameController.text.trim();
-              final amt = double.tryParse(p.amountController.text.trim()) ?? 0.0;
+              final amt =
+                  double.tryParse(p.amountController.text.trim()) ?? 0.0;
               final existing = existingParsed
-                  .where((e) => e.personName.trim().toLowerCase() == name.toLowerCase())
+                  .where(
+                    (e) =>
+                        e.personName.trim().toLowerCase() == name.toLowerCase(),
+                  )
                   .firstOrNull;
-              final reimbursed = existing != null ? existing.reimbursedAmount : 0.0;
-              final isSettled = existing != null ? (existing.isSettled || (reimbursed >= amt && amt > 0)) : false;
+              final reimbursed = existing != null
+                  ? existing.reimbursedAmount
+                  : 0.0;
+              final isSettled = existing != null
+                  ? (existing.isSettled || (reimbursed >= amt && amt > 0))
+                  : false;
               return SplitPersonShare(
                 personName: name,
                 amount: amt,
@@ -750,7 +858,9 @@ class _AddEditTransactionSheetState
         isSettled = prevTx.reimbursedAmount >= (amount - myShare);
       }
 
-      final friendShare = isSharedExpense ? (amount - (myShare ?? 0.0)).clamp(0.0, amount) : 0.0;
+      final friendShare = isSharedExpense
+          ? (amount - (myShare ?? 0.0)).clamp(0.0, amount)
+          : 0.0;
 
       final updated = prevTx.copyWith(
         title: title,
@@ -758,17 +868,21 @@ class _AddEditTransactionSheetState
         type: _selectedType,
         category: _selectedType == TransactionType.transfer
             ? (_transferDestinationType == TransferDestinationType.creditCard
-                ? CategoryConstants.categoryCreditCardBillPay
-                : CategoryConstants.categoryAccountTransfer)
+                  ? CategoryConstants.categoryCreditCardBillPay
+                  : CategoryConstants.categoryAccountTransfer)
             : _selectedCategory,
         date: _selectedDate,
         paymentSource: _selectedPaymentSource,
         accountId: _selectedAccountId,
         toAccountId: _selectedType == TransactionType.transfer
-            ? (_transferDestinationType == TransferDestinationType.bankAccount ? _selectedToAccountId : null)
+            ? (_transferDestinationType == TransferDestinationType.bankAccount
+                  ? _selectedToAccountId
+                  : null)
             : null,
         creditCardId: _selectedType == TransactionType.transfer
-            ? (_transferDestinationType == TransferDestinationType.creditCard ? _selectedCreditCardId : null)
+            ? (_transferDestinationType == TransferDestinationType.creditCard
+                  ? _selectedCreditCardId
+                  : null)
             : _selectedCreditCardId,
         notes: _notesController.text.trim().isEmpty
             ? null
@@ -790,19 +904,12 @@ class _AddEditTransactionSheetState
             .saveTransactionWithLedgerImpact(
               transaction: updated,
               previousTransaction: prevTx,
+              multiGoalAllocations: goalAllocationsToApply.isNotEmpty
+                  ? goalAllocationsToApply
+                  : null,
+              multiGoalSourceAccountId:
+                  targetAccountIdForGoals ?? _selectedAccountId,
             );
-
-        if (goalAllocationsToApply.isNotEmpty) {
-          try {
-            await ref.read(savingsGoalsListNotifierProvider.notifier).allocateToMultipleGoals(
-                  goalAllocations: goalAllocationsToApply,
-                  sourceAccountId: targetAccountIdForGoals ?? _selectedAccountId ?? '',
-                  transactionTitle: updated.title,
-                );
-          } catch (e, stack) {
-            LogService.error('AddEditTransactionSheet', 'Failed to allocate to savings goals', e, stack);
-          }
-        }
 
         AppHaptics.success();
 
@@ -816,7 +923,12 @@ class _AddEditTransactionSheetState
           );
         }
       } catch (e, stack) {
-        LogService.error('AddEditTransactionSheet', 'Failed to update transaction', e, stack);
+        LogService.error(
+          'AddEditTransactionSheet',
+          'Failed to update transaction',
+          e,
+          stack,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -833,20 +945,28 @@ class _AddEditTransactionSheetState
           _isIncomeReimbursement &&
           _selectedSharedExpenseToSettle != null) {
         final bankAccounts = ref.read(activeBankAccountsProvider);
-        final destAccountId = _selectedAccountId ?? (bankAccounts.isNotEmpty ? bankAccounts.first.id : null);
+        final destAccountId =
+            _selectedAccountId ??
+            (bankAccounts.isNotEmpty ? bankAccounts.first.id : null);
         if (destAccountId == null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select a receiving bank account.')),
+            const SnackBar(
+              content: Text('Please select a receiving bank account.'),
+            ),
           );
           return;
         }
 
         try {
-          await ref.read(transactionListNotifierProvider.notifier).settleSharedExpense(
+          await ref
+              .read(transactionListNotifierProvider.notifier)
+              .settleSharedExpense(
                 transactionId: _selectedSharedExpenseToSettle!.id,
                 amountReceived: amount,
                 destinationAccountId: destAccountId,
-                notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+                notes: _notesController.text.trim().isEmpty
+                    ? null
+                    : _notesController.text.trim(),
               );
 
           AppHaptics.success();
@@ -865,7 +985,12 @@ class _AddEditTransactionSheetState
             );
           }
         } catch (e, stack) {
-          LogService.error('AddEditTransactionSheet', 'Failed to record reimbursement', e, stack);
+          LogService.error(
+            'AddEditTransactionSheet',
+            'Failed to record reimbursement',
+            e,
+            stack,
+          );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -880,14 +1005,17 @@ class _AddEditTransactionSheetState
       }
 
       final isExpense = _selectedType == TransactionType.expense;
-      final isMoneyLent = isExpense && _selectedCategory == CategoryConstants.categoryMoneyLent;
+      final isMoneyLent =
+          isExpense && _selectedCategory == CategoryConstants.categoryMoneyLent;
       final isSharedExpense = isExpense && (_isShared || isMoneyLent);
       double? myShare;
       String? sharedWith;
       if (isMoneyLent) {
         final borrower = _borrowerNameController.text.trim();
         final expectedInterest = _calculateExpectedInterest(amount);
-        final rate = _isInterestPercentage ? double.tryParse(_loanInterestController.text.trim()) : null;
+        final rate = _isInterestPercentage
+            ? double.tryParse(_loanInterestController.text.trim())
+            : null;
 
         final loanData = LoanShareData(
           borrowerName: borrower.isNotEmpty ? borrower : 'Friend',
@@ -904,8 +1032,11 @@ class _AddEditTransactionSheetState
           ref.read(savedFriendsProvider.notifier).addFriend(borrower);
         }
       } else if (isSharedExpense) {
-        final parsedShare = MathExpressionParser.tryEvaluate(_myShareController.text.trim());
-        myShare = (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
+        final parsedShare = MathExpressionParser.tryEvaluate(
+          _myShareController.text.trim(),
+        );
+        myShare =
+            (parsedShare != null && parsedShare >= 0 && parsedShare <= amount)
             ? parsedShare
             : (amount / 2);
 
@@ -913,7 +1044,8 @@ class _AddEditTransactionSheetState
             .where((p) => p.nameController.text.trim().isNotEmpty)
             .map((p) {
               final name = p.nameController.text.trim();
-              final amt = double.tryParse(p.amountController.text.trim()) ?? 0.0;
+              final amt =
+                  double.tryParse(p.amountController.text.trim()) ?? 0.0;
               return SplitPersonShare(personName: name, amount: amt);
             })
             .where((s) => s.amount > 0)
@@ -937,17 +1069,21 @@ class _AddEditTransactionSheetState
         type: _selectedType,
         category: _selectedType == TransactionType.transfer
             ? (_transferDestinationType == TransferDestinationType.creditCard
-                ? CategoryConstants.categoryCreditCardBillPay
-                : CategoryConstants.categoryAccountTransfer)
+                  ? CategoryConstants.categoryCreditCardBillPay
+                  : CategoryConstants.categoryAccountTransfer)
             : _selectedCategory,
         date: _selectedDate,
         paymentSource: _selectedPaymentSource,
         accountId: _selectedAccountId,
         toAccountId: _selectedType == TransactionType.transfer
-            ? (_transferDestinationType == TransferDestinationType.bankAccount ? _selectedToAccountId : null)
+            ? (_transferDestinationType == TransferDestinationType.bankAccount
+                  ? _selectedToAccountId
+                  : null)
             : null,
         creditCardId: _selectedType == TransactionType.transfer
-            ? (_transferDestinationType == TransferDestinationType.creditCard ? _selectedCreditCardId : null)
+            ? (_transferDestinationType == TransferDestinationType.creditCard
+                  ? _selectedCreditCardId
+                  : null)
             : _selectedCreditCardId,
         notes: _notesController.text.trim().isEmpty
             ? null
@@ -967,19 +1103,12 @@ class _AddEditTransactionSheetState
             .read(transactionListNotifierProvider.notifier)
             .saveTransactionWithLedgerImpact(
               transaction: newTx,
+              multiGoalAllocations: goalAllocationsToApply.isNotEmpty
+                  ? goalAllocationsToApply
+                  : null,
+              multiGoalSourceAccountId:
+                  targetAccountIdForGoals ?? _selectedAccountId,
             );
-
-        if (goalAllocationsToApply.isNotEmpty) {
-          try {
-            await ref.read(savingsGoalsListNotifierProvider.notifier).allocateToMultipleGoals(
-                  goalAllocations: goalAllocationsToApply,
-                  sourceAccountId: targetAccountIdForGoals ?? _selectedAccountId ?? '',
-                  transactionTitle: newTx.title,
-                );
-          } catch (e, stack) {
-            LogService.error('AddEditTransactionSheet', 'Failed to allocate to savings goals', e, stack);
-          }
-        }
 
         AppHaptics.success();
 
@@ -987,13 +1116,20 @@ class _AddEditTransactionSheetState
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Added "${newTx.title}" (${CurrencyFormatter.format(newTx.amount)}).'),
+              content: Text(
+                'Added "${newTx.title}" (${CurrencyFormatter.format(newTx.amount)}).',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
         }
       } catch (e, stack) {
-        LogService.error('AddEditTransactionSheet', 'Failed to save transaction', e, stack);
+        LogService.error(
+          'AddEditTransactionSheet',
+          'Failed to save transaction',
+          e,
+          stack,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1014,7 +1150,9 @@ class _AddEditTransactionSheetState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Transaction'),
-        content: const Text('Are you sure you want to permanently delete this transaction?'),
+        content: const Text(
+          'Are you sure you want to permanently delete this transaction?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -1051,7 +1189,12 @@ class _AddEditTransactionSheetState
           );
         }
       } catch (e, stack) {
-        LogService.error('AddEditTransactionSheet', 'Failed to delete transaction', e, stack);
+        LogService.error(
+          'AddEditTransactionSheet',
+          'Failed to delete transaction',
+          e,
+          stack,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1067,6 +1210,7 @@ class _AddEditTransactionSheetState
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -1076,8 +1220,11 @@ class _AddEditTransactionSheetState
     final defaultAcc = ref.watch(defaultBankAccountProvider);
 
     if (_selectedPaymentMode == PaymentMode.bankAccount ||
-        (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null)) {
-      if (_selectedAccountId == null && _selectedCreditCardId == null && bankAccounts.isNotEmpty) {
+        (_selectedPaymentMode == PaymentMode.upiWallet &&
+            _selectedCreditCardId == null)) {
+      if (_selectedAccountId == null &&
+          _selectedCreditCardId == null &&
+          bankAccounts.isNotEmpty) {
         final matched = AccountPurposeTags.matchAccountForCategory(
           _selectedCategory,
           bankAccounts,
@@ -1097,7 +1244,9 @@ class _AddEditTransactionSheetState
         : (isIncome ? financialColors.income : financialColors.expense);
     final categories = isIncome
         ? CategoryConstants.incomeCategories
-        : (isTransfer ? const <CategoryItem>[] : CategoryConstants.expenseCategories);
+        : (isTransfer
+              ? const <CategoryItem>[]
+              : CategoryConstants.expenseCategories);
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -1114,211 +1263,690 @@ class _AddEditTransactionSheetState
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: financialColors.cardBorder,
-                      borderRadius: BorderRadius.circular(2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: financialColors.cardBorder,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Header & Mode Indicator
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        _isEditMode ? 'Edit Transaction' : 'New Transaction',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
+                  // Header & Mode Indicator
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _isEditMode ? 'Edit Transaction' : 'New Transaction',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    if (_isEditMode)
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
-                        onPressed: _deleteTransaction,
-                        tooltip: 'Delete',
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Type Toggle (Expense / Income / Transfer)
-                TransactionTypeToggle(
-                  selectedType: _selectedType,
-                  onTypeChanged: _onTypeChanged,
-                ),
-                const SizedBox(height: 20),
-
-                // Amount Field
-                AmountCalculatorField(
-                  controller: _amountController,
-                  activeAccentColor: activeAccentColor,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter amount';
-                    }
-                    if (double.tryParse(value) == null && MathExpressionParser.tryEvaluate(value) == null) {
-                      return 'Invalid number';
-                    }
-                    return null;
-                  },
-                  onChanged: (val) {
-                    setState(() {});
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Description / Title Field (Mandatory)
-                Text(
-                  'TITLE / REASON',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
+                      if (_isEditMode)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: AppColors.expense,
+                          ),
+                          onPressed: _deleteTransaction,
+                          tooltip: 'Delete',
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(
-                    hintText: 'e.g. Lunch at Cafe, Grocery Mart, Salary',
-                    prefixIcon: Icon(Icons.edit_note_rounded),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter title or reason';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                if (_selectedType == TransactionType.transfer) ...[
-                  _buildTransferSection(theme, bankAccounts, creditCards, isDark, financialColors),
-                ] else ...[
-                  // Category Selector
+                  // Type Toggle (Expense / Income / Transfer)
+                  TransactionTypeToggle(
+                    selectedType: _selectedType,
+                    onTypeChanged: _onTypeChanged,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Amount Field
+                  AmountCalculatorField(
+                    controller: _amountController,
+                    activeAccentColor: activeAccentColor,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter amount';
+                      }
+                      if (double.tryParse(value) == null &&
+                          MathExpressionParser.tryEvaluate(value) == null) {
+                        return 'Invalid number';
+                      }
+                      return null;
+                    },
+                    onChanged: (val) {
+                      setState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Description / Title Field (Mandatory)
                   Text(
-                    'CATEGORY',
+                    'TITLE / REASON',
                     style: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.1,
                       color: financialColors.textMuted,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 94,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: categories.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 10),
-                      itemBuilder: (context, index) {
-                        final item = categories[index];
-                        final isSelected = _selectedCategory == item.name;
-                        return GestureDetector(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() {
-                              final oldCategory = _selectedCategory;
-                              _selectedCategory = item.name;
-                              if (item.name == CategoryConstants.categorySharedReimbursement) {
-                                _isIncomeReimbursement = true;
-                              }
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _titleController,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. Lunch at Cafe, Grocery Mart, Salary',
+                      prefixIcon: Icon(Icons.edit_note_rounded),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter title or reason';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
 
-                              final currentTitle = _titleController.text.trim();
-                              final allCategoryNames = {
-                                ...CategoryConstants.expenseCategories.map((c) => c.name.toLowerCase()),
-                                ...CategoryConstants.incomeCategories.map((c) => c.name.toLowerCase()),
-                              };
-
-                              if (item.name == CategoryConstants.categoryMoneyLent) {
-                                final borrower = _borrowerNameController.text.trim();
-                                _titleController.text = borrower.isNotEmpty ? 'Money Lent to $borrower' : 'Money Lent to Friend';
-                              } else if (currentTitle.isEmpty ||
-                                  currentTitle.toLowerCase() == oldCategory.toLowerCase() ||
-                                  allCategoryNames.contains(currentTitle.toLowerCase())) {
-                                _titleController.text = item.name;
-                              }
-
-                              // Smart category-based account defaulting
-                              if (!_userManuallySelectedAccount &&
-                                  (_selectedPaymentMode == PaymentMode.bankAccount ||
-                                  (_selectedPaymentMode == PaymentMode.upiWallet && _selectedCreditCardId == null))) {
-                                final matched = AccountPurposeTags.matchAccountForCategory(
-                                  item.name,
-                                  bankAccounts,
-                                  defaultAccount: defaultAcc,
-                                );
-                                if (matched != null) {
-                                  _selectedAccountId = matched.id;
-                                  if (_selectedPaymentMode == PaymentMode.upiWallet) {
-                                    _selectedPaymentSource = 'UPI (${matched.accountName})';
-                                  } else {
-                                    _selectedPaymentSource = matched.accountName;
-                                  }
-                                  _autoSelectedReason = '${matched.accountName} (${matched.usedFor})';
-                                }
-                              }
-                            });
-                          },
-                          child: Container(
-                            width: 80,
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? item.color.withAlpha(isDark ? 60 : 35)
-                                  : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected ? item.color : financialColors.cardBorder,
-                                width: isSelected ? 2 : 1,
+                  if (_selectedType == TransactionType.transfer) ...[
+                    _buildTransferSection(
+                      theme,
+                      bankAccounts,
+                      creditCards,
+                      isDark,
+                      financialColors,
+                    ),
+                  ] else ...[
+                    // Category Selector
+                    Text(
+                      'CATEGORY',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        color: financialColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (_isSettlement)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.lock_outline_rounded,
+                              size: 14,
+                              color: financialColors.info,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Category is locked because this transaction is linked to a shared settlement.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: financialColors.info,
+                                ),
                               ),
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(item.icon, color: isSelected ? item.color : financialColors.textMuted, size: 24),
-                                const SizedBox(height: 6),
-                                Text(
-                                  item.name,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                    color: isSelected
-                                        ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
-                                        : financialColors.textMuted,
+                          ],
+                        ),
+                      ),
+                    SizedBox(
+                      height: 94,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: categories.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 10),
+                        itemBuilder: (context, index) {
+                          final item = categories[index];
+                          final isSelected = _selectedCategory == item.name;
+                          return GestureDetector(
+                            onTap: () {
+                              if (_isSettlement) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Category cannot be changed on a shared expense settlement.',
+                                    ),
+                                    behavior: SnackBarBehavior.floating,
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                );
+                                return;
+                              }
+                              HapticFeedback.selectionClick();
+                              setState(() {
+                                final oldCategory = _selectedCategory;
+                                _selectedCategory = item.name;
+                                if (item.name ==
+                                    CategoryConstants
+                                        .categorySharedReimbursement) {
+                                  _isIncomeReimbursement = true;
+                                }
+
+                                final currentTitle = _titleController.text
+                                    .trim();
+                                final allCategoryNames = {
+                                  ...CategoryConstants.expenseCategories.map(
+                                    (c) => c.name.toLowerCase(),
+                                  ),
+                                  ...CategoryConstants.incomeCategories.map(
+                                    (c) => c.name.toLowerCase(),
+                                  ),
+                                };
+
+                                if (item.name ==
+                                    CategoryConstants.categoryMoneyLent) {
+                                  final borrower = _borrowerNameController.text
+                                      .trim();
+                                  _titleController.text = borrower.isNotEmpty
+                                      ? 'Money Lent to $borrower'
+                                      : 'Money Lent to Friend';
+                                } else if (currentTitle.isEmpty ||
+                                    currentTitle.toLowerCase() ==
+                                        oldCategory.toLowerCase() ||
+                                    allCategoryNames.contains(
+                                      currentTitle.toLowerCase(),
+                                    )) {
+                                  _titleController.text = item.name;
+                                }
+
+                                // Smart category-based account defaulting
+                                if (!_userManuallySelectedAccount &&
+                                    (_selectedPaymentMode ==
+                                            PaymentMode.bankAccount ||
+                                        (_selectedPaymentMode ==
+                                                PaymentMode.upiWallet &&
+                                            _selectedCreditCardId == null))) {
+                                  final matched =
+                                      AccountPurposeTags.matchAccountForCategory(
+                                        item.name,
+                                        bankAccounts,
+                                        defaultAccount: defaultAcc,
+                                      );
+                                  if (matched != null) {
+                                    _selectedAccountId = matched.id;
+                                    if (_selectedPaymentMode ==
+                                        PaymentMode.upiWallet) {
+                                      _selectedPaymentSource =
+                                          'UPI (${matched.accountName})';
+                                    } else {
+                                      _selectedPaymentSource =
+                                          matched.accountName;
+                                    }
+                                    _autoSelectedReason =
+                                        '${matched.accountName} (${matched.usedFor})';
+                                  }
+                                }
+                              });
+                            },
+                            child: Container(
+                              width: 80,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? item.color.withAlpha(isDark ? 60 : 35)
+                                    : (isDark
+                                          ? AppColors.darkSurfaceVariant
+                                          : AppColors.lightSurfaceVariant),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? item.color
+                                      : financialColors.cardBorder,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    item.icon,
+                                    color: isSelected
+                                        ? item.color
+                                        : financialColors.textMuted,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    item.name,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? (isDark
+                                                ? AppColors.darkTextPrimary
+                                                : AppColors.lightTextPrimary)
+                                          : financialColors.textMuted,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // TWO-TIER PAYMENT SELECTION
+                    // Tier 1: Method (PAY FROM / DEPOSIT TO)
+                    Text(
+                      isIncome ? 'DEPOSIT TO (METHOD)' : 'PAY FROM (METHOD)',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        color: financialColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<PaymentMode>(
+                      initialValue: _selectedPaymentMode,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(_selectedPaymentMode.icon, size: 20),
+                      ),
+                      items: PaymentMode.values.map((mode) {
+                        return DropdownMenuItem<PaymentMode>(
+                          value: mode,
+                          child: Text(
+                            mode.displayName,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (mode) {
+                        if (mode == null) return;
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _selectedPaymentMode = mode;
+                          _autoSelectLinkedSource(
+                            mode,
+                            bankAccounts,
+                            creditCards,
+                          );
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tier 2: Specific Linked Source (Bank Account / Card / Stash)
+                    Text(
+                      _getLinkedSourceLabel(_selectedPaymentMode),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        color: financialColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildLinkedSourceDropdown(
+                      context,
+                      bankAccounts,
+                      creditCards,
+                      isDark,
+                      financialColors,
+                    ),
+                    if (_autoSelectedReason != null &&
+                        (_selectedPaymentMode == PaymentMode.bankAccount ||
+                            _selectedPaymentMode == PaymentMode.upiWallet))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.bolt_rounded,
+                              size: 14,
+                              color: AppColors.primaryEmerald,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Smart auto-selected: $_autoSelectedReason',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryEmerald,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (!isIncome &&
+                        _selectedCategory ==
+                            CategoryConstants.categoryMoneyLent)
+                      _buildMoneyLentSection(theme, financialColors, isDark)
+                    else if (!isIncome)
+                      _buildSharedExpenseSection(
+                        theme,
+                        financialColors,
+                        isDark,
+                      ),
+                    if (isIncome) ...[
+                      _buildIncomeReimbursementSection(
+                        theme,
+                        financialColors,
+                        isDark,
+                        creditCards,
+                      ),
+                      if (_selectedPaymentMode == PaymentMode.bankAccount &&
+                          _selectedAccountId != null)
+                        _buildLinkedAllocationSection(
+                          theme,
+                          _selectedAccountId!,
+                          isDark,
+                          financialColors,
+                        ),
+                    ],
+                  ],
+                  const SizedBox(height: 20),
+
+                  // Date & Time Picker
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'DATE & TIME',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                            color: financialColors.textMuted,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        DateFormat('EEE, dd MMM • h:mm a')
+                            .format(_selectedDate),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.primaryEmerald,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Side-by-side decoupled Date and Time Cards
+                  Row(
+                    children: [
+                      // Date Card (Direct 1-tap Date Picker)
+                      Expanded(
+                        flex: 3,
+                        child: InkWell(
+                          onTap: _pickDate,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.darkSurfaceVariant
+                                  : AppColors.lightSurfaceVariant,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: financialColors.cardBorder,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryEmerald.withAlpha(
+                                      isDark ? 40 : 25,
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 16,
+                                    color: AppColors.primaryEmerald,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Date',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: financialColors.textMuted,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        DateFormat('dd MMM yyyy')
+                                            .format(_selectedDate),
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.edit_calendar_rounded,
+                                  size: 16,
+                                  color: Colors.grey,
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Time Card (Direct 1-tap Time Picker)
+                      Expanded(
+                        flex: 2,
+                        child: InkWell(
+                          onTap: _pickTime,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.darkSurfaceVariant
+                                  : AppColors.lightSurfaceVariant,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: financialColors.cardBorder,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryTeal.withAlpha(
+                                      isDark ? 40 : 25,
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.access_time_rounded,
+                                    size: 16,
+                                    color: AppColors.primaryTeal,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Time',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: financialColors.textMuted,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        DateFormat('h:mm a')
+                                            .format(_selectedDate),
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_drop_down_rounded,
+                                  size: 18,
+                                  color: Colors.grey,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Quick Date Shortcuts
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        if (_isEditMode &&
+                            widget.initialTransaction != null) ...[
+                          _buildDateShortcutChip(
+                            'Original (${DateFormat('dd MMM, h:mm a').format(widget.initialTransaction!.date)})',
+                            widget.initialTransaction!.date,
+                            theme,
+                            isDark,
+                            financialColors,
+                            isOriginal: true,
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        _buildDateShortcutChip(
+                          'Today',
+                          DateTime.now(),
+                          theme,
+                          isDark,
+                          financialColors,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildDateShortcutChip(
+                          'Yesterday',
+                          DateTime.now().subtract(const Duration(days: 1)),
+                          theme,
+                          isDark,
+                          financialColors,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildDateShortcutChip(
+                          'Day Before',
+                          DateTime.now().subtract(const Duration(days: 2)),
+                          theme,
+                          isDark,
+                          financialColors,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Quick Time Presets
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildTimePresetChip(
+                          'Now',
+                          0,
+                          0,
+                          theme,
+                          isDark,
+                          financialColors,
+                          isNow: true,
+                        ),
+                        const SizedBox(width: 6),
+                        _buildTimePresetChip(
+                          'Morning (9 AM)',
+                          9,
+                          0,
+                          theme,
+                          isDark,
+                          financialColors,
+                        ),
+                        const SizedBox(width: 6),
+                        _buildTimePresetChip(
+                          'Afternoon (2 PM)',
+                          14,
+                          0,
+                          theme,
+                          isDark,
+                          financialColors,
+                        ),
+                        const SizedBox(width: 6),
+                        _buildTimePresetChip(
+                          'Evening (8 PM)',
+                          20,
+                          0,
+                          theme,
+                          isDark,
+                          financialColors,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // TWO-TIER PAYMENT SELECTION
-                  // Tier 1: Method (PAY FROM / DEPOSIT TO)
+                  // Optional Notes
                   Text(
-                    isIncome ? 'DEPOSIT TO (METHOD)' : 'PAY FROM (METHOD)',
+                    'NOTES (OPTIONAL)',
                     style: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.1,
@@ -1326,322 +1954,41 @@ class _AddEditTransactionSheetState
                     ),
                   ),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<PaymentMode>(
-                    initialValue: _selectedPaymentMode,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(_selectedPaymentMode.icon, size: 20),
+                  TextFormField(
+                    controller: _notesController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      hintText: 'Add additional details or remarks...',
                     ),
-                    items: PaymentMode.values.map((mode) {
-                      return DropdownMenuItem<PaymentMode>(
-                        value: mode,
-                        child: Text(
-                          mode.displayName,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (mode) {
-                      if (mode == null) return;
-                      HapticFeedback.selectionClick();
-                      setState(() {
-                        _selectedPaymentMode = mode;
-                        _autoSelectLinkedSource(mode, bankAccounts, creditCards);
-                      });
-                    },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 28),
 
-                  // Tier 2: Specific Linked Source (Bank Account / Card / Stash)
-                  Text(
-                    _getLinkedSourceLabel(_selectedPaymentMode),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1,
-                      color: financialColors.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildLinkedSourceDropdown(context, bankAccounts, creditCards, isDark, financialColors),
-                  if (_autoSelectedReason != null &&
-                      (_selectedPaymentMode == PaymentMode.bankAccount || _selectedPaymentMode == PaymentMode.upiWallet))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.bolt_rounded, size: 14, color: AppColors.primaryEmerald),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              'Smart auto-selected: $_autoSelectedReason',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primaryEmerald,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                  // Save Action Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: activeAccentColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                    ),
-                  if (!isIncome && _selectedCategory == CategoryConstants.categoryMoneyLent)
-                    _buildMoneyLentSection(theme, financialColors, isDark)
-                  else if (!isIncome)
-                    _buildSharedExpenseSection(theme, financialColors, isDark),
-                  if (isIncome) ...[
-                    _buildIncomeReimbursementSection(theme, financialColors, isDark, creditCards),
-                    if (_selectedPaymentMode == PaymentMode.bankAccount && _selectedAccountId != null)
-                      _buildLinkedAllocationSection(theme, _selectedAccountId!, isDark, financialColors),
-                  ],
-                ],
-                const SizedBox(height: 20),
-
-                // Date & Time Picker
-                Row(
-                  children: [
-                    Expanded(
+                      onPressed: _saveTransaction,
                       child: Text(
-                        'DATE & TIME',
-                        style: theme.textTheme.labelMedium?.copyWith(
+                        _isEditMode ? 'Save Changes' : 'Record Transaction',
+                        style: const TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
-                          color: financialColors.textMuted,
                         ),
                       ),
                     ),
-                    Text(
-                      DateFormat('EEE, dd MMM • h:mm a').format(_selectedDate),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppColors.primaryEmerald,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Side-by-side decoupled Date and Time Cards
-                Row(
-                  children: [
-                    // Date Card (Direct 1-tap Date Picker)
-                    Expanded(
-                      flex: 3,
-                      child: InkWell(
-                        onTap: _pickDate,
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: financialColors.cardBorder),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(7),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primaryEmerald),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Date',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
-                                        color: financialColors.textMuted,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      DateFormat('dd MMM yyyy').format(_selectedDate),
-                                      style: theme.textTheme.bodyMedium?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(Icons.edit_calendar_rounded, size: 16, color: Colors.grey),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-
-                    // Time Card (Direct 1-tap Time Picker)
-                    Expanded(
-                      flex: 2,
-                      child: InkWell(
-                        onTap: _pickTime,
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: financialColors.cardBorder),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(7),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryTeal.withAlpha(isDark ? 40 : 25),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primaryTeal),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Time',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
-                                        color: financialColors.textMuted,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      DateFormat('h:mm a').format(_selectedDate),
-                                      style: theme.textTheme.bodyMedium?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(Icons.arrow_drop_down_rounded, size: 18, color: Colors.grey),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Quick Date Shortcuts
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      if (_isEditMode && widget.initialTransaction != null) ...[
-                        _buildDateShortcutChip(
-                          'Original (${DateFormat('dd MMM, h:mm a').format(widget.initialTransaction!.date)})',
-                          widget.initialTransaction!.date,
-                          theme,
-                          isDark,
-                          financialColors,
-                          isOriginal: true,
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      _buildDateShortcutChip('Today', DateTime.now(), theme, isDark, financialColors),
-                      const SizedBox(width: 8),
-                      _buildDateShortcutChip(
-                        'Yesterday',
-                        DateTime.now().subtract(const Duration(days: 1)),
-                        theme,
-                        isDark,
-                        financialColors,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildDateShortcutChip(
-                        'Day Before',
-                        DateTime.now().subtract(const Duration(days: 2)),
-                        theme,
-                        isDark,
-                        financialColors,
-                      ),
-                    ],
                   ),
-                ),
-                const SizedBox(height: 6),
-
-                // Quick Time Presets
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildTimePresetChip('Now', 0, 0, theme, isDark, financialColors, isNow: true),
-                      const SizedBox(width: 6),
-                      _buildTimePresetChip('Morning (9 AM)', 9, 0, theme, isDark, financialColors),
-                      const SizedBox(width: 6),
-                      _buildTimePresetChip('Afternoon (2 PM)', 14, 0, theme, isDark, financialColors),
-                      const SizedBox(width: 6),
-                      _buildTimePresetChip('Evening (8 PM)', 20, 0, theme, isDark, financialColors),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Optional Notes
-                Text(
-                  'NOTES (OPTIONAL)',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _notesController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    hintText: 'Add additional details or remarks...',
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Save Action Button
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: activeAccentColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    onPressed: _saveTransaction,
-                    child: Text(
-                      _isEditMode ? 'Save Changes' : 'Record Transaction',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   String _getLinkedSourceLabel(PaymentMode mode) {
     switch (mode) {
@@ -1676,10 +2023,14 @@ class _AddEditTransactionSheetState
         decoration: BoxDecoration(
           color: isSelected
               ? AppColors.primaryEmerald.withAlpha(isDark ? 50 : 25)
-              : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+              : (isDark
+                    ? AppColors.darkSurfaceVariant
+                    : AppColors.lightSurfaceVariant),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.primaryEmerald : financialColors.cardBorder,
+            color: isSelected
+                ? AppColors.primaryEmerald
+                : financialColors.cardBorder,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -1689,7 +2040,9 @@ class _AddEditTransactionSheetState
             Icon(
               icon,
               size: 18,
-              color: isSelected ? AppColors.primaryEmerald : financialColors.textMuted,
+              color: isSelected
+                  ? AppColors.primaryEmerald
+                  : financialColors.textMuted,
             ),
             const SizedBox(width: 8),
             Flexible(
@@ -1699,7 +2052,9 @@ class _AddEditTransactionSheetState
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                   color: isSelected
-                      ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+                      ? (isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary)
                       : financialColors.textMuted,
                 ),
                 maxLines: 1,
@@ -1723,7 +2078,9 @@ class _AddEditTransactionSheetState
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+          color: isDark
+              ? AppColors.darkSurfaceVariant
+              : AppColors.lightSurfaceVariant,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: financialColors.cardBorder),
         ),
@@ -1734,7 +2091,10 @@ class _AddEditTransactionSheetState
             Expanded(
               child: Text(
                 'No active bank accounts available. Please add bank accounts to record transfers.',
-                style: TextStyle(fontSize: 13, color: financialColors.textMuted),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: financialColors.textMuted,
+                ),
               ),
             ),
           ],
@@ -1749,17 +2109,27 @@ class _AddEditTransactionSheetState
     final toVal = toValid
         ? _selectedToAccountId
         : (bankAccounts.length > 1
-            ? bankAccounts.firstWhere((a) => a.id != fromVal, orElse: () => bankAccounts.last).id
-            : null);
+              ? bankAccounts
+                    .firstWhere(
+                      (a) => a.id != fromVal,
+                      orElse: () => bankAccounts.last,
+                    )
+                    .id
+              : null);
 
-    final isSameAccount = _transferDestinationType == TransferDestinationType.bankAccount &&
+    final isSameAccount =
+        _transferDestinationType == TransferDestinationType.bankAccount &&
         fromVal != null &&
         toVal != null &&
         fromVal == toVal;
 
     final cardValid = creditCards.any((c) => c.id == _selectedCreditCardId);
-    final cardVal = cardValid ? _selectedCreditCardId : (creditCards.isNotEmpty ? creditCards.first.id : null);
-    final selectedCard = cardVal != null ? creditCards.where((c) => c.id == cardVal).firstOrNull : null;
+    final cardVal = cardValid
+        ? _selectedCreditCardId
+        : (creditCards.isNotEmpty ? creditCards.first.id : null);
+    final selectedCard = cardVal != null
+        ? creditCards.where((c) => c.id == cardVal).firstOrNull
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1786,7 +2156,10 @@ class _AddEditTransactionSheetState
               value: acc.id,
               child: Text(
                 '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             );
@@ -1803,21 +2176,35 @@ class _AddEditTransactionSheetState
         ),
         Builder(
           builder: (context) {
-            final fromAcc = bankAccounts.where((a) => a.id == fromVal).firstOrNull;
-            final rawTransferAmt = MathExpressionParser.tryEvaluate(_amountController.text.trim()) ?? 0.0;
-            final prevDeduction = (_isEditMode &&
+            final fromAcc = bankAccounts
+                .where((a) => a.id == fromVal)
+                .firstOrNull;
+            final rawTransferAmt =
+                MathExpressionParser.tryEvaluate(
+                  _amountController.text.trim(),
+                ) ??
+                0.0;
+            final prevDeduction =
+                (_isEditMode &&
                     widget.initialTransaction?.accountId == fromAcc?.id &&
                     widget.initialTransaction?.type == TransactionType.transfer)
                 ? widget.initialTransaction!.amount
                 : 0.0;
-            final effectiveBalance = (fromAcc?.currentBalance ?? 0.0) + prevDeduction;
-            final isFromOverdraft = fromAcc != null && rawTransferAmt > 0 && (effectiveBalance - rawTransferAmt < 0);
+            final effectiveBalance =
+                (fromAcc?.currentBalance ?? 0.0) + prevDeduction;
+            final isFromOverdraft =
+                fromAcc != null &&
+                rawTransferAmt > 0 &&
+                (effectiveBalance - rawTransferAmt < 0);
             if (!isFromOverdraft) return const SizedBox.shrink();
 
             return Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.warning.withAlpha(25),
                   borderRadius: BorderRadius.circular(10),
@@ -1828,7 +2215,11 @@ class _AddEditTransactionSheetState
                   children: [
                     const Padding(
                       padding: EdgeInsets.only(top: 1),
-                      child: Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+                      child: Icon(
+                        Icons.info_outline_rounded,
+                        color: AppColors.warning,
+                        size: 16,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -1837,7 +2228,9 @@ class _AddEditTransactionSheetState
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.warning : const Color(0xFFB45309),
+                          color: isDark
+                              ? AppColors.warning
+                              : const Color(0xFFB45309),
                         ),
                       ),
                     ),
@@ -1882,13 +2275,19 @@ class _AddEditTransactionSheetState
               child: _buildDestinationTypeTab(
                 label: 'Bank Account',
                 icon: Icons.account_balance_rounded,
-                isSelected: _transferDestinationType == TransferDestinationType.bankAccount,
+                isSelected:
+                    _transferDestinationType ==
+                    TransferDestinationType.bankAccount,
                 onTap: () {
                   setState(() {
-                    _transferDestinationType = TransferDestinationType.bankAccount;
+                    _transferDestinationType =
+                        TransferDestinationType.bankAccount;
                     _selectedCreditCardId = null;
-                    _selectedCategory = CategoryConstants.categoryAccountTransfer;
-                    _updateDefaultGoalAllocations(_selectedToAccountId ?? toVal);
+                    _selectedCategory =
+                        CategoryConstants.categoryAccountTransfer;
+                    _updateDefaultGoalAllocations(
+                      _selectedToAccountId ?? toVal,
+                    );
                   });
                 },
                 isDark: isDark,
@@ -1900,13 +2299,18 @@ class _AddEditTransactionSheetState
               child: _buildDestinationTypeTab(
                 label: 'Credit Card (Bill Pay)',
                 icon: Icons.credit_card_rounded,
-                isSelected: _transferDestinationType == TransferDestinationType.creditCard,
+                isSelected:
+                    _transferDestinationType ==
+                    TransferDestinationType.creditCard,
                 onTap: () {
                   setState(() {
-                    _transferDestinationType = TransferDestinationType.creditCard;
+                    _transferDestinationType =
+                        TransferDestinationType.creditCard;
                     _selectedToAccountId = null;
-                    _selectedCategory = CategoryConstants.categoryCreditCardBillPay;
-                    if (_selectedCreditCardId == null && creditCards.isNotEmpty) {
+                    _selectedCategory =
+                        CategoryConstants.categoryCreditCardBillPay;
+                    if (_selectedCreditCardId == null &&
+                        creditCards.isNotEmpty) {
                       _selectedCreditCardId = creditCards.first.id;
                     }
                   });
@@ -1934,18 +2338,26 @@ class _AddEditTransactionSheetState
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                color: isDark
+                    ? AppColors.darkSurfaceVariant
+                    : AppColors.lightSurfaceVariant,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: financialColors.cardBorder),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.credit_card_off_rounded, color: AppColors.warning),
+                  const Icon(
+                    Icons.credit_card_off_rounded,
+                    color: AppColors.warning,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'No active credit cards found. Please add a credit card first to pay its bill.',
-                      style: TextStyle(fontSize: 13, color: financialColors.textMuted),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: financialColors.textMuted,
+                      ),
                     ),
                   ),
                 ],
@@ -1964,7 +2376,10 @@ class _AddEditTransactionSheetState
                   value: c.id,
                   child: Text(
                     '${c.cardName} (${c.bankName}) • Due: ${CurrencyFormatter.format(c.usedAmount)}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 );
@@ -1984,18 +2399,27 @@ class _AddEditTransactionSheetState
                 decoration: BoxDecoration(
                   color: AppColors.primaryEmerald.withAlpha(isDark ? 30 : 15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryEmerald.withAlpha(50)),
+                  border: Border.all(
+                    color: AppColors.primaryEmerald.withAlpha(50),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.receipt_long_rounded, size: 16, color: AppColors.primaryEmerald),
+                        const Icon(
+                          Icons.receipt_long_rounded,
+                          size: 16,
+                          color: AppColors.primaryEmerald,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Outstanding Balance: ${CurrencyFormatter.format(selectedCard.usedAmount)}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),
@@ -2006,31 +2430,61 @@ class _AddEditTransactionSheetState
                       children: [
                         if (selectedCard.usedAmount > 0) ...[
                           ActionChip(
-                            avatar: const Icon(Icons.check_circle_outline_rounded, size: 14, color: AppColors.primaryEmerald),
-                            label: Text('Pay Full Due (${CurrencyFormatter.format(selectedCard.usedAmount)})'),
-                            backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                            side: BorderSide(color: AppColors.primaryEmerald.withAlpha(100)),
+                            avatar: const Icon(
+                              Icons.check_circle_outline_rounded,
+                              size: 14,
+                              color: AppColors.primaryEmerald,
+                            ),
+                            label: Text(
+                              'Pay Full Due (${CurrencyFormatter.format(selectedCard.usedAmount)})',
+                            ),
+                            backgroundColor: isDark
+                                ? AppColors.darkSurfaceVariant
+                                : AppColors.lightSurfaceVariant,
+                            side: BorderSide(
+                              color: AppColors.primaryEmerald.withAlpha(100),
+                            ),
                             visualDensity: VisualDensity.compact,
-                            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                            labelStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                             onPressed: () {
                               HapticFeedback.selectionClick();
-                              final rounded = selectedCard.usedAmount == selectedCard.usedAmount.roundToDouble()
+                              final rounded =
+                                  selectedCard.usedAmount ==
+                                      selectedCard.usedAmount.roundToDouble()
                                   ? selectedCard.usedAmount.toInt().toString()
                                   : selectedCard.usedAmount.toStringAsFixed(2);
                               _amountController.text = rounded;
                             },
                           ),
                           ActionChip(
-                            avatar: const Icon(Icons.payments_outlined, size: 14, color: AppColors.primaryTeal),
-                            label: Text('Pay Min 5% (${CurrencyFormatter.format(selectedCard.usedAmount * 0.05)})'),
-                            backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                            side: BorderSide(color: AppColors.primaryTeal.withAlpha(100)),
+                            avatar: const Icon(
+                              Icons.payments_outlined,
+                              size: 14,
+                              color: AppColors.primaryTeal,
+                            ),
+                            label: Text(
+                              'Pay Min 5% (${CurrencyFormatter.format(selectedCard.usedAmount * 0.05)})',
+                            ),
+                            backgroundColor: isDark
+                                ? AppColors.darkSurfaceVariant
+                                : AppColors.lightSurfaceVariant,
+                            side: BorderSide(
+                              color: AppColors.primaryTeal.withAlpha(100),
+                            ),
                             visualDensity: VisualDensity.compact,
-                            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                            labelStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                             onPressed: () {
                               HapticFeedback.selectionClick();
                               final minDue = selectedCard.usedAmount * 0.05;
-                              final rounded = minDue == minDue.roundToDouble() ? minDue.toInt().toString() : minDue.toStringAsFixed(2);
+                              final rounded = minDue == minDue.roundToDouble()
+                                  ? minDue.toInt().toString()
+                                  : minDue.toStringAsFixed(2);
                               _amountController.text = rounded;
                             },
                           ),
@@ -2059,14 +2513,19 @@ class _AddEditTransactionSheetState
             isExpanded: true,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.arrow_circle_down_rounded, size: 20),
-              errorText: isSameAccount ? 'Source and destination must be different' : null,
+              errorText: isSameAccount
+                  ? 'Source and destination must be different'
+                  : null,
             ),
             items: bankAccounts.map((acc) {
               return DropdownMenuItem<String>(
                 value: acc.id,
                 child: Text(
                   '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               );
@@ -2081,7 +2540,12 @@ class _AddEditTransactionSheetState
             },
           ),
           if (toVal != null)
-            _buildLinkedAllocationSection(theme, toVal, isDark, financialColors),
+            _buildLinkedAllocationSection(
+              theme,
+              toVal,
+              isDark,
+              financialColors,
+            ),
         ],
       ],
     );
@@ -2093,23 +2557,33 @@ class _AddEditTransactionSheetState
     bool isDark,
     AppFinancialColors financialColors,
   ) {
-    final allGoals = ref.watch(savingsGoalsListNotifierProvider).valueOrNull ?? [];
-    final linkedGoals = allGoals.where((g) => g.linkedAccountId == targetAccountId && !g.isCompleted).toList();
+    final allGoals =
+        ref.watch(savingsGoalsListNotifierProvider).valueOrNull ?? [];
+    final linkedGoals = allGoals
+        .where((g) => g.linkedAccountId == targetAccountId && !g.isCompleted)
+        .toList();
 
     final allBudgets = ref.watch(budgetListNotifierProvider).valueOrNull ?? [];
-    final linkedBudgets = allBudgets.where((b) => b.accountId == targetAccountId).toList();
+    final linkedBudgets = allBudgets
+        .where((b) => b.accountId == targetAccountId)
+        .toList();
 
     if (linkedGoals.isEmpty && linkedBudgets.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final rawAmt = MathExpressionParser.tryEvaluate(_amountController.text.trim()) ?? 0.0;
+    final rawAmt =
+        MathExpressionParser.tryEvaluate(_amountController.text.trim()) ?? 0.0;
 
     // Single goal automatic prefill if user hasn't edited manually
-    if (linkedGoals.length == 1 && !_userManuallyEditedGoalAllocation && rawAmt > 0) {
+    if (linkedGoals.length == 1 &&
+        !_userManuallyEditedGoalAllocation &&
+        rawAmt > 0) {
       final singleGoal = linkedGoals.first;
       final c = _getGoalAllocationController(singleGoal.id);
-      final str = rawAmt == rawAmt.roundToDouble() ? rawAmt.toInt().toString() : rawAmt.toStringAsFixed(2);
+      final str = rawAmt == rawAmt.roundToDouble()
+          ? rawAmt.toInt().toString()
+          : rawAmt.toStringAsFixed(2);
       if (c.text != str && c.text.isEmpty) {
         c.text = str;
       }
@@ -2150,7 +2624,11 @@ class _AddEditTransactionSheetState
                   color: AppColors.primaryTeal.withAlpha(isDark ? 60 : 40),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.savings_rounded, size: 16, color: AppColors.primaryTeal),
+                child: const Icon(
+                  Icons.savings_rounded,
+                  size: 16,
+                  color: AppColors.primaryTeal,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -2183,7 +2661,11 @@ class _AddEditTransactionSheetState
             const SizedBox(height: 10),
             Text(
               'Linked Monthly Budgets:',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: financialColors.textMuted),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: financialColors.textMuted,
+              ),
             ),
             const SizedBox(height: 4),
             Wrap(
@@ -2191,13 +2673,22 @@ class _AddEditTransactionSheetState
               runSpacing: 4,
               children: linkedBudgets.map((b) {
                 return Chip(
-                  avatar: const Icon(Icons.account_balance_wallet_outlined, size: 14, color: AppColors.primaryEmerald),
+                  avatar: const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 14,
+                    color: AppColors.primaryEmerald,
+                  ),
                   label: Text(
                     '${b.category} • ${CurrencyFormatter.format(b.limitAmount)}/mo',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   visualDensity: VisualDensity.compact,
-                  backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                  backgroundColor: isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.lightSurfaceVariant,
                   side: BorderSide(color: financialColors.cardBorder),
                 );
               }).toList(),
@@ -2212,7 +2703,10 @@ class _AddEditTransactionSheetState
                 Expanded(
                   child: Text(
                     'Split Across Goals (${linkedGoals.length}):',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -2224,12 +2718,21 @@ class _AddEditTransactionSheetState
                     children: [
                       TextButton.icon(
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         icon: const Icon(Icons.call_split_rounded, size: 14),
-                        label: const Text('Split Evenly', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                        label: const Text(
+                          'Split Evenly',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         onPressed: rawAmt > 0
                             ? () {
                                 HapticFeedback.selectionClick();
@@ -2249,11 +2752,20 @@ class _AddEditTransactionSheetState
                       const SizedBox(width: 4),
                       TextButton(
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: const Text('Clear', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                        child: const Text(
+                          'Clear',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         onPressed: () {
                           HapticFeedback.selectionClick();
                           for (final g in linkedGoals) {
@@ -2273,14 +2785,18 @@ class _AddEditTransactionSheetState
 
             ...linkedGoals.map((goal) {
               final controller = _getGoalAllocationController(goal.id);
-              final progress = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0) : 0.0;
+              final progress = goal.targetAmount > 0
+                  ? (goal.currentAmount / goal.targetAmount).clamp(0.0, 1.0)
+                  : 0.0;
               final needed = max(0.0, goal.targetAmount - goal.currentAmount);
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                  color: isDark
+                      ? AppColors.darkSurface
+                      : AppColors.lightSurface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: financialColors.cardBorder),
                 ),
@@ -2301,13 +2817,19 @@ class _AddEditTransactionSheetState
                             children: [
                               Text(
                                 goal.title,
-                                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 'Saved: ${CurrencyFormatter.format(goal.currentAmount)} / ${CurrencyFormatter.format(goal.targetAmount)} (${(progress * 100).toStringAsFixed(0)}%)',
-                                style: TextStyle(fontSize: 10.5, color: financialColors.textMuted),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: financialColors.textMuted,
+                                ),
                               ),
                             ],
                           ),
@@ -2320,8 +2842,12 @@ class _AddEditTransactionSheetState
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 5,
-                        backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryTeal),
+                        backgroundColor: isDark
+                            ? AppColors.darkSurfaceVariant
+                            : AppColors.lightSurfaceVariant,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.primaryTeal,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -2332,27 +2858,52 @@ class _AddEditTransactionSheetState
                             height: 40,
                             child: TextFormField(
                               controller: controller,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
                               decoration: InputDecoration(
-                                prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
-                                prefixStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                prefixText:
+                                    '${CurrencyFormatter.activeCurrency.symbol} ',
+                                prefixStyle: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 hintText: '0.00',
-                                hintStyle: TextStyle(fontSize: 12, color: financialColors.textMuted),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                hintStyle: TextStyle(
+                                  fontSize: 12,
+                                  color: financialColors.textMuted,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
                                 filled: true,
-                                fillColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                                fillColor: isDark
+                                    ? AppColors.darkSurfaceVariant
+                                    : AppColors.lightSurfaceVariant,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: financialColors.cardBorder),
+                                  borderSide: BorderSide(
+                                    color: financialColors.cardBorder,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: financialColors.cardBorder),
+                                  borderSide: BorderSide(
+                                    color: financialColors.cardBorder,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: AppColors.primaryTeal, width: 1.5),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.primaryTeal,
+                                    width: 1.5,
+                                  ),
                                 ),
                               ),
                               onChanged: (val) {
@@ -2367,22 +2918,43 @@ class _AddEditTransactionSheetState
                           ActionChip(
                             label: const Text('+ Fill Remainder'),
                             visualDensity: VisualDensity.compact,
-                            backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                            side: BorderSide(color: AppColors.primaryTeal.withAlpha(80)),
-                            labelStyle: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.primaryTeal),
+                            backgroundColor: isDark
+                                ? AppColors.darkSurfaceVariant
+                                : AppColors.lightSurfaceVariant,
+                            side: BorderSide(
+                              color: AppColors.primaryTeal.withAlpha(80),
+                            ),
+                            labelStyle: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryTeal,
+                            ),
                             onPressed: rawAmt > 0
                                 ? () {
                                     HapticFeedback.selectionClick();
                                     double otherAllocated = 0.0;
                                     for (final other in linkedGoals) {
                                       if (other.id != goal.id) {
-                                        final otherC = _getGoalAllocationController(other.id);
-                                        otherAllocated += MathExpressionParser.tryEvaluate(otherC.text.trim()) ?? 0.0;
+                                        final otherC =
+                                            _getGoalAllocationController(
+                                              other.id,
+                                            );
+                                        otherAllocated +=
+                                            MathExpressionParser.tryEvaluate(
+                                              otherC.text.trim(),
+                                            ) ??
+                                            0.0;
                                       }
                                     }
-                                    final fillAmt = max(0.0, rawAmt - otherAllocated);
-                                    final targetFill = needed > 0 ? min(fillAmt, needed) : fillAmt;
-                                    final rounded = targetFill == targetFill.roundToDouble()
+                                    final fillAmt = max(
+                                      0.0,
+                                      rawAmt - otherAllocated,
+                                    );
+                                    final targetFill = needed > 0
+                                        ? min(fillAmt, needed)
+                                        : fillAmt;
+                                    final rounded =
+                                        targetFill == targetFill.roundToDouble()
                                         ? targetFill.toInt().toString()
                                         : targetFill.toStringAsFixed(2);
                                     controller.text = rounded;
@@ -2404,15 +2976,23 @@ class _AddEditTransactionSheetState
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: (isOverAllocated ? AppColors.expense : AppColors.primaryTeal).withAlpha(isDark ? 25 : 15),
+                color:
+                    (isOverAllocated
+                            ? AppColors.expense
+                            : AppColors.primaryTeal)
+                        .withAlpha(isDark ? 25 : 15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 children: [
                   Icon(
-                    isOverAllocated ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+                    isOverAllocated
+                        ? Icons.error_outline_rounded
+                        : Icons.check_circle_outline_rounded,
                     size: 16,
-                    color: isOverAllocated ? AppColors.expense : AppColors.primaryTeal,
+                    color: isOverAllocated
+                        ? AppColors.expense
+                        : AppColors.primaryTeal,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -2425,7 +3005,9 @@ class _AddEditTransactionSheetState
                         fontWeight: FontWeight.w700,
                         color: isOverAllocated
                             ? AppColors.expense
-                            : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                            : (isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary),
                       ),
                     ),
                   ),
@@ -2449,16 +3031,20 @@ class _AddEditTransactionSheetState
     final isSelected = isOriginal
         ? (_selectedDate == targetDate)
         : (_selectedDate.year == targetDate.year &&
-            _selectedDate.month == targetDate.month &&
-            _selectedDate.day == targetDate.day);
+              _selectedDate.month == targetDate.month &&
+              _selectedDate.day == targetDate.day);
 
     return ActionChip(
       label: Text(label),
       backgroundColor: isSelected
           ? AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40)
-          : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+          : (isDark
+                ? AppColors.darkSurfaceVariant
+                : AppColors.lightSurfaceVariant),
       side: BorderSide(
-        color: isSelected ? AppColors.primaryEmerald : financialColors.cardBorder,
+        color: isSelected
+            ? AppColors.primaryEmerald
+            : financialColors.cardBorder,
         width: isSelected ? 1.5 : 1,
       ),
       visualDensity: VisualDensity.compact,
@@ -2467,7 +3053,9 @@ class _AddEditTransactionSheetState
         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
         color: isSelected
             ? (isDark ? AppColors.primaryEmerald : const Color(0xFF047857))
-            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+            : (isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary),
       ),
       onPressed: () {
         HapticFeedback.selectionClick();
@@ -2500,11 +3088,12 @@ class _AddEditTransactionSheetState
     final now = DateTime.now();
     final isSelected = isNow
         ? (_selectedDate.year == now.year &&
-            _selectedDate.month == now.month &&
-            _selectedDate.day == now.day &&
-            _selectedDate.hour == now.hour &&
-            (_selectedDate.minute - now.minute).abs() <= 1)
-        : (_selectedDate.hour == targetHour && _selectedDate.minute == targetMinute);
+              _selectedDate.month == now.month &&
+              _selectedDate.day == now.day &&
+              _selectedDate.hour == now.hour &&
+              (_selectedDate.minute - now.minute).abs() <= 1)
+        : (_selectedDate.hour == targetHour &&
+              _selectedDate.minute == targetMinute);
 
     return ActionChip(
       avatar: Icon(
@@ -2517,9 +3106,13 @@ class _AddEditTransactionSheetState
       label: Text(label),
       backgroundColor: isSelected
           ? AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40)
-          : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+          : (isDark
+                ? AppColors.darkSurfaceVariant
+                : AppColors.lightSurfaceVariant),
       side: BorderSide(
-        color: isSelected ? AppColors.primaryEmerald : financialColors.cardBorder,
+        color: isSelected
+            ? AppColors.primaryEmerald
+            : financialColors.cardBorder,
         width: isSelected ? 1.5 : 1,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
@@ -2529,7 +3122,9 @@ class _AddEditTransactionSheetState
         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
         color: isSelected
             ? (isDark ? AppColors.primaryEmerald : const Color(0xFF047857))
-            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+            : (isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary),
       ),
       onPressed: () {
         if (isNow) {
@@ -2555,18 +3150,27 @@ class _AddEditTransactionSheetState
           return Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              color: isDark
+                  ? AppColors.darkSurfaceVariant
+                  : AppColors.lightSurfaceVariant,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: financialColors.cardBorder),
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.warning),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: AppColors.warning,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'No bank accounts configured. Will record as general Bank Account.',
-                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: financialColors.textMuted,
+                    ),
                   ),
                 ),
               ],
@@ -2574,8 +3178,12 @@ class _AddEditTransactionSheetState
           );
         }
 
-        final currentValid = bankAccounts.any((a) => a.id == _selectedAccountId);
-        final selectedVal = currentValid ? _selectedAccountId : (bankAccounts.isNotEmpty ? bankAccounts.first.id : null);
+        final currentValid = bankAccounts.any(
+          (a) => a.id == _selectedAccountId,
+        );
+        final selectedVal = currentValid
+            ? _selectedAccountId
+            : (bankAccounts.isNotEmpty ? bankAccounts.first.id : null);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2593,7 +3201,10 @@ class _AddEditTransactionSheetState
                   value: acc.id,
                   child: Text(
                     '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 );
@@ -2612,15 +3223,26 @@ class _AddEditTransactionSheetState
             ),
             Builder(
               builder: (context) {
-                final matchedAccount = bankAccounts.where((a) => a.id == selectedVal).firstOrNull;
-                final rawAmount = MathExpressionParser.tryEvaluate(_amountController.text.trim()) ?? 0.0;
-                final prevDeduction = (_isEditMode &&
-                        widget.initialTransaction?.accountId == matchedAccount?.id &&
-                        widget.initialTransaction?.type == TransactionType.expense)
+                final matchedAccount = bankAccounts
+                    .where((a) => a.id == selectedVal)
+                    .firstOrNull;
+                final rawAmount =
+                    MathExpressionParser.tryEvaluate(
+                      _amountController.text.trim(),
+                    ) ??
+                    0.0;
+                final prevDeduction =
+                    (_isEditMode &&
+                        widget.initialTransaction?.accountId ==
+                            matchedAccount?.id &&
+                        widget.initialTransaction?.type ==
+                            TransactionType.expense)
                     ? widget.initialTransaction!.amount
                     : 0.0;
-                final effectiveBalance = (matchedAccount?.currentBalance ?? 0.0) + prevDeduction;
-                final isOverdraft = _selectedType == TransactionType.expense &&
+                final effectiveBalance =
+                    (matchedAccount?.currentBalance ?? 0.0) + prevDeduction;
+                final isOverdraft =
+                    _selectedType == TransactionType.expense &&
                     matchedAccount != null &&
                     rawAmount > 0 &&
                     (effectiveBalance - rawAmount < 0);
@@ -2629,18 +3251,27 @@ class _AddEditTransactionSheetState
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.warning.withAlpha(25),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.warning.withAlpha(80)),
+                      border: Border.all(
+                        color: AppColors.warning.withAlpha(80),
+                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Padding(
                           padding: EdgeInsets.only(top: 1),
-                          child: Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+                          child: Icon(
+                            Icons.info_outline_rounded,
+                            color: AppColors.warning,
+                            size: 16,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -2649,7 +3280,9 @@ class _AddEditTransactionSheetState
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.warning : const Color(0xFFB45309),
+                              color: isDark
+                                  ? AppColors.warning
+                                  : const Color(0xFFB45309),
                             ),
                           ),
                         ),
@@ -2667,18 +3300,27 @@ class _AddEditTransactionSheetState
           return Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              color: isDark
+                  ? AppColors.darkSurfaceVariant
+                  : AppColors.lightSurfaceVariant,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: financialColors.cardBorder),
             ),
             child: Row(
               children: [
-                const Icon(Icons.credit_card_off_rounded, size: 18, color: AppColors.warning),
+                const Icon(
+                  Icons.credit_card_off_rounded,
+                  size: 18,
+                  color: AppColors.warning,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'No credit cards added. Will record as general Credit Card.',
-                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: financialColors.textMuted,
+                    ),
                   ),
                 ),
               ],
@@ -2686,8 +3328,12 @@ class _AddEditTransactionSheetState
           );
         }
 
-        final currentValid = creditCards.any((c) => c.id == _selectedCreditCardId);
-        final selectedVal = currentValid ? _selectedCreditCardId : (creditCards.isNotEmpty ? creditCards.first.id : null);
+        final currentValid = creditCards.any(
+          (c) => c.id == _selectedCreditCardId,
+        );
+        final selectedVal = currentValid
+            ? _selectedCreditCardId
+            : (creditCards.isNotEmpty ? creditCards.first.id : null);
 
         return DropdownButtonFormField<String>(
           key: ValueKey('card_$selectedVal'),
@@ -2701,7 +3347,10 @@ class _AddEditTransactionSheetState
               value: card.id,
               child: Text(
                 '💳 ${card.cardName} (${card.bankName}) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             );
@@ -2719,23 +3368,34 @@ class _AddEditTransactionSheetState
         );
 
       case PaymentMode.upiWallet:
-        final rupayCards = creditCards.where((c) => c.cardNetwork == CardNetwork.rupay).toList();
+        final rupayCards = creditCards
+            .where((c) => c.cardNetwork == CardNetwork.rupay)
+            .toList();
         if (bankAccounts.isEmpty && rupayCards.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              color: isDark
+                  ? AppColors.darkSurfaceVariant
+                  : AppColors.lightSurfaceVariant,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: financialColors.cardBorder),
             ),
             child: Row(
               children: [
-                const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.warning),
+                const Icon(
+                  Icons.qr_code_scanner_rounded,
+                  size: 18,
+                  color: AppColors.warning,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'No bank accounts or RuPay cards added. Will record as UPI / Wallet.',
-                    style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: financialColors.textMuted,
+                    ),
                   ),
                 ),
               ],
@@ -2748,26 +3408,38 @@ class _AddEditTransactionSheetState
             : (_selectedAccountId != null ? 'acc_$_selectedAccountId' : null);
 
         final items = <DropdownMenuItem<String>>[
-          ...bankAccounts.map((acc) => DropdownMenuItem<String>(
-                value: 'acc_${acc.id}',
-                child: Text(
-                  '🏦 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
+          ...bankAccounts.map(
+            (acc) => DropdownMenuItem<String>(
+              value: 'acc_${acc.id}',
+              child: Text(
+                '🏦 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-              )),
-          ...rupayCards.map((card) => DropdownMenuItem<String>(
-                value: 'card_${card.id}',
-                child: Text(
-                  '💳 ${card.cardName} (RuPay UPI) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          ...rupayCards.map(
+            (card) => DropdownMenuItem<String>(
+              value: 'card_${card.id}',
+              child: Text(
+                '💳 ${card.cardName} (RuPay UPI) • Avail: ${CurrencyFormatter.format(card.availableLimit)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-              )),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ];
 
         final isKeyValid = items.any((i) => i.value == upiKey);
-        final selectedUpiVal = isKeyValid ? upiKey : (items.isNotEmpty ? items.first.value : null);
+        final selectedUpiVal = isKeyValid
+            ? upiKey
+            : (items.isNotEmpty ? items.first.value : null);
 
         return DropdownButtonFormField<String>(
           key: ValueKey('upi_$selectedUpiVal'),
@@ -2799,18 +3471,26 @@ class _AddEditTransactionSheetState
         );
 
       case PaymentMode.cash:
-        final cashAccounts = bankAccounts.where((a) => a.accountType == AccountType.cash).toList();
+        final cashAccounts = bankAccounts
+            .where((a) => a.accountType == AccountType.cash)
+            .toList();
         if (cashAccounts.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              color: isDark
+                  ? AppColors.darkSurfaceVariant
+                  : AppColors.lightSurfaceVariant,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: financialColors.cardBorder),
             ),
             child: Row(
               children: [
-                const Icon(Icons.payments_rounded, size: 18, color: AppColors.income),
+                const Icon(
+                  Icons.payments_rounded,
+                  size: 18,
+                  color: AppColors.income,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -2818,7 +3498,9 @@ class _AddEditTransactionSheetState
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
                     ),
                   ),
                 ),
@@ -2827,8 +3509,12 @@ class _AddEditTransactionSheetState
           );
         }
 
-        final currentValid = cashAccounts.any((a) => a.id == _selectedAccountId);
-        final initialVal = currentValid ? _selectedAccountId : cashAccounts.first.id;
+        final currentValid = cashAccounts.any(
+          (a) => a.id == _selectedAccountId,
+        );
+        final initialVal = currentValid
+            ? _selectedAccountId
+            : cashAccounts.first.id;
 
         return DropdownButtonFormField<String>(
           initialValue: initialVal,
@@ -2841,7 +3527,10 @@ class _AddEditTransactionSheetState
               value: acc.id,
               child: Text(
                 '💵 ${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             );
@@ -2859,9 +3548,14 @@ class _AddEditTransactionSheetState
     }
   }
 
-  Widget _buildSharedExpenseSection(ThemeData theme, AppFinancialColors financialColors, bool isDark) {
+  Widget _buildSharedExpenseSection(
+    ThemeData theme,
+    AppFinancialColors financialColors,
+    bool isDark,
+  ) {
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
-    final myShare = double.tryParse(_myShareController.text.trim()) ?? (amount / 2);
+    final myShare =
+        double.tryParse(_myShareController.text.trim()) ?? (amount / 2);
     final friendsShare = (amount - myShare).clamp(0.0, amount);
 
     return Container(
@@ -2870,7 +3564,9 @@ class _AddEditTransactionSheetState
       decoration: BoxDecoration(
         color: _isShared
             ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))
-            : (isDark ? AppColors.darkSurfaceVariant.withAlpha(128) : AppColors.lightSurfaceVariant.withAlpha(128)),
+            : (isDark
+                  ? AppColors.darkSurfaceVariant.withAlpha(128)
+                  : AppColors.lightSurfaceVariant.withAlpha(128)),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: _isShared
@@ -2895,7 +3591,9 @@ class _AddEditTransactionSheetState
                 child: Icon(
                   Icons.group_outlined,
                   size: 20,
-                  color: _isShared ? AppColors.primaryEmerald : financialColors.textMuted,
+                  color: _isShared
+                      ? AppColors.primaryEmerald
+                      : financialColors.textMuted,
                 ),
               ),
               const SizedBox(width: 12),
@@ -2907,7 +3605,9 @@ class _AddEditTransactionSheetState
                       'Split / Shared with Others',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: _isShared ? theme.colorScheme.onSurface : financialColors.textMuted,
+                        color: _isShared
+                            ? theme.colorScheme.onSurface
+                            : financialColors.textMuted,
                       ),
                     ),
                     Text(
@@ -2930,9 +3630,11 @@ class _AddEditTransactionSheetState
                   setState(() {
                     _isShared = val;
                     if (val && _myShareController.text.isEmpty) {
-                      final currentAmt = double.tryParse(_amountController.text.trim()) ?? 0;
+                      final currentAmt =
+                          double.tryParse(_amountController.text.trim()) ?? 0;
                       if (currentAmt > 0) {
-                        _myShareController.text = (currentAmt / 2).toStringAsFixed(0);
+                        _myShareController.text = (currentAmt / 2)
+                            .toStringAsFixed(0);
                       }
                     }
                   });
@@ -2953,16 +3655,27 @@ class _AddEditTransactionSheetState
             const SizedBox(height: 8),
             TextFormField(
               controller: _myShareController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
               ],
               decoration: InputDecoration(
                 prefixIcon: Padding(
                   padding: const EdgeInsets.only(left: 12, right: 8),
-                  child: Text(CurrencyFormatter.activeCurrency.symbol, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    CurrencyFormatter.activeCurrency.symbol,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 0,
+                  minHeight: 0,
+                ),
                 hintText: 'Your personal cost portion',
               ),
               onChanged: (_) => setState(() {}),
@@ -2975,9 +3688,13 @@ class _AddEditTransactionSheetState
                 children: [
                   ActionChip(
                     label: const Text('Split 50/50'),
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    labelStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                     onPressed: () {
-                      final amt = double.tryParse(_amountController.text.trim()) ?? 0;
+                      final amt =
+                          double.tryParse(_amountController.text.trim()) ?? 0;
                       setState(() {
                         _myShareController.text = (amt / 2).toStringAsFixed(0);
                       });
@@ -2986,9 +3703,13 @@ class _AddEditTransactionSheetState
                   const SizedBox(width: 6),
                   ActionChip(
                     label: const Text('Split 1/3'),
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    labelStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                     onPressed: () {
-                      final amt = double.tryParse(_amountController.text.trim()) ?? 0;
+                      final amt =
+                          double.tryParse(_amountController.text.trim()) ?? 0;
                       setState(() {
                         _myShareController.text = (amt / 3).toStringAsFixed(0);
                       });
@@ -2997,9 +3718,13 @@ class _AddEditTransactionSheetState
                   const SizedBox(width: 6),
                   ActionChip(
                     label: const Text('Split 1/4'),
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    labelStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                     onPressed: () {
-                      final amt = double.tryParse(_amountController.text.trim()) ?? 0;
+                      final amt =
+                          double.tryParse(_amountController.text.trim()) ?? 0;
                       setState(() {
                         _myShareController.text = (amt / 4).toStringAsFixed(0);
                       });
@@ -3007,8 +3732,13 @@ class _AddEditTransactionSheetState
                   ),
                   const SizedBox(width: 6),
                   ActionChip(
-                    label: Text('I paid 100% for them (${CurrencyFormatter.activeCurrency.symbol}0 share)'),
-                    labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    label: Text(
+                      'I paid 100% for them (${CurrencyFormatter.activeCurrency.symbol}0 share)',
+                    ),
+                    labelStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                     onPressed: () {
                       setState(() {
                         _myShareController.text = '0';
@@ -3036,11 +3766,17 @@ class _AddEditTransactionSheetState
                 ),
                 TextButton.icon(
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.manage_accounts_outlined, size: 16),
-                  label: const Text('Saved Friends', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  label: const Text(
+                    'Saved Friends',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
                   onPressed: () => _showManageFriendsDialog(context),
                 ),
               ],
@@ -3058,26 +3794,38 @@ class _AddEditTransactionSheetState
                     child: Row(
                       children: savedFriends.map((friend) {
                         final isAlreadyAdded = _personSplits.any(
-                          (p) => p.nameController.text.trim().toLowerCase() == friend.toLowerCase(),
+                          (p) =>
+                              p.nameController.text.trim().toLowerCase() ==
+                              friend.toLowerCase(),
                         );
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: ActionChip(
                             avatar: Icon(
-                              isAlreadyAdded ? Icons.check_rounded : Icons.add_rounded,
+                              isAlreadyAdded
+                                  ? Icons.check_rounded
+                                  : Icons.add_rounded,
                               size: 14,
-                              color: isAlreadyAdded ? AppColors.primaryEmerald : financialColors.textMuted,
+                              color: isAlreadyAdded
+                                  ? AppColors.primaryEmerald
+                                  : financialColors.textMuted,
                             ),
                             label: Text(friend),
                             labelStyle: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: isAlreadyAdded ? AppColors.primaryEmerald : null,
+                              color: isAlreadyAdded
+                                  ? AppColors.primaryEmerald
+                                  : null,
                             ),
                             backgroundColor: isAlreadyAdded
                                 ? AppColors.primaryEmerald.withAlpha(25)
-                                : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
-                            onPressed: isAlreadyAdded ? null : () => _addPersonSplit(friend),
+                                : (isDark
+                                      ? AppColors.darkSurfaceVariant
+                                      : AppColors.lightSurfaceVariant),
+                            onPressed: isAlreadyAdded
+                                ? null
+                                : () => _addPersonSplit(friend),
                           ),
                         );
                       }).toList(),
@@ -3100,10 +3848,19 @@ class _AddEditTransactionSheetState
                           controller: entry.nameController,
                           decoration: const InputDecoration(
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                             hintText: 'Friend name',
-                            prefixIcon: Icon(Icons.person_outline_rounded, size: 18),
-                            prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 0),
+                            prefixIcon: Icon(
+                              Icons.person_outline_rounded,
+                              size: 18,
+                            ),
+                            prefixIconConstraints: BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 0,
+                            ),
                           ),
                           onChanged: (_) => setState(() {}),
                         ),
@@ -3113,24 +3870,42 @@ class _AddEditTransactionSheetState
                         flex: 4,
                         child: TextFormField(
                           controller: entry.amountController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           inputFormatters: [
-                            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d+\.?\d{0,2}'),
+                            ),
                           ],
                           decoration: InputDecoration(
                             isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                             hintText: 'Share amount',
-                            prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
-                            prefixStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            prefixText:
+                                '${CurrencyFormatter.activeCurrency.symbol} ',
+                            prefixStyle: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                           ),
                           onChanged: (_) => setState(() {}),
                         ),
                       ),
                       IconButton(
-                        icon: Icon(Icons.remove_circle_outline_rounded, size: 20, color: financialColors.expense),
+                        icon: Icon(
+                          Icons.remove_circle_outline_rounded,
+                          size: 20,
+                          color: financialColors.expense,
+                        ),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 32,
+                        ),
                         visualDensity: VisualDensity.compact,
                         onPressed: () {
                           setState(() {
@@ -3148,22 +3923,37 @@ class _AddEditTransactionSheetState
               children: [
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.person_add_rounded, size: 16),
-                  label: const Text('Add Person', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  label: const Text(
+                    'Add Person',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
                   onPressed: () => _addPersonSplit(),
                 ),
                 if (_personSplits.length > 1) ...[
                   const SizedBox(width: 8),
                   TextButton.icon(
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.balance_rounded, size: 16),
-                    label: const Text('Split Evenly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    label: const Text(
+                      'Split Evenly',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     onPressed: _splitEvenlyAmongFriends,
                   ),
                 ],
@@ -3174,7 +3964,8 @@ class _AddEditTransactionSheetState
               builder: (_) {
                 double totalAssigned = 0;
                 for (final p in _personSplits) {
-                  totalAssigned += double.tryParse(p.amountController.text.trim()) ?? 0;
+                  totalAssigned +=
+                      double.tryParse(p.amountController.text.trim()) ?? 0;
                 }
                 final diff = friendsShare - totalAssigned;
                 if (_personSplits.isNotEmpty && diff.abs() > 0.01) {
@@ -3202,7 +3993,10 @@ class _AddEditTransactionSheetState
                 hintText: 'Additional split notes (optional)',
                 isDense: true,
                 prefixIcon: Icon(Icons.note_alt_outlined, size: 18),
-                prefixIconConstraints: BoxConstraints(minWidth: 36, minHeight: 0),
+                prefixIconConstraints: BoxConstraints(
+                  minWidth: 36,
+                  minHeight: 0,
+                ),
               ),
             ),
             const SizedBox(height: 14),
@@ -3212,11 +4006,17 @@ class _AddEditTransactionSheetState
               decoration: BoxDecoration(
                 color: AppColors.primaryEmerald.withAlpha(20),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primaryEmerald.withAlpha(51)),
+                border: Border.all(
+                  color: AppColors.primaryEmerald.withAlpha(51),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primaryEmerald),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: AppColors.primaryEmerald,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -3225,7 +4025,9 @@ class _AddEditTransactionSheetState
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w500,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
                       ),
                     ),
                   ),
@@ -3238,7 +4040,11 @@ class _AddEditTransactionSheetState
     );
   }
 
-  Widget _buildMoneyLentSection(ThemeData theme, AppFinancialColors financialColors, bool isDark) {
+  Widget _buildMoneyLentSection(
+    ThemeData theme,
+    AppFinancialColors financialColors,
+    bool isDark,
+  ) {
     final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
     final expectedInterest = _calculateExpectedInterest(amount);
     final totalExpected = amount + expectedInterest;
@@ -3249,10 +4055,7 @@ class _AddEditTransactionSheetState
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primaryEmerald,
-          width: 1.5,
-        ),
+        border: Border.all(color: AppColors.primaryEmerald, width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3329,11 +4132,17 @@ class _AddEditTransactionSheetState
               ),
               TextButton.icon(
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   visualDensity: VisualDensity.compact,
                 ),
                 icon: const Icon(Icons.manage_accounts_outlined, size: 16),
-                label: const Text('Saved Friends', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                label: const Text(
+                  'Saved Friends',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                ),
                 onPressed: () => _showManageFriendsDialog(context),
               ),
             ],
@@ -3351,14 +4160,20 @@ class _AddEditTransactionSheetState
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: savedFriends.map((friend) {
-                      final isSelected = _borrowerNameController.text.trim().toLowerCase() == friend.toLowerCase();
+                      final isSelected =
+                          _borrowerNameController.text.trim().toLowerCase() ==
+                          friend.toLowerCase();
                       return Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: ActionChip(
                           avatar: Icon(
-                            isSelected ? Icons.check_rounded : Icons.person_outline_rounded,
+                            isSelected
+                                ? Icons.check_rounded
+                                : Icons.person_outline_rounded,
                             size: 14,
-                            color: isSelected ? AppColors.primaryEmerald : financialColors.textMuted,
+                            color: isSelected
+                                ? AppColors.primaryEmerald
+                                : financialColors.textMuted,
                           ),
                           label: Text(friend),
                           labelStyle: TextStyle(
@@ -3368,13 +4183,17 @@ class _AddEditTransactionSheetState
                           ),
                           backgroundColor: isSelected
                               ? AppColors.primaryEmerald.withAlpha(25)
-                              : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                              : (isDark
+                                    ? AppColors.darkSurfaceVariant
+                                    : AppColors.lightSurfaceVariant),
                           onPressed: () {
                             HapticFeedback.selectionClick();
                             setState(() {
                               _borrowerNameController.text = friend;
                               if (_titleController.text.isEmpty ||
-                                  _titleController.text.startsWith('Money Lent')) {
+                                  _titleController.text.startsWith(
+                                    'Money Lent',
+                                  )) {
                                 _titleController.text = 'Money Lent to $friend';
                               }
                             });
@@ -3396,8 +4215,11 @@ class _AddEditTransactionSheetState
             ),
             onChanged: (val) {
               setState(() {
-                if (_titleController.text.isEmpty || _titleController.text.startsWith('Money Lent')) {
-                  _titleController.text = val.trim().isEmpty ? 'Money Lent to Friend' : 'Money Lent to ${val.trim()}';
+                if (_titleController.text.isEmpty ||
+                    _titleController.text.startsWith('Money Lent')) {
+                  _titleController.text = val.trim().isEmpty
+                      ? 'Money Lent to Friend'
+                      : 'Money Lent to ${val.trim()}';
                 }
               });
             },
@@ -3418,7 +4240,9 @@ class _AddEditTransactionSheetState
             onTap: () async {
               final picked = await showDatePicker(
                 context: context,
-                initialDate: _expectedReturnDate ?? DateTime.now().add(const Duration(days: 30)),
+                initialDate:
+                    _expectedReturnDate ??
+                    DateTime.now().add(const Duration(days: 30)),
                 firstDate: DateTime(2020),
                 lastDate: DateTime(2040),
               );
@@ -3430,7 +4254,9 @@ class _AddEditTransactionSheetState
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                color: isDark
+                    ? AppColors.darkSurfaceVariant
+                    : AppColors.lightSurfaceVariant,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: financialColors.cardBorder),
               ),
@@ -3439,7 +4265,9 @@ class _AddEditTransactionSheetState
                   Icon(
                     Icons.event_available_rounded,
                     size: 18,
-                    color: _expectedReturnDate != null ? AppColors.primaryEmerald : financialColors.textMuted,
+                    color: _expectedReturnDate != null
+                        ? AppColors.primaryEmerald
+                        : financialColors.textMuted,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -3449,9 +4277,13 @@ class _AddEditTransactionSheetState
                           : 'No fixed deadline (Flexible payback)',
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: _expectedReturnDate != null ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: _expectedReturnDate != null
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         color: _expectedReturnDate != null
-                            ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+                            ? (isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary)
                             : financialColors.textMuted,
                       ),
                     ),
@@ -3459,7 +4291,11 @@ class _AddEditTransactionSheetState
                   if (_expectedReturnDate != null)
                     GestureDetector(
                       onTap: () => setState(() => _expectedReturnDate = null),
-                      child: const Icon(Icons.close_rounded, size: 18, color: Colors.grey),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
                     ),
                 ],
               ),
@@ -3482,7 +4318,9 @@ class _AddEditTransactionSheetState
             height: 40,
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              color: isDark
+                  ? AppColors.darkSurfaceVariant
+                  : AppColors.lightSurfaceVariant,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: financialColors.cardBorder),
             ),
@@ -3499,7 +4337,9 @@ class _AddEditTransactionSheetState
                     borderRadius: BorderRadius.circular(7),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: _isInterestPercentage ? AppColors.primaryEmerald : Colors.transparent,
+                        color: _isInterestPercentage
+                            ? AppColors.primaryEmerald
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(7),
                       ),
                       alignment: Alignment.center,
@@ -3511,7 +4351,9 @@ class _AddEditTransactionSheetState
                           Icon(
                             Icons.percent_rounded,
                             size: 15,
-                            color: _isInterestPercentage ? Colors.white : financialColors.textMuted,
+                            color: _isInterestPercentage
+                                ? Colors.white
+                                : financialColors.textMuted,
                           ),
                           const SizedBox(width: 4),
                           Flexible(
@@ -3524,7 +4366,9 @@ class _AddEditTransactionSheetState
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: _isInterestPercentage ? Colors.white : financialColors.textMuted,
+                                  color: _isInterestPercentage
+                                      ? Colors.white
+                                      : financialColors.textMuted,
                                 ),
                               ),
                             ),
@@ -3545,7 +4389,9 @@ class _AddEditTransactionSheetState
                     borderRadius: BorderRadius.circular(7),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: !_isInterestPercentage ? AppColors.primaryEmerald : Colors.transparent,
+                        color: !_isInterestPercentage
+                            ? AppColors.primaryEmerald
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(7),
                       ),
                       alignment: Alignment.center,
@@ -3557,7 +4403,9 @@ class _AddEditTransactionSheetState
                           Icon(
                             Icons.payments_rounded,
                             size: 15,
-                            color: !_isInterestPercentage ? Colors.white : financialColors.textMuted,
+                            color: !_isInterestPercentage
+                                ? Colors.white
+                                : financialColors.textMuted,
                           ),
                           const SizedBox(width: 4),
                           Flexible(
@@ -3570,7 +4418,9 @@ class _AddEditTransactionSheetState
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: !_isInterestPercentage ? Colors.white : financialColors.textMuted,
+                                  color: !_isInterestPercentage
+                                      ? Colors.white
+                                      : financialColors.textMuted,
                                 ),
                               ),
                             ),
@@ -3591,9 +4441,13 @@ class _AddEditTransactionSheetState
               FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
             ],
             decoration: InputDecoration(
-              hintText: _isInterestPercentage ? 'e.g. 5 (means 5% interest rate)' : 'e.g. 500 (extra flat return)',
+              hintText: _isInterestPercentage
+                  ? 'e.g. 5 (means 5% interest rate)'
+                  : 'e.g. 500 (extra flat return)',
               prefixIcon: Icon(
-                _isInterestPercentage ? Icons.percent_rounded : Icons.payments_rounded,
+                _isInterestPercentage
+                    ? Icons.percent_rounded
+                    : Icons.payments_rounded,
                 size: 18,
               ),
               suffixIcon: _loanInterestController.text.isNotEmpty
@@ -3627,14 +4481,20 @@ class _AddEditTransactionSheetState
                   children: [
                     Text(
                       'Principal Amount:',
-                      style: TextStyle(fontSize: 12, color: financialColors.textMuted, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: financialColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     Text(
                       CurrencyFormatter.format(amount),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
                       ),
                     ),
                   ],
@@ -3646,11 +4506,19 @@ class _AddEditTransactionSheetState
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.add_circle_outline_rounded, size: 14, color: AppColors.primaryEmerald),
+                        const Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 14,
+                          color: AppColors.primaryEmerald,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Expected Interest:',
-                          style: TextStyle(fontSize: 12, color: financialColors.textMuted, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: financialColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -3675,7 +4543,9 @@ class _AddEditTransactionSheetState
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
                       ),
                     ),
                     Text(
@@ -3698,7 +4568,8 @@ class _AddEditTransactionSheetState
 
   void _addPersonSplit([String name = '']) {
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
-    final myShare = double.tryParse(_myShareController.text.trim()) ?? (amount / 2);
+    final myShare =
+        double.tryParse(_myShareController.text.trim()) ?? (amount / 2);
     final friendsShare = (amount - myShare).clamp(0.0, amount);
 
     double assigned = 0;
@@ -3706,24 +4577,25 @@ class _AddEditTransactionSheetState
       assigned += double.tryParse(p.amountController.text.trim()) ?? 0;
     }
     final remaining = (friendsShare - assigned).clamp(0.0, friendsShare);
-    final defaultAmt = remaining > 0 ? remaining : (friendsShare / (_personSplits.length + 1));
+    final defaultAmt = remaining > 0
+        ? remaining
+        : (friendsShare / (_personSplits.length + 1));
     final defaultAmtStr = defaultAmt > 0
         ? (defaultAmt == defaultAmt.roundToDouble()
-            ? defaultAmt.toInt().toString()
-            : defaultAmt.toStringAsFixed(0))
+              ? defaultAmt.toInt().toString()
+              : defaultAmt.toStringAsFixed(0))
         : '';
 
     setState(() {
-      _personSplits.add(
-        _PersonSplitEntry(name: name, amount: defaultAmtStr),
-      );
+      _personSplits.add(_PersonSplitEntry(name: name, amount: defaultAmtStr));
     });
   }
 
   void _splitEvenlyAmongFriends() {
     if (_personSplits.isEmpty) return;
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
-    final myShare = double.tryParse(_myShareController.text.trim()) ?? (amount / 2);
+    final myShare =
+        double.tryParse(_myShareController.text.trim()) ?? (amount / 2);
     final friendsShare = (amount - myShare).clamp(0.0, amount);
 
     final perPerson = friendsShare / _personSplits.length;
@@ -3775,12 +4647,17 @@ class _AddEditTransactionSheetState
                           decoration: const InputDecoration(
                             hintText: 'Enter friend / roommate name',
                             isDense: true,
-                            prefixIcon: Icon(Icons.person_add_alt_1_rounded, size: 18),
+                            prefixIcon: Icon(
+                              Icons.person_add_alt_1_rounded,
+                              size: 18,
+                            ),
                           ),
                           onSubmitted: (val) {
                             final name = val.trim();
                             if (name.isNotEmpty) {
-                              ref.read(savedFriendsProvider.notifier).addFriend(name);
+                              ref
+                                  .read(savedFriendsProvider.notifier)
+                                  .addFriend(name);
                               textCtrl.clear();
                             }
                           },
@@ -3792,7 +4669,9 @@ class _AddEditTransactionSheetState
                         onPressed: () {
                           final name = textCtrl.text.trim();
                           if (name.isNotEmpty) {
-                            ref.read(savedFriendsProvider.notifier).addFriend(name);
+                            ref
+                                .read(savedFriendsProvider.notifier)
+                                .addFriend(name);
                             textCtrl.clear();
                           }
                         },
@@ -3805,7 +4684,10 @@ class _AddEditTransactionSheetState
                       padding: const EdgeInsets.symmetric(vertical: 20),
                       child: Text(
                         'No saved friends yet. Enter names above or save a split expense to remember friends.',
-                        style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: financialColors.textMuted,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     )
@@ -3823,7 +4705,8 @@ class _AddEditTransactionSheetState
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
                               radius: 14,
-                              backgroundColor: AppColors.primaryEmerald.withAlpha(40),
+                              backgroundColor: AppColors.primaryEmerald
+                                  .withAlpha(40),
                               child: Text(
                                 f.isNotEmpty ? f[0].toUpperCase() : '?',
                                 style: const TextStyle(
@@ -3833,11 +4716,23 @@ class _AddEditTransactionSheetState
                                 ),
                               ),
                             ),
-                            title: Text(f, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            title: Text(
+                              f,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
                             trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 18,
+                                color: Colors.redAccent,
+                              ),
                               onPressed: () {
-                                ref.read(savedFriendsProvider.notifier).removeFriend(f);
+                                ref
+                                    .read(savedFriendsProvider.notifier)
+                                    .removeFriend(f);
                               },
                             ),
                           );
@@ -3867,7 +4762,9 @@ class _AddEditTransactionSheetState
   ) {
     final pendingSplits = ref.watch(pendingSharedExpensesProvider);
 
-    if (_selectedSharedExpenseToSettle == null && pendingSplits.isNotEmpty && _isIncomeReimbursement) {
+    if (_selectedSharedExpenseToSettle == null &&
+        pendingSplits.isNotEmpty &&
+        _isIncomeReimbursement) {
       _selectedSharedExpenseToSettle = pendingSplits.first;
       if (_amountController.text.isEmpty || _amountController.text == '0') {
         final amt = _selectedSharedExpenseToSettle!.pendingReimbursement;
@@ -3875,14 +4772,18 @@ class _AddEditTransactionSheetState
             ? amt.toInt().toString()
             : amt.toStringAsFixed(2);
       }
-      if (_titleController.text.isEmpty || _titleController.text == _selectedCategory) {
-        _titleController.text = 'Reimbursement: ${_selectedSharedExpenseToSettle!.title}';
+      if (_titleController.text.isEmpty ||
+          _titleController.text == _selectedCategory) {
+        _titleController.text =
+            'Reimbursement: ${_selectedSharedExpenseToSettle!.title}';
       }
     }
 
     CreditCardEntity? linkedCard;
     if (_selectedSharedExpenseToSettle?.creditCardId != null) {
-      final matches = creditCards.where((c) => c.id == _selectedSharedExpenseToSettle!.creditCardId);
+      final matches = creditCards.where(
+        (c) => c.id == _selectedSharedExpenseToSettle!.creditCardId,
+      );
       if (matches.isNotEmpty) linkedCard = matches.first;
     }
 
@@ -3892,7 +4793,9 @@ class _AddEditTransactionSheetState
       decoration: BoxDecoration(
         color: _isIncomeReimbursement
             ? (isDark ? const Color(0xFF13221B) : const Color(0xFFECFDF5))
-            : (isDark ? AppColors.darkSurfaceVariant.withAlpha(128) : AppColors.lightSurfaceVariant.withAlpha(128)),
+            : (isDark
+                  ? AppColors.darkSurfaceVariant.withAlpha(128)
+                  : AppColors.lightSurfaceVariant.withAlpha(128)),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: _isIncomeReimbursement
@@ -3917,7 +4820,9 @@ class _AddEditTransactionSheetState
                 child: Icon(
                   Icons.handshake_rounded,
                   size: 20,
-                  color: _isIncomeReimbursement ? AppColors.primaryEmerald : financialColors.textMuted,
+                  color: _isIncomeReimbursement
+                      ? AppColors.primaryEmerald
+                      : financialColors.textMuted,
                 ),
               ),
               const SizedBox(width: 12),
@@ -3929,7 +4834,9 @@ class _AddEditTransactionSheetState
                       'Expense Share (Roommate Payback)',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: _isIncomeReimbursement ? theme.colorScheme.onSurface : financialColors.textMuted,
+                        color: _isIncomeReimbursement
+                            ? theme.colorScheme.onSurface
+                            : financialColors.textMuted,
                       ),
                     ),
                     Text(
@@ -3952,14 +4859,17 @@ class _AddEditTransactionSheetState
                   setState(() {
                     _isIncomeReimbursement = val;
                     if (val) {
-                      _selectedCategory = CategoryConstants.categorySharedReimbursement;
+                      _selectedCategory =
+                          CategoryConstants.categorySharedReimbursement;
                       if (pendingSplits.isNotEmpty) {
                         _selectedSharedExpenseToSettle = pendingSplits.first;
-                        final amt = _selectedSharedExpenseToSettle!.pendingReimbursement;
+                        final amt = _selectedSharedExpenseToSettle!
+                            .pendingReimbursement;
                         _amountController.text = amt == amt.roundToDouble()
                             ? amt.toInt().toString()
                             : amt.toStringAsFixed(2);
-                        _titleController.text = 'Reimbursement: ${_selectedSharedExpenseToSettle!.title}';
+                        _titleController.text =
+                            'Reimbursement: ${_selectedSharedExpenseToSettle!.title}';
                       }
                     }
                   });
@@ -3973,12 +4883,18 @@ class _AddEditTransactionSheetState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.lightSurfaceVariant,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.info),
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 18,
+                      color: AppColors.info,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -4004,7 +4920,9 @@ class _AddEditTransactionSheetState
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                initialValue: _selectedSharedExpenseToSettle?.id ?? pendingSplits.first.id,
+                initialValue:
+                    _selectedSharedExpenseToSettle?.id ??
+                    pendingSplits.first.id,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.receipt_long_rounded, size: 18),
@@ -4015,7 +4933,10 @@ class _AddEditTransactionSheetState
                     child: Text(
                       '${tx.title} (${CurrencyFormatter.format(tx.pendingReimbursement)} pending)',
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   );
                 }).toList(),
@@ -4037,19 +4958,51 @@ class _AddEditTransactionSheetState
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.lightSurfaceVariant,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: financialColors.cardBorder),
                   ),
                   child: Row(
                     children: [
-                      _buildMiniReimbursementStat('Total Bill', CurrencyFormatter.format(_selectedSharedExpenseToSettle!.amount), financialColors, isDark),
+                      _buildMiniReimbursementStat(
+                        'Total Bill',
+                        CurrencyFormatter.format(
+                          _selectedSharedExpenseToSettle!.amount,
+                        ),
+                        financialColors,
+                        isDark,
+                      ),
                       const SizedBox(width: 6),
-                      _buildMiniReimbursementStat('My Share', CurrencyFormatter.format(_selectedSharedExpenseToSettle!.myShareAmount ?? _selectedSharedExpenseToSettle!.amount), financialColors, isDark),
+                      _buildMiniReimbursementStat(
+                        'My Share',
+                        CurrencyFormatter.format(
+                          _selectedSharedExpenseToSettle!.myShareAmount ??
+                              _selectedSharedExpenseToSettle!.amount,
+                        ),
+                        financialColors,
+                        isDark,
+                      ),
                       const SizedBox(width: 6),
-                      _buildMiniReimbursementStat('Friends Owe', CurrencyFormatter.format(_selectedSharedExpenseToSettle!.friendsShare), financialColors, isDark),
+                      _buildMiniReimbursementStat(
+                        'Friends Owe',
+                        CurrencyFormatter.format(
+                          _selectedSharedExpenseToSettle!.friendsShare,
+                        ),
+                        financialColors,
+                        isDark,
+                      ),
                       const SizedBox(width: 6),
-                      _buildMiniReimbursementStat('Pending', CurrencyFormatter.format(_selectedSharedExpenseToSettle!.pendingReimbursement), financialColors, isDark, isHighlight: true),
+                      _buildMiniReimbursementStat(
+                        'Pending',
+                        CurrencyFormatter.format(
+                          _selectedSharedExpenseToSettle!.pendingReimbursement,
+                        ),
+                        financialColors,
+                        isDark,
+                        isHighlight: true,
+                      ),
                     ],
                   ),
                 ),
@@ -4065,7 +5018,11 @@ class _AddEditTransactionSheetState
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.credit_card_rounded, size: 18, color: AppColors.info),
+                        const Icon(
+                          Icons.credit_card_rounded,
+                          size: 18,
+                          color: AppColors.info,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -4073,7 +5030,9 @@ class _AddEditTransactionSheetState
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                              color: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary,
                             ),
                           ),
                         ),
@@ -4121,7 +5080,9 @@ class _AddEditTransactionSheetState
                 fontWeight: FontWeight.w800,
                 color: isHighlight
                     ? AppColors.primaryEmerald
-                    : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                    : (isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary),
               ),
             ),
           ),

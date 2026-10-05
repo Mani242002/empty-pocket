@@ -19,7 +19,12 @@ class LogService {
     }
   }
 
-  static void warning(String tag, String message, [Object? error, StackTrace? stack]) {
+  static void warning(
+    String tag,
+    String message, [
+    Object? error,
+    StackTrace? stack,
+  ]) {
     if (kDebugMode) {
       debugPrint('[WARN][$tag] $message');
       if (error != null) debugPrint('[WARN][$tag] Error: $error');
@@ -27,7 +32,12 @@ class LogService {
     }
   }
 
-  static void error(String tag, String message, [Object? error, StackTrace? stack]) {
+  static void error(
+    String tag,
+    String message, [
+    Object? error,
+    StackTrace? stack,
+  ]) {
     debugPrint('[ERROR][$tag] $message');
     if (error != null) debugPrint('[ERROR][$tag] Details: $error');
     if (stack != null && kDebugMode) debugPrint('[ERROR][$tag] Stack: $stack');

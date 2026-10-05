@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'transaction_entity.dart';
 
 class CategoryItem {
@@ -19,7 +20,8 @@ class CategoryItem {
 
 abstract class CategoryConstants {
   // Centralized Category String Constants
-  static const String categorySharedReimbursement = 'Shared Expense Reimbursement';
+  static const String categorySharedReimbursement =
+      'Shared Expense Reimbursement';
   static const String categoryLoanRepayment = 'Loan Repayment Received';
   static const String categoryMoneyLent = 'Money Lent / Helping Friend';
   static const String categoryCreditCardBillPay = 'Credit Card Bill Pay';
@@ -262,24 +264,38 @@ abstract class CategoryConstants {
   ];
 
   static CategoryItem getCategoryByName(String name, TransactionType type) {
-    final list = type == TransactionType.income ? incomeCategories : expenseCategories;
+    final list = type == TransactionType.income
+        ? incomeCategories
+        : expenseCategories;
     return list.firstWhere(
-      (c) => c.name.toLowerCase() == name.toLowerCase() || c.id.toLowerCase() == name.toLowerCase(),
+      (c) =>
+          c.name.toLowerCase() == name.toLowerCase() ||
+          c.id.toLowerCase() == name.toLowerCase(),
       orElse: () => CategoryItem(
         id: 'custom',
         name: name,
         type: type,
-        icon: type == TransactionType.income ? Icons.arrow_downward_rounded : Icons.category_rounded,
-        color: type == TransactionType.income ? const Color(0xFF10B981) : const Color(0xFFF43F5E),
+        icon: type == TransactionType.income
+            ? Icons.arrow_downward_rounded
+            : Icons.category_rounded,
+        color: type == TransactionType.income
+            ? const Color(0xFF10B981)
+            : const Color(0xFFF43F5E),
       ),
     );
   }
 
-  static IconData getIconForCategory(String name, [TransactionType type = TransactionType.expense]) {
+  static IconData getIconForCategory(
+    String name, [
+    TransactionType type = TransactionType.expense,
+  ]) {
     return getCategoryByName(name, type).icon;
   }
 
-  static Color getColorForCategory(String name, [TransactionType type = TransactionType.expense]) {
+  static Color getColorForCategory(
+    String name, [
+    TransactionType type = TransactionType.expense,
+  ]) {
     return getCategoryByName(name, type).color;
   }
 }

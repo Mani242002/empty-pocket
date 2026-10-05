@@ -33,23 +33,26 @@ void main() {
       expect(list.first.isEmergencyFund, isTrue);
     });
 
-    test('addContribution and getContributionsForGoal works properly', () async {
-      final contribution = GoalContributionEntity(
-        id: 'c1',
-        goalId: 'g1',
-        amount: 10000.0,
-        date: now,
-        notes: 'Monthly allocation',
-        createdAt: now,
-      );
+    test(
+      'addContribution and getContributionsForGoal works properly',
+      () async {
+        final contribution = GoalContributionEntity(
+          id: 'c1',
+          goalId: 'g1',
+          amount: 10000.0,
+          date: now,
+          notes: 'Monthly allocation',
+          createdAt: now,
+        );
 
-      await repository.addContribution(contribution);
-      final list = await repository.getContributionsForGoal('g1');
+        await repository.addContribution(contribution);
+        final list = await repository.getContributionsForGoal('g1');
 
-      expect(list.length, 1);
-      expect(list.first.amount, 10000.0);
-      expect(list.first.notes, 'Monthly allocation');
-    });
+        expect(list.length, 1);
+        expect(list.first.amount, 10000.0);
+        expect(list.first.notes, 'Monthly allocation');
+      },
+    );
 
     test('deleteGoal removes goal and associated contributions', () async {
       final goal = SavingsGoalEntity(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/services/log_service.dart';
 
 /// StateNotifier for ThemeMode with persistent local storage
@@ -29,11 +30,18 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 
   void setThemeMode(ThemeMode mode) {
     state = mode;
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString(_key, mode.name);
-    }).catchError((e, st) {
-      LogService.error('ThemeModeNotifier', 'setThemeMode persistence error', e, st);
-    });
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          prefs.setString(_key, mode.name);
+        })
+        .catchError((e, st) {
+          LogService.error(
+            'ThemeModeNotifier',
+            'setThemeMode persistence error',
+            e,
+            st,
+          );
+        });
   }
 
   void toggleTheme(bool isDark) {
@@ -42,6 +50,8 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 }
 
 /// Provider for app theme mode
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((
+  ref,
+) {
   return ThemeModeNotifier();
 });

@@ -147,9 +147,13 @@ class DebtEntity {
       monthlyEmi: monthlyEmi ?? this.monthlyEmi,
       startDate: startDate ?? this.startDate,
       dueDateDay: dueDateDay ?? this.dueDateDay,
-      lenderName: identical(lenderName, _sentinel) ? this.lenderName : (lenderName as String?),
+      lenderName: identical(lenderName, _sentinel)
+          ? this.lenderName
+          : (lenderName as String?),
       status: status ?? this.status,
-      linkedAccountId: identical(linkedAccountId, _sentinel) ? this.linkedAccountId : (linkedAccountId as String?),
+      linkedAccountId: identical(linkedAccountId, _sentinel)
+          ? this.linkedAccountId
+          : (linkedAccountId as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -209,13 +213,13 @@ class DebtEntity {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        title,
-        principalAmount,
-        remainingAmount,
-        status,
-        linkedAccountId,
-      );
+    id,
+    title,
+    principalAmount,
+    remainingAmount,
+    status,
+    linkedAccountId,
+  );
 }
 
 /// Domain entity representing a payment or prepayment logged against a debt
@@ -228,6 +232,7 @@ class DebtPaymentEntity {
   final DateTime date;
   final String? notes;
   final String? sourceAccountId;
+  final String? transactionId;
   final DateTime createdAt;
 
   const DebtPaymentEntity({
@@ -239,6 +244,7 @@ class DebtPaymentEntity {
     required this.date,
     this.notes,
     this.sourceAccountId,
+    this.transactionId,
     required this.createdAt,
   });
 
@@ -252,6 +258,7 @@ class DebtPaymentEntity {
       'date': date.millisecondsSinceEpoch,
       'notes': notes,
       'source_account_id': sourceAccountId,
+      'transaction_id': transactionId,
       'created_at': createdAt.millisecondsSinceEpoch,
     };
   }
@@ -266,6 +273,7 @@ class DebtPaymentEntity {
       date: DateTime.fromMillisecondsSinceEpoch(map['date'] as int),
       notes: map['notes'] as String?,
       sourceAccountId: map['source_account_id'] as String?,
+      transactionId: map['transaction_id'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
     );
   }
@@ -279,6 +287,7 @@ class DebtPaymentEntity {
     DateTime? date,
     String? notes,
     String? sourceAccountId,
+    String? transactionId,
     DateTime? createdAt,
   }) {
     return DebtPaymentEntity(
@@ -290,6 +299,7 @@ class DebtPaymentEntity {
       date: date ?? this.date,
       notes: notes ?? this.notes,
       sourceAccountId: sourceAccountId ?? this.sourceAccountId,
+      transactionId: transactionId ?? this.transactionId,
       createdAt: createdAt ?? this.createdAt,
     );
   }

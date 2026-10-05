@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
+
 import 'log_service.dart';
 
 class SecurityService {
@@ -8,7 +9,8 @@ class SecurityService {
   Future<bool> isBiometricsAvailable() async {
     try {
       final canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
-      final canAuthenticate = canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
+      final canAuthenticate =
+          canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
       return canAuthenticate;
     } catch (e, st) {
       LogService.error('SecurityService', 'isBiometricsAvailable error', e, st);
@@ -16,11 +18,16 @@ class SecurityService {
     }
   }
 
-  Future<bool> authenticate({String reason = 'Authenticate to access your EmptyPocket vault'}) async {
+  Future<bool> authenticate({
+    String reason = 'Authenticate to access your EmptyPocket vault',
+  }) async {
     try {
       final isAvailable = await isBiometricsAvailable();
       if (!isAvailable) {
-        LogService.warning('SecurityService', 'No biometric/PIN credentials available on device. Authentication denied.');
+        LogService.warning(
+          'SecurityService',
+          'No biometric/PIN credentials available on device. Authentication denied.',
+        );
         return false;
       }
 
@@ -34,10 +41,20 @@ class SecurityService {
         ),
       );
     } on PlatformException catch (e, st) {
-      LogService.error('SecurityService', 'PlatformException during authentication', e, st);
+      LogService.error(
+        'SecurityService',
+        'PlatformException during authentication',
+        e,
+        st,
+      );
       return false;
     } catch (e, st) {
-      LogService.error('SecurityService', 'Unexpected error during authentication', e, st);
+      LogService.error(
+        'SecurityService',
+        'Unexpected error during authentication',
+        e,
+        st,
+      );
       return false;
     }
   }

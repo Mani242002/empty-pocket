@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../database/app_database.dart';
 import '../domain/entities/ai_assistant_entity.dart';
 
@@ -126,7 +127,9 @@ class InMemoryAiChatRepository implements AiChatRepository {
 
   @override
   Future<List<AiChatMessage>> getMessagesForSession(String sessionId) async {
-    final sessionMsgs = _messages.where((m) => m.sessionId == sessionId).toList();
+    final sessionMsgs = _messages
+        .where((m) => m.sessionId == sessionId)
+        .toList();
     sessionMsgs.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     return sessionMsgs;
   }

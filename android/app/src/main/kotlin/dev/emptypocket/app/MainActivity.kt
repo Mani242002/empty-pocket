@@ -2,6 +2,9 @@ package dev.emptypocket.app
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
@@ -15,24 +18,28 @@ class MainActivity : FlutterFragmentActivity() {
     private val BATTERY_CHANNEL = "dev.emptypocket.app/battery"
     private var methodChannel: MethodChannel? = null
     private var batteryChannel: MethodChannel? = null
+    private var pendingAction: String? = null
+    private var isClientReady: Boolean = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
+        // Setup dynamic shortcut preserving task backstack
+        setupDynamicShortcut()
+
+        // Check for cold-start intent
+        handleIntent(intent)
+
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, OVERLAY_CHANNEL)
         methodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
-                "openQuickAdd" -> {
-                    val intent = packageManager.getLaunchIntentForPackage(packageName)
-                    if (intent != null) {
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                        intent.putExtra("action", "quick_add")
-                        startActivity(intent)
+                "clientReady" -> {
+                    isClientReady = true
+                    if (pendingAction == "quick_add") {
+                        pendingAction = null
                         methodChannel?.invokeMethod("triggerQuickAdd", null)
-                        result.success(true)
-                    } else {
-                        result.error("LAUNCH_FAILED", "Could not create launch intent", null)
                     }
+                    result.success(true)
                 }
                 "minimizeApp" -> {
                     moveTaskToBack(true)
@@ -131,9 +138,43 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent == null) return
         val action = intent.getStringExtra("action")
-        if (action == "quick_add") {
-            methodChannel?.invokeMethod("triggerQuickAdd", null)
+        val intentAction = intent.action
+        if (action == "quick_add" || intentAction == "dev.emptypocket.app.QUICK_ADD") {
+            if (isClientReady) {
+                methodChannel?.invokeMethod("triggerQuickAdd", null)
+            } else {
+                pendingAction = "quick_add"
+            }
+        }
+    }
+
+    private fun setupDynamicShortcut() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+            try {
+                val shortcutManager = getSystemService(ShortcutManager::class.java)
+                if (shortcutManager != null) {
+                    val intent = Intent(this, MainActivity::class.java).apply {
+                        action = "dev.emptypocket.app.QUICK_ADD"
+                        putExtra("action", "quick_add")
+                        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    val shortcut = ShortcutInfo.Builder(this, "quick_add")
+                        .setShortLabel(getString(R.string.quick_add_short))
+                        .setLongLabel(getString(R.string.quick_add_long))
+                        .setIcon(Icon.createWithResource(this, R.mipmap.ic_launcher))
+                        .setIntent(intent)
+                        .build()
+                    shortcutManager.dynamicShortcuts = listOf(shortcut)
+                }
+            } catch (e: Exception) {
+                // Ignore if shortcuts unsupported
+            }
         }
     }
 }

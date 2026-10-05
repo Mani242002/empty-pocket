@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/financial_health_entity.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
@@ -19,14 +20,17 @@ final netWorthCompositionProvider = Provider<NetWorthComposition>((ref) {
   final goals = ref.watch(savingsGoalsListNotifierProvider).valueOrNull ?? [];
 
   // Use real combined bank account liquid cash if accounts configured, otherwise monthly net
-  final effectiveCash = bankAccounts.isNotEmpty ? combinedLiquidCash : financialSummary.netBalance;
-  final totalLiabilities = liabilitiesSummary.totalOutstanding + creditSummary.totalUsed;
+  final effectiveCash = bankAccounts.isNotEmpty
+      ? combinedLiquidCash
+      : financialSummary.netBalance;
+  final totalLiabilities =
+      liabilitiesSummary.totalOutstanding + creditSummary.totalUsed;
 
   // If bank accounts are tracked, exclude auto-synced goals linked to an account to avoid double-counting
   final effectiveSavingsGoalsAmount = bankAccounts.isNotEmpty
       ? goals
-          .where((g) => !(g.autoSyncAccount && g.linkedAccountId != null))
-          .fold<double>(0.0, (sum, g) => sum + g.currentAmount)
+            .where((g) => !(g.autoSyncAccount && g.linkedAccountId != null))
+            .fold<double>(0.0, (sum, g) => sum + g.currentAmount)
       : savingsSummary.totalSaved;
 
   return FinancialCalculator.calculateNetWorthComposition(
@@ -49,20 +53,27 @@ final financialHealthSummaryProvider = Provider<FinancialHealthSummary>((ref) {
   final creditSummary = ref.watch(combinedCreditSummaryProvider);
   final goals = ref.watch(savingsGoalsListNotifierProvider).valueOrNull ?? [];
 
-  final effectiveCash = bankAccounts.isNotEmpty ? combinedLiquidCash : financialSummary.netBalance;
-  final totalLiabilities = liabilitiesSummary.totalOutstanding + creditSummary.totalUsed;
+  final effectiveCash = bankAccounts.isNotEmpty
+      ? combinedLiquidCash
+      : financialSummary.netBalance;
+  final totalLiabilities =
+      liabilitiesSummary.totalOutstanding + creditSummary.totalUsed;
 
   // If bank accounts are tracked, exclude auto-synced goals linked to an account to avoid double-counting
   final effectiveSavingsGoalsAmount = bankAccounts.isNotEmpty
       ? goals
-          .where((g) => !(g.autoSyncAccount && g.linkedAccountId != null))
-          .fold<double>(0.0, (sum, g) => sum + g.currentAmount)
+            .where((g) => !(g.autoSyncAccount && g.linkedAccountId != null))
+            .fold<double>(0.0, (sum, g) => sum + g.currentAmount)
       : savingsSummary.totalSaved;
 
   final effectiveEmergencyFund = bankAccounts.isNotEmpty
       ? goals
-          .where((g) => g.isEmergencyFund && !(g.autoSyncAccount && g.linkedAccountId != null))
-          .fold<double>(0.0, (sum, g) => sum + g.currentAmount)
+            .where(
+              (g) =>
+                  g.isEmergencyFund &&
+                  !(g.autoSyncAccount && g.linkedAccountId != null),
+            )
+            .fold<double>(0.0, (sum, g) => sum + g.currentAmount)
       : savingsSummary.emergencyFundSaved;
 
   return FinancialCalculator.calculateFinancialHealthSummary(

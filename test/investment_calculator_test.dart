@@ -6,23 +6,26 @@ void main() {
   group('Investments & Asset Allocation Calculator Tests', () {
     final now = DateTime.now();
 
-    test('calculateInvestmentMetrics calculates profit and return % accurately', () {
-      final inv = InvestmentEntity(
-        id: 'i1',
-        name: 'Parag Parikh Flexi Cap',
-        assetClass: AssetClass.equity,
-        investedAmount: 100000.0,
-        currentValue: 125000.0,
-        createdAt: now,
-        updatedAt: now,
-      );
+    test(
+      'calculateInvestmentMetrics calculates profit and return % accurately',
+      () {
+        final inv = InvestmentEntity(
+          id: 'i1',
+          name: 'Parag Parikh Flexi Cap',
+          assetClass: AssetClass.equity,
+          investedAmount: 100000.0,
+          currentValue: 125000.0,
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      final metrics = FinancialCalculator.calculateInvestmentMetrics(inv);
+        final metrics = FinancialCalculator.calculateInvestmentMetrics(inv);
 
-      expect(metrics.unrealizedProfitLoss, 25000.0);
-      expect(metrics.returnPercentage, 25.0);
-      expect(metrics.isProfit, isTrue);
-    });
+        expect(metrics.unrealizedProfitLoss, 25000.0);
+        expect(metrics.returnPercentage, 25.0);
+        expect(metrics.isProfit, isTrue);
+      },
+    );
 
     test('calculateInvestmentMetrics calculates loss accurately', () {
       final inv = InvestmentEntity(
@@ -73,7 +76,9 @@ void main() {
         ),
       ];
 
-      final allocations = FinancialCalculator.calculateAssetAllocation(holdings);
+      final allocations = FinancialCalculator.calculateAssetAllocation(
+        holdings,
+      );
 
       expect(allocations.length, 3);
       expect(allocations.first.assetClass, AssetClass.equity);
@@ -104,7 +109,9 @@ void main() {
         ),
       ];
 
-      final summary = FinancialCalculator.calculateOverallPortfolioSummary(holdings);
+      final summary = FinancialCalculator.calculateOverallPortfolioSummary(
+        holdings,
+      );
 
       expect(summary.totalInvested, 150000.0);
       expect(summary.totalCurrentValue, 175000.0);

@@ -97,13 +97,13 @@ class BudgetEntity {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        category,
-        limitAmount,
-        accountId,
-        month.year,
-        month.month,
-      );
+    id,
+    category,
+    limitAmount,
+    accountId,
+    month.year,
+    month.month,
+  );
 }
 
 /// Calculated status for a category budget

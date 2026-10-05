@@ -1,10 +1,13 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
 import '../../../../core/repositories/savings_goal_repository.dart';
+import '../../../../core/repositories/transaction_repository.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 
@@ -43,7 +46,9 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
   }
 
   Future<void> syncGoalsForAccount(String accountId) async {
-    final currentGoals = state.valueOrNull ?? await ref.read(savingsGoalRepositoryProvider).getAllGoals();
+    final currentGoals =
+        state.valueOrNull ??
+        await ref.read(savingsGoalRepositoryProvider).getAllGoals();
     final accounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
     final account = accounts.where((a) => a.id == accountId).firstOrNull;
     if (account == null) return;
@@ -54,14 +59,18 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
 
     for (final goal in currentGoals) {
       if (goal.linkedAccountId == accountId && goal.autoSyncAccount) {
-        final syncedAmount = (account.currentBalance * (goal.allocationPercentage / 100.0)).clamp(0.0, double.infinity);
+        final syncedAmount =
+            (account.currentBalance * (goal.allocationPercentage / 100.0))
+                .clamp(0.0, double.infinity);
         if ((syncedAmount - goal.currentAmount).abs() > 0.01) {
           final isCompleted = syncedAmount >= goal.targetAmount;
           final updated = goal.copyWith(
             currentAmount: syncedAmount,
             status: isCompleted
                 ? GoalStatus.completed
-                : (goal.status == GoalStatus.completed ? GoalStatus.active : goal.status),
+                : (goal.status == GoalStatus.completed
+                      ? GoalStatus.active
+                      : goal.status),
             updatedAt: now,
           );
           await repository.saveGoal(updated);
@@ -91,7 +100,9 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
 
     final balanceToDistribute = customBalance ?? account.currentBalance;
     final now = DateTime.now();
-    final linkedGoals = currentGoals.where((g) => g.linkedAccountId == accountId).toList();
+    final linkedGoals = currentGoals
+        .where((g) => g.linkedAccountId == accountId)
+        .toList();
 
     SavingsGoalEntity? pGoal;
     SavingsGoalEntity? sGoal;
@@ -110,7 +121,10 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
 
     bool anyChanged = false;
     if (pGoal != null) {
-      final pAmount = (balanceToDistribute * (primaryPercent / 100.0)).clamp(0.0, double.infinity);
+      final pAmount = (balanceToDistribute * (primaryPercent / 100.0)).clamp(
+        0.0,
+        double.infinity,
+      );
       final isCompleted = pAmount >= pGoal.targetAmount;
       final updatedP = pGoal.copyWith(
         allocationPercentage: primaryPercent,
@@ -118,7 +132,9 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
         currentAmount: pAmount,
         status: isCompleted
             ? GoalStatus.completed
-            : (pGoal.status == GoalStatus.completed ? GoalStatus.active : pGoal.status),
+            : (pGoal.status == GoalStatus.completed
+                  ? GoalStatus.active
+                  : pGoal.status),
         updatedAt: now,
       );
       await repository.saveGoal(updatedP);
@@ -126,7 +142,10 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
     }
 
     if (sGoal != null && sGoal.id != pGoal?.id) {
-      final sAmount = (balanceToDistribute * (secondaryPercent / 100.0)).clamp(0.0, double.infinity);
+      final sAmount = (balanceToDistribute * (secondaryPercent / 100.0)).clamp(
+        0.0,
+        double.infinity,
+      );
       final isCompleted = sAmount >= sGoal.targetAmount;
       final updatedS = sGoal.copyWith(
         allocationPercentage: secondaryPercent,
@@ -134,7 +153,9 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
         currentAmount: sAmount,
         status: isCompleted
             ? GoalStatus.completed
-            : (sGoal.status == GoalStatus.completed ? GoalStatus.active : sGoal.status),
+            : (sGoal.status == GoalStatus.completed
+                  ? GoalStatus.active
+                  : sGoal.status),
         updatedAt: now,
       );
       await repository.saveGoal(updatedS);
@@ -147,36 +168,49 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
   }
 
   Future<void> syncAllLinkedGoals() async {
-    final currentGoals = state.valueOrNull ?? await ref.read(savingsGoalRepositoryProvider).getAllGoals();
-    final accounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
-    if (accounts.isEmpty) return;
+    try {
+      final currentGoals =
+          state.valueOrNull ??
+          await ref.read(savingsGoalRepositoryProvider).getAllGoals();
+      final accounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
+      if (accounts.isEmpty) return;
 
-    final repository = ref.read(savingsGoalRepositoryProvider);
-    bool anyChanged = false;
-    final now = DateTime.now();
+      final repository = ref.read(savingsGoalRepositoryProvider);
+      bool anyChanged = false;
+      final now = DateTime.now();
 
-    for (final goal in currentGoals) {
-      if (goal.linkedAccountId != null && goal.autoSyncAccount) {
-        final account = accounts.where((a) => a.id == goal.linkedAccountId).firstOrNull;
-        if (account != null) {
-          final syncedAmount = (account.currentBalance * (goal.allocationPercentage / 100.0)).clamp(0.0, double.infinity);
-          if ((syncedAmount - goal.currentAmount).abs() > 0.01) {
-            final isCompleted = syncedAmount >= goal.targetAmount;
-            final updated = goal.copyWith(
-              currentAmount: syncedAmount,
-              status: isCompleted
-                  ? GoalStatus.completed
-                  : (goal.status == GoalStatus.completed ? GoalStatus.active : goal.status),
-              updatedAt: now,
-            );
-            await repository.saveGoal(updated);
-            anyChanged = true;
+      for (final goal in currentGoals) {
+        if (goal.linkedAccountId != null && goal.autoSyncAccount) {
+          final account = accounts
+              .where((a) => a.id == goal.linkedAccountId)
+              .firstOrNull;
+          if (account != null) {
+            final syncedAmount =
+                (account.currentBalance * (goal.allocationPercentage / 100.0))
+                    .clamp(0.0, double.infinity);
+            if ((syncedAmount - goal.currentAmount).abs() > 0.01) {
+              final isCompleted = syncedAmount >= goal.targetAmount;
+              final updated = goal.copyWith(
+                currentAmount: syncedAmount,
+                status: isCompleted
+                    ? GoalStatus.completed
+                    : (goal.status == GoalStatus.completed
+                          ? GoalStatus.active
+                          : goal.status),
+                updatedAt: now,
+              );
+              await repository.saveGoal(updated);
+              anyChanged = true;
+            }
           }
         }
       }
-    }
-    if (anyChanged) {
-      state = AsyncValue.data(await repository.getAllGoals());
+      if (anyChanged) {
+        state = AsyncValue.data(await repository.getAllGoals());
+      }
+    } catch (e) {
+      if (e.toString().contains('disposed')) return;
+      rethrow;
     }
   }
 
@@ -188,57 +222,90 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
     String paymentSource = 'Bank Account',
     String? accountId,
   }) async {
-    final repository = ref.read(savingsGoalRepositoryProvider);
     final now = DateTime.now();
+    final isSameAccount =
+        goal.linkedAccountId != null && goal.linkedAccountId == accountId;
+    final txId = const Uuid().v4();
+    final tx = logAsTransaction
+        ? TransactionEntity(
+            id: txId,
+            title: 'Goal: ${goal.title}',
+            amount: amount,
+            type: TransactionType.transfer,
+            category: 'Savings & Investments',
+            date: now,
+            paymentSource: paymentSource,
+            accountId: isSameAccount ? null : accountId,
+            toAccountId: (accountId != null && !isSameAccount)
+                ? goal.linkedAccountId
+                : null,
+            linkedEntityId: goal.id,
+            notes: notes ?? 'Savings contribution towards "${goal.title}"',
+            createdAt: now,
+            updatedAt: now,
+          )
+        : null;
 
-    // 1. Create contribution record
-    final contribution = GoalContributionEntity(
-      id: const Uuid().v4(),
-      goalId: goal.id,
-      amount: amount,
-      date: now,
-      notes: notes,
-      sourceAccountId: accountId,
-      createdAt: now,
-    );
-    await repository.addContribution(contribution);
-
-    // 2. Update goal current amount
-    final updatedAmount = goal.currentAmount + amount;
-    final isCompleted = updatedAmount >= goal.targetAmount;
-    final updatedGoal = goal.copyWith(
-      currentAmount: updatedAmount,
-      status: isCompleted ? GoalStatus.completed : goal.status,
-      updatedAt: now,
-    );
-    await saveGoal(updatedGoal);
-
-    // 3. Optionally record transaction in offline ledger & adjust account balance
-    if (logAsTransaction) {
-      final isSameAccount = goal.linkedAccountId != null && goal.linkedAccountId == accountId;
-      if (accountId != null && !isSameAccount) {
-        await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(accountId, -amount);
-        if (goal.linkedAccountId != null) {
-          await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(goal.linkedAccountId!, amount);
-        }
-      }
-      final tx = TransactionEntity(
-        id: const Uuid().v4(),
-        title: 'Goal: ${goal.title}',
+    final txRepo = ref.read(transactionRepositoryProvider);
+    if (txRepo is SqliteTransactionRepository) {
+      await txRepo.addSavingsGoalContributionAtomic(
+        goal: goal,
         amount: amount,
-        type: TransactionType.transfer,
-        category: 'Savings & Investments',
-        date: now,
+        notes: notes,
+        logAsTransaction: logAsTransaction,
         paymentSource: paymentSource,
-        accountId: isSameAccount ? null : accountId,
-        toAccountId: (accountId != null && !isSameAccount) ? goal.linkedAccountId : null,
-        linkedEntityId: goal.id,
-        notes: notes ?? 'Savings contribution towards "${goal.title}"',
+        accountId: accountId,
+        transaction: tx,
+      );
+    } else {
+      final repository = ref.read(savingsGoalRepositoryProvider);
+      final contribution = GoalContributionEntity(
+        id: const Uuid().v4(),
+        goalId: goal.id,
+        amount: amount,
+        date: now,
+        notes: notes,
+        sourceAccountId: accountId,
+        transactionId: tx?.id,
         createdAt: now,
+      );
+      await repository.addContribution(contribution);
+
+      final updatedAmount = goal.currentAmount + amount;
+      final newStatus = goal.status == GoalStatus.paused
+          ? GoalStatus.paused
+          : (updatedAmount >= goal.targetAmount
+                ? GoalStatus.completed
+                : goal.status);
+      final updatedGoal = goal.copyWith(
+        currentAmount: updatedAmount,
+        status: newStatus,
         updatedAt: now,
       );
-      await ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
+      await saveGoal(updatedGoal);
+
+      if (logAsTransaction && tx != null) {
+        if (accountId != null && !isSameAccount) {
+          await ref
+              .read(bankAccountListProvider.notifier)
+              .adjustAccountBalance(accountId, -amount);
+          if (goal.linkedAccountId != null) {
+            await ref
+                .read(bankAccountListProvider.notifier)
+                .adjustAccountBalance(goal.linkedAccountId!, amount);
+          }
+        }
+        await ref
+            .read(transactionListNotifierProvider.notifier)
+            .addTransaction(tx);
+      }
     }
+
+    state = AsyncValue.data(
+      await ref.read(savingsGoalRepositoryProvider).getAllGoals(),
+    );
+    ref.invalidate(bankAccountListProvider);
+    ref.invalidate(transactionListNotifierProvider);
   }
 
   /// Records a savings contribution and updates goal progress without creating
@@ -340,56 +407,59 @@ class SavingsGoalsListNotifier extends AsyncNotifier<List<SavingsGoalEntity>> {
     String? accountId,
     String paymentSource = 'Bank Account',
   }) async {
-    final updatedGoal = initialAmount > 0
-        ? goal.copyWith(
-            currentAmount: goal.currentAmount + initialAmount,
-            status: (goal.currentAmount + initialAmount) >= goal.targetAmount
-                ? GoalStatus.completed
-                : goal.status,
+    final repository = ref.read(savingsGoalRepositoryProvider);
+    final now = DateTime.now();
+    final tx = (initialAmount > 0 && deductFromAccount && accountId != null)
+        ? TransactionEntity(
+            id: const Uuid().v4(),
+            title: 'Goal: ${goal.title}',
+            amount: initialAmount,
+            type: TransactionType.expense,
+            category: 'Savings & Investments',
+            date: now,
+            paymentSource: paymentSource,
+            accountId: accountId,
+            linkedEntityId: goal.id,
+            notes: 'Initial deposit for goal "${goal.title}"',
+            createdAt: now,
+            updatedAt: now,
           )
-        : goal;
-    await saveGoal(updatedGoal);
+        : null;
 
-    if (initialAmount > 0) {
-      final now = DateTime.now();
-      final repository = ref.read(savingsGoalRepositoryProvider);
-      final contribution = GoalContributionEntity(
-        id: const Uuid().v4(),
-        goalId: goal.id,
-        amount: initialAmount,
-        date: now,
-        notes: 'Initial savings deposit for "${goal.title}"',
-        sourceAccountId: deductFromAccount ? accountId : null,
-        createdAt: now,
-      );
-      await repository.addContribution(contribution);
+    await repository.createSavingsGoalAtomic(
+      goal: goal,
+      initialAmount: initialAmount,
+      deductFromAccount: deductFromAccount,
+      accountId: accountId,
+      paymentSource: paymentSource,
+      transaction: tx,
+    );
 
-      if (deductFromAccount && accountId != null) {
-        await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(accountId, -initialAmount);
-        final tx = TransactionEntity(
-          id: const Uuid().v4(),
-          title: 'Goal: ${goal.title}',
-          amount: initialAmount,
-          type: TransactionType.expense,
-          category: 'Savings & Investments',
-          date: now,
-          paymentSource: paymentSource,
-          accountId: accountId,
-          linkedEntityId: goal.id,
-          notes: 'Initial deposit for goal "${goal.title}"',
-          createdAt: now,
-          updatedAt: now,
-        );
-        await ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
+    if (repository is! SqliteSavingsGoalRepository) {
+      if (deductFromAccount && accountId != null && initialAmount > 0) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(accountId, -initialAmount);
+        if (tx != null) {
+          await ref
+              .read(transactionListNotifierProvider.notifier)
+              .addTransaction(tx);
+        }
       }
+    }
+
+    state = AsyncValue.data(await repository.getAllGoals());
+    if (deductFromAccount && accountId != null && initialAmount > 0) {
+      ref.invalidate(bankAccountListProvider);
+      ref.invalidate(transactionListNotifierProvider);
     }
   }
 }
 
 final savingsGoalsListNotifierProvider =
     AsyncNotifierProvider<SavingsGoalsListNotifier, List<SavingsGoalEntity>>(
-  SavingsGoalsListNotifier.new,
-);
+      SavingsGoalsListNotifier.new,
+    );
 
 /// Aggregated savings summary
 final overallSavingsSummaryProvider = Provider<OverallSavingsSummary>((ref) {
@@ -402,11 +472,14 @@ final overallSavingsSummaryProvider = Provider<OverallSavingsSummary>((ref) {
 });
 
 /// Metrics for all savings goals
-final goalProgressMetricsListProvider = Provider<List<GoalProgressMetrics>>((ref) {
+final goalProgressMetricsListProvider = Provider<List<GoalProgressMetrics>>((
+  ref,
+) {
   final goalsAsync = ref.watch(savingsGoalsListNotifierProvider);
 
   return goalsAsync.maybeWhen(
-    data: (goals) => goals.map((g) => FinancialCalculator.calculateGoalProgress(g)).toList(),
+    data: (goals) =>
+        goals.map((g) => FinancialCalculator.calculateGoalProgress(g)).toList(),
     orElse: () => [],
   );
 });
@@ -426,7 +499,10 @@ final emergencyFundGoalProvider = Provider<SavingsGoalEntity?>((ref) {
 
 /// Goal Contributions Provider
 final goalContributionsProvider =
-    FutureProvider.family<List<GoalContributionEntity>, String>((ref, goalId) async {
-  final repository = ref.watch(savingsGoalRepositoryProvider);
-  return await repository.getContributionsForGoal(goalId);
-});
+    FutureProvider.family<List<GoalContributionEntity>, String>((
+      ref,
+      goalId,
+    ) async {
+      final repository = ref.watch(savingsGoalRepositoryProvider);
+      return await repository.getContributionsForGoal(goalId);
+    });

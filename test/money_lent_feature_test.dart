@@ -22,7 +22,9 @@ void main() {
       expect(loan.isRepaid, false);
 
       // JSON encoding
-      final encoded = LoanShareHelper.encodeLoan(loan.copyWith(expectedReturnDate: returnDate));
+      final encoded = LoanShareHelper.encodeLoan(
+        loan.copyWith(expectedReturnDate: returnDate),
+      );
       expect(LoanShareHelper.isLoan(encoded), true);
       expect(encoded.contains('"type":"loan"'), true);
 
@@ -83,11 +85,13 @@ void main() {
           type: TransactionType.expense,
           category: 'Money Lent / Helping Friend',
           paymentSource: 'Bank Account',
-          sharedWith: LoanShareHelper.encodeLoan(const LoanShareData(
-            borrowerName: 'Rahul',
-            principalAmount: 10000.0,
-            expectedInterest: 500.0,
-          )),
+          sharedWith: LoanShareHelper.encodeLoan(
+            const LoanShareData(
+              borrowerName: 'Rahul',
+              principalAmount: 10000.0,
+              expectedInterest: 500.0,
+            ),
+          ),
           date: now,
           createdAt: now,
           updatedAt: now,
@@ -95,42 +99,57 @@ void main() {
       ];
 
       // Net personal consumption expense must ONLY be 2500.0, NOT 12500.0
-      final totalExpense = FinancialCalculator.calculateTotalExpense(transactions);
-      expect(totalExpense, 2500.0, reason: 'Money Lent must not count as personal consumption expense');
+      final totalExpense = FinancialCalculator.calculateTotalExpense(
+        transactions,
+      );
+      expect(
+        totalExpense,
+        2500.0,
+        reason: 'Money Lent must not count as personal consumption expense',
+      );
     });
 
-    test('FinancialCalculator excludes Loan Repayment Received from earned income', () {
-      final now = DateTime.now();
-      final List<TransactionEntity> transactions = [
-        // Normal income
-        TransactionEntity(
-          id: 'tx-1',
-          title: 'Salary',
-          amount: 75000.0,
-          type: TransactionType.income,
-          category: 'Salary',
-          paymentSource: 'Bank Account',
-          date: now,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        // Loan repayment received
-        TransactionEntity(
-          id: 'tx-2',
-          title: 'Repayment: Rahul',
-          amount: 10500.0,
-          type: TransactionType.income,
-          category: 'Loan Repayment Received',
-          paymentSource: 'Bank Account',
-          date: now,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ];
+    test(
+      'FinancialCalculator excludes Loan Repayment Received from earned income',
+      () {
+        final now = DateTime.now();
+        final List<TransactionEntity> transactions = [
+          // Normal income
+          TransactionEntity(
+            id: 'tx-1',
+            title: 'Salary',
+            amount: 75000.0,
+            type: TransactionType.income,
+            category: 'Salary',
+            paymentSource: 'Bank Account',
+            date: now,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          // Loan repayment received
+          TransactionEntity(
+            id: 'tx-2',
+            title: 'Repayment: Rahul',
+            amount: 10500.0,
+            type: TransactionType.income,
+            category: 'Loan Repayment Received',
+            paymentSource: 'Bank Account',
+            date: now,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ];
 
-      // Net earned income must ONLY be 75000.0, NOT 85500.0
-      final totalIncome = FinancialCalculator.calculateTotalIncome(transactions);
-      expect(totalIncome, 75000.0, reason: 'Loan Repayment Received must not count as earned income');
-    });
+        // Net earned income must ONLY be 75000.0, NOT 85500.0
+        final totalIncome = FinancialCalculator.calculateTotalIncome(
+          transactions,
+        );
+        expect(
+          totalIncome,
+          75000.0,
+          reason: 'Loan Repayment Received must not count as earned income',
+        );
+      },
+    );
   });
 }

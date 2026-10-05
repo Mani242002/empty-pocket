@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
@@ -14,6 +15,7 @@ import '../screens/add_edit_transaction_sheet.dart';
 import '../screens/transaction_detail_sheet.dart';
 import '../state/transactions_provider.dart';
 import '../widgets/transaction_list_item.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
@@ -38,12 +40,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   void _onScroll() {
     if (_scrollController.hasClients &&
-        _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 250) {
+        _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 250) {
       if (mounted) {
         setState(() {
           _displayLimit += 50;
         });
-        ref.read(transactionListNotifierProvider.notifier).loadMore(pageSize: 50);
+        ref
+            .read(transactionListNotifierProvider.notifier)
+            .loadMore(pageSize: 50);
       }
     }
   }
@@ -97,13 +102,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Duplicated "${cloned.title}" (${CurrencyFormatter.format(cloned.amount)}).'),
+            content: Text(
+              'Duplicated "${cloned.title}" (${CurrencyFormatter.format(cloned.amount)}).',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e, st) {
-      LogService.error('TransactionsScreen', 'Failed to duplicate transaction', e, st);
+      LogService.error(
+        'TransactionsScreen',
+        'Failed to duplicate transaction',
+        e,
+        st,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -118,6 +130,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -141,7 +154,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       filterIndex: _selectedFilterIndex,
       searchQuery: searchQuery,
     );
-    final filteredData = ref.watch(filteredAndGroupedTransactionsProvider(filterParams));
+    final filteredData = ref.watch(
+      filteredAndGroupedTransactionsProvider(filterParams),
+    );
     final filteredTransactions = filteredData.transactions;
     final grouped = filteredData.grouped;
     final dateKeys = grouped.keys.toList();
@@ -167,244 +182,289 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             constraints: const BoxConstraints(maxWidth: 720),
             child: Column(
               children: [
-            // Month Navigation Selector
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              margin: const EdgeInsets.fromLTRB(20, 4, 20, 10),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: financialColors.cardBorder),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left_rounded),
-                    onPressed: () {
-                      ref.read(selectedMonthProvider.notifier).previousMonth();
-                    },
-                    visualDensity: VisualDensity.compact,
+                // Month Navigation Selector
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
                   ),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: selectedMonth,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2040),
-                        );
-                        if (picked != null) {
-                          ref.read(selectedMonthProvider.notifier).setMonth(picked);
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.calendar_month_rounded, size: 18),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                monthTitle,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
-                          ],
-                        ),
+                  margin: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.darkSurface
+                        : AppColors.lightSurface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: financialColors.cardBorder),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left_rounded),
+                        onPressed: () {
+                          ref
+                              .read(selectedMonthProvider.notifier)
+                              .previousMonth();
+                        },
+                        visualDensity: VisualDensity.compact,
                       ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right_rounded),
-                    onPressed: () {
-                      ref.read(selectedMonthProvider.notifier).nextMonth();
-                    },
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-            ),
-
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search title, category, notes, amount...',
-                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18),
-                          onPressed: () {
-                            setState(() {
-                              _searchController.clear();
-                              _displayLimit = 50;
-                            });
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: selectedMonth,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2040),
+                            );
+                            if (picked != null) {
+                              ref
+                                  .read(selectedMonthProvider.notifier)
+                                  .setMonth(picked);
+                            }
                           },
-                        )
-                      : null,
-                ),
-                onChanged: (_) => setState(() {
-                  _displayLimit = 50;
-                }),
-              ),
-            ),
-
-            if (isGlobalSearch)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.travel_explore_rounded, size: 14, color: AppColors.primaryEmerald),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Searching all-time history (${filteredTransactions.length} found)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: financialColors.textMuted,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Filter Chips
-            SizedBox(
-              height: 38,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                scrollDirection: Axis.horizontal,
-                itemCount: _filters.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final isSelected = _selectedFilterIndex == index;
-                  return ChoiceChip(
-                    label: Text(_filters[index]),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedFilterIndex = index;
-                          _displayLimit = 50;
-                        });
-                      }
-                    },
-                    selectedColor: AppColors.primaryEmerald.withAlpha(isDark ? 60 : 40),
-                    labelStyle: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected
-                          ? (isDark ? AppColors.primaryMint : AppColors.primaryTeal)
-                          : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: BorderSide(
-                        color: isSelected
-                            ? AppColors.primaryEmerald
-                            : financialColors.cardBorder,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Transactions Grouped List or Empty State
-            Expanded(
-              child: grouped.isEmpty
-                  ? SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 72,
-                                height: 72,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isDark
-                                      ? AppColors.darkSurfaceVariant
-                                      : AppColors.lightSurfaceVariant,
-                                  border: Border.all(
-                                    color: financialColors.cardBorder,
-                                    width: 1,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month_rounded,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    monthTitle,
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
                                   ),
                                 ),
-                                child: Icon(
-                                  Icons.receipt_rounded,
-                                  size: 36,
-                                  color: financialColors.textMuted,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                _searchController.text.isNotEmpty
-                                    ? 'No Matching Transactions'
-                                    : 'No Transactions in $monthTitle',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _searchController.text.isNotEmpty
-                                    ? 'Try modifying your search or filter keywords.'
-                                    : 'Tap below to add an income or expense for this month.',
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: financialColors.textMuted,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              FilledButton.icon(
-                                onPressed: () => AddEditTransactionSheet.show(context),
-                                icon: const Icon(Icons.add_rounded, size: 18),
-                                label: const Text('Add Transaction'),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 88),
-                      itemCount: isPaginated ? visibleDateCount + 1 : visibleDateCount,
-                      itemBuilder: (context, groupIndex) {
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right_rounded),
+                        onPressed: () {
+                          ref.read(selectedMonthProvider.notifier).nextMonth();
+                        },
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search title, category, notes, amount...',
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _searchController.clear();
+                                  _displayLimit = 50;
+                                });
+                              },
+                            )
+                          : null,
+                    ),
+                    onChanged: (_) => setState(() {
+                      _displayLimit = 50;
+                    }),
+                  ),
+                ),
+
+                if (isGlobalSearch)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.travel_explore_rounded,
+                          size: 14,
+                          color: AppColors.primaryEmerald,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Searching all-time history (${filteredTransactions.length} found)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: financialColors.textMuted,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Filter Chips
+                SizedBox(
+                  height: 38,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _filters.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final isSelected = _selectedFilterIndex == index;
+                      return ChoiceChip(
+                        label: Text(_filters[index]),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() {
+                              _selectedFilterIndex = index;
+                              _displayLimit = 50;
+                            });
+                          }
+                        },
+                        selectedColor: AppColors.primaryEmerald.withAlpha(
+                          isDark ? 60 : 40,
+                        ),
+                        labelStyle: TextStyle(
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? (isDark
+                                    ? AppColors.primaryMint
+                                    : AppColors.primaryTeal)
+                              : (isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(
+                            color: isSelected
+                                ? AppColors.primaryEmerald
+                                : financialColors.cardBorder,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Transactions Grouped List or Empty State
+                Expanded(
+                  child: grouped.isEmpty
+                      ? SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                                vertical: 20,
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 72,
+                                    height: 72,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isDark
+                                          ? AppColors.darkSurfaceVariant
+                                          : AppColors.lightSurfaceVariant,
+                                      border: Border.all(
+                                        color: financialColors.cardBorder,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.receipt_rounded,
+                                      size: 36,
+                                      color: financialColors.textMuted,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    _searchController.text.isNotEmpty
+                                        ? 'No Matching Transactions'
+                                        : 'No Transactions in $monthTitle',
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _searchController.text.isNotEmpty
+                                        ? 'Try modifying your search or filter keywords.'
+                                        : 'Tap below to add an income or expense for this month.',
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: financialColors.textMuted,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  FilledButton.icon(
+                                    onPressed: () =>
+                                        AddEditTransactionSheet.show(context),
+                                    icon: const Icon(
+                                      Icons.add_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Add Transaction'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 88),
+                          itemCount: isPaginated
+                              ? visibleDateCount + 1
+                              : visibleDateCount,
+                          itemBuilder: (context, groupIndex) {
                             if (groupIndex == visibleDateCount && isPaginated) {
                               return Center(
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
                                   child: TextButton.icon(
                                     onPressed: () {
                                       setState(() {
                                         _displayLimit += 50;
                                       });
-                                      ref.read(transactionListNotifierProvider.notifier).loadMore(pageSize: 50);
+                                      ref
+                                          .read(
+                                            transactionListNotifierProvider
+                                                .notifier,
+                                          )
+                                          .loadMore(pageSize: 50);
                                     },
-                                    icon: const Icon(Icons.expand_more_rounded, size: 18),
+                                    icon: const Icon(
+                                      Icons.expand_more_rounded,
+                                      size: 18,
+                                    ),
                                     label: Text(
                                       'Showing $visibleDateCount of ${dateKeys.length} dates • Load More',
                                       style: TextStyle(
@@ -421,96 +481,123 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                             final date = dateKeys[groupIndex];
                             final items = grouped[date]!;
 
-                            final dayIncome = FinancialCalculator.calculateTotalIncome(items);
-                            final dayExpense = FinancialCalculator.calculateTotalExpense(items);
+                            final dayIncome =
+                                FinancialCalculator.calculateTotalIncome(items);
+                            final dayExpense =
+                                FinancialCalculator.calculateTotalExpense(
+                                  items,
+                                );
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Date header with daily sum
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(4, 14, 4, 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      _formatDateHeader(date),
-                                      style: theme.textTheme.labelMedium?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: financialColors.textMuted,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Date header with daily sum
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    4,
+                                    14,
+                                    4,
+                                    8,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Row(
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      if (dayIncome > 0)
-                                        Text(
-                                          '+${CurrencyFormatter.format(dayIncome)}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: financialColors.income,
-                                          ),
+                                      Expanded(
+                                        child: Text(
+                                          _formatDateHeader(date),
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                                color:
+                                                    financialColors.textMuted,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      if (dayIncome > 0 && dayExpense > 0)
-                                        const SizedBox(width: 8),
-                                      if (dayExpense > 0)
-                                        Text(
-                                          '-${CurrencyFormatter.format(dayExpense)}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: financialColors.expense,
-                                          ),
-                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Row(
+                                        children: [
+                                          if (dayIncome > 0)
+                                            Text(
+                                              '+${CurrencyFormatter.format(dayIncome)}',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: financialColors.income,
+                                              ),
+                                            ),
+                                          if (dayIncome > 0 && dayExpense > 0)
+                                            const SizedBox(width: 8),
+                                          if (dayExpense > 0)
+                                            Text(
+                                              '-${CurrencyFormatter.format(dayExpense)}',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: financialColors.expense,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ),
-                            ...items.map((tx) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: TransactionListItem(
-                                  transaction: tx,
-                                  onTap: () => TransactionDetailSheet.show(
-                                    context,
-                                    transaction: tx,
-                                  ),
-                                  onDuplicate: () => _duplicateTransaction(tx),
-                                  onDelete: () async {
-                                    try {
-                                      await ref
-                                          .read(transactionListNotifierProvider.notifier)
-                                          .deleteTransaction(tx.id);
-                                      AppHaptics.deleteAction();
-                                    } catch (e, st) {
-                                      LogService.error('TransactionsScreen', 'Failed to delete transaction', e, st);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Failed to delete transaction: ${e.toString()}'),
-                                            backgroundColor: AppColors.expense,
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
                                 ),
-                              );
-                            }),
-                          ],
-                        );
-                      },
-                    ),
+                                ...items.map((tx) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: TransactionListItem(
+                                      transaction: tx,
+                                      onTap: () => TransactionDetailSheet.show(
+                                        context,
+                                        transaction: tx,
+                                      ),
+                                      onDuplicate: () =>
+                                          _duplicateTransaction(tx),
+                                      onDelete: () async {
+                                        try {
+                                          await ref
+                                              .read(
+                                                transactionListNotifierProvider
+                                                    .notifier,
+                                              )
+                                              .deleteTransaction(tx.id);
+                                          AppHaptics.deleteAction();
+                                        } catch (e, st) {
+                                          LogService.error(
+                                            'TransactionsScreen',
+                                            'Failed to delete transaction',
+                                            e,
+                                            st,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Failed to delete transaction: ${e.toString()}',
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.expense,
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                    ),
+                                  );
+                                }),
+                              ],
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
-          ],
-        ),
           ),
         ),
       ),

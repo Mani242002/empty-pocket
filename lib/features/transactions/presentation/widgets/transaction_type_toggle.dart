@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
@@ -60,7 +61,9 @@ class TransactionTypeToggle extends StatelessWidget {
               size: 18,
               color: isSelected
                   ? Colors.white
-                  : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                  : (isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary),
             ),
             const SizedBox(width: 6),
             Flexible(
@@ -73,7 +76,9 @@ class TransactionTypeToggle extends StatelessWidget {
                   fontSize: 14,
                   color: isSelected
                       ? Colors.white
-                      : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                      : (isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary),
                 ),
               ),
             ),
@@ -91,7 +96,9 @@ class TransactionTypeToggle extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+        color: isDark
+            ? AppColors.darkSurfaceVariant
+            : AppColors.lightSurfaceVariant,
         borderRadius: borderRadius ?? BorderRadius.circular(16),
       ),
       child: Row(

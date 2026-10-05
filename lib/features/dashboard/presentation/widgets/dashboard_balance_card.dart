@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/financial_health_entity.dart';
@@ -35,12 +36,11 @@ class DashboardBalanceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+        color: isDark
+            ? AppColors.darkSurfaceVariant
+            : AppColors.lightSurfaceVariant,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withAlpha(isDark ? 50 : 35),
-          width: 1,
-        ),
+        border: Border.all(color: color.withAlpha(isDark ? 50 : 35), width: 1),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -173,12 +173,16 @@ class DashboardBalanceCard extends StatelessWidget {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
-                isBalanceVisible ? CurrencyFormatter.format(summary.netBalance) : '••••••',
+                isBalanceVisible
+                    ? CurrencyFormatter.format(summary.netBalance)
+                    : '••••••',
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                   letterSpacing: -1,
                   fontSize: 32,
-                  color: summary.netBalance < 0 ? financialColors.expense : null,
+                  color: summary.netBalance < 0
+                      ? financialColors.expense
+                      : null,
                 ),
               ),
             ),
@@ -192,7 +196,9 @@ class DashboardBalanceCard extends StatelessWidget {
                     child: _buildFlowMetric(
                       context,
                       title: 'Income (${summary.incomeCount})',
-                      amount: isBalanceVisible ? CurrencyFormatter.format(summary.totalIncome) : '••••',
+                      amount: isBalanceVisible
+                          ? CurrencyFormatter.format(summary.totalIncome)
+                          : '••••',
                       icon: Icons.arrow_downward_rounded,
                       color: financialColors.income,
                     ),
@@ -202,7 +208,9 @@ class DashboardBalanceCard extends StatelessWidget {
                     child: _buildFlowMetric(
                       context,
                       title: 'Expenses (${summary.expenseCount})',
-                      amount: isBalanceVisible ? CurrencyFormatter.format(summary.totalExpense) : '••••',
+                      amount: isBalanceVisible
+                          ? CurrencyFormatter.format(summary.totalExpense)
+                          : '••••',
                       icon: Icons.arrow_upward_rounded,
                       color: financialColors.expense,
                     ),
@@ -213,7 +221,10 @@ class DashboardBalanceCard extends StatelessWidget {
             if (dailySafeToSpend != null && dailySafeToSpend! > 0) ...[
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primaryEmerald.withAlpha(isDark ? 25 : 15),
                   borderRadius: BorderRadius.circular(12),
@@ -249,12 +260,17 @@ class DashboardBalanceCard extends StatelessWidget {
               child: InkWell(
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const FinancialHealthScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const FinancialHealthScreen(),
+                    ),
                   );
                 },
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: isDark
                         ? AppColors.darkSurfaceVariant.withAlpha(180)
@@ -269,7 +285,9 @@ class DashboardBalanceCard extends StatelessWidget {
                         height: 30,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: healthSummary.grade.color.withAlpha(isDark ? 40 : 25),
+                          color: healthSummary.grade.color.withAlpha(
+                            isDark ? 40 : 25,
+                          ),
                         ),
                         child: Icon(
                           healthSummary.grade.icon,
@@ -302,7 +320,11 @@ class DashboardBalanceCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      Icon(Icons.chevron_right_rounded, color: financialColors.textMuted, size: 20),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: financialColors.textMuted,
+                        size: 20,
+                      ),
                     ],
                   ),
                 ),

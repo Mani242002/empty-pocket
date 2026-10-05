@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/investment_entity.dart';
@@ -7,12 +8,14 @@ import '../../../../core/utilities/currency_formatter.dart';
 import '../screens/add_edit_investment_sheet.dart';
 import '../screens/update_valuation_sheet.dart';
 import '../state/investments_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class InvestmentsScreen extends ConsumerWidget {
   const InvestmentsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -38,286 +41,339 @@ class InvestmentsScreen extends ConsumerWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
             child: investmentsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error loading investments: $e')),
-        data: (investments) {
-          if (investments.isEmpty) {
-            return ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: financialColors.income.withAlpha(isDark ? 40 : 25),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) =>
+                  Center(child: Text('Error loading investments: $e')),
+              data: (investments) {
+                if (investments.isEmpty) {
+                  return ListView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
+                    children: [
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 40,
+                            horizontal: 20,
                           ),
-                          child: Icon(
-                            Icons.trending_up_rounded,
-                            color: financialColors.income,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No Investments Tracked Yet',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Track your mutual funds, Indian stocks, fixed deposits, EPF/PPF, gold, real estate, and crypto in one private offline place.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: financialColors.textMuted,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(backgroundColor: financialColors.income),
-                          onPressed: () => AddEditInvestmentSheet.show(context),
-                          icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('Add First Holding'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          }
-
-          return ListView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
-            children: [
-              // Portfolio Hero Card
-              Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: isDark
-                        ? [const Color(0xFF064E3B), const Color(0xFF131B26)]
-                        : [const Color(0xFFECFDF5), const Color(0xFFFFFFFF)],
-                  ),
-                  border: Border.all(
-                    color: isDark ? AppColors.income.withAlpha(60) : AppColors.income.withAlpha(40),
-                    width: 1.5,
-                  ),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            'TOTAL PORTFOLIO VALUE',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
-                              color: financialColors.textMuted,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: (summary.isProfit ? financialColors.income : financialColors.expense)
-                                  .withAlpha(isDark ? 40 : 25),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${summary.isProfit ? '+' : ''}${CurrencyFormatter.format(summary.totalProfitLoss)} (${summary.overallReturnPercentage.toStringAsFixed(1)}%)',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: summary.isProfit ? financialColors.income : financialColors.expense,
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 64,
+                                height: 64,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: financialColors.income.withAlpha(
+                                    isDark ? 40 : 25,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.trending_up_rounded,
+                                  color: financialColors.income,
+                                  size: 32,
+                                ),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Investments Tracked Yet',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Track your mutual funds, Indian stocks, fixed deposits, EPF/PPF, gold, real estate, and crypto in one private offline place.',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: financialColors.textMuted,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: financialColors.income,
+                                ),
+                                onPressed: () =>
+                                    AddEditInvestmentSheet.show(context),
+                                icon: const Icon(Icons.add_rounded, size: 18),
+                                label: const Text('Add First Holding'),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        CurrencyFormatter.format(summary.totalCurrentValue),
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: financialColors.income,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Total Invested: ${CurrencyFormatter.format(summary.totalInvested)}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: financialColors.textMuted,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            '${summary.totalHoldingsCount} Holdings',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: financialColors.textMuted,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.end,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+                    ],
+                  );
+                }
 
-              // Asset Allocation Section
-              if (allocations.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  child: Text(
-                    'Asset Allocation',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Multi-colored segmented allocation bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(
-                    height: 12,
-                    child: Row(
-                      children: allocations.map((item) {
-                        return Expanded(
-                          flex: (item.percentageOfPortfolio * 10).round().clamp(1, 1000),
-                          child: Container(
-                            color: item.assetClass.color,
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Asset Class Allocation Chips
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: allocations.map((item) {
-                      return Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: financialColors.cardBorder),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: item.assetClass.color,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${item.assetClass.name.toUpperCase()}: ${item.percentageOfPortfolio.toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // Grouped Holdings List
-              ...groupedHoldings.entries.map((entry) {
-                final assetClass = entry.key;
-                final holdings = entry.value;
-                final classTotal = holdings.fold(0.0, (sum, h) => sum + h.currentValue);
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                return ListView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                      child: Row(
+                    // Portfolio Hero Card
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isDark
+                              ? [
+                                  const Color(0xFF064E3B),
+                                  const Color(0xFF131B26),
+                                ]
+                              : [
+                                  const Color(0xFFECFDF5),
+                                  const Color(0xFFFFFFFF),
+                                ],
+                        ),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.income.withAlpha(60)
+                              : AppColors.income.withAlpha(40),
+                          width: 1.5,
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(assetClass.icon, color: assetClass.color, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  'TOTAL PORTFOLIO VALUE',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.1,
+                                    color: financialColors.textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        (summary.isProfit
+                                                ? financialColors.income
+                                                : financialColors.expense)
+                                            .withAlpha(isDark ? 40 : 25),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${summary.isProfit ? '+' : ''}${CurrencyFormatter.format(summary.totalProfitLoss)} (${summary.overallReturnPercentage.toStringAsFixed(1)}%)',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: summary.isProfit
+                                          ? financialColors.income
+                                          : financialColors.expense,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
                             child: Text(
-                              '${assetClass.displayName} (${holdings.length})',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
+                              CurrencyFormatter.format(
+                                summary.totalCurrentValue,
+                              ),
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                                color: financialColors.income,
                               ),
                             ),
                           ),
-                          Text(
-                            CurrencyFormatter.format(classTotal),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: assetClass.color,
-                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Total Invested: ${CurrencyFormatter.format(summary.totalInvested)}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  '${summary.totalHoldingsCount} Holdings',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: financialColors.textMuted,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                    ...holdings.map((inv) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _buildHoldingCard(context, ref, inv),
+
+                    // Asset Allocation Section
+                    if (allocations.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 4,
+                        ),
+                        child: Text(
+                          'Asset Allocation',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Multi-colored segmented allocation bar
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(
+                          height: 12,
+                          child: Row(
+                            children: allocations.map((item) {
+                              return Expanded(
+                                flex: (item.percentageOfPortfolio * 10)
+                                    .round()
+                                    .clamp(1, 1000),
+                                child: Container(color: item.assetClass.color),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Asset Class Allocation Chips
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: allocations.map((item) {
+                            return Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppColors.darkSurfaceVariant
+                                    : AppColors.lightSurfaceVariant,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: financialColors.cardBorder,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: item.assetClass.color,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${item.assetClass.name.toUpperCase()}: ${item.percentageOfPortfolio.toStringAsFixed(1)}%',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? AppColors.darkTextSecondary
+                                          : AppColors.lightTextSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Grouped Holdings List
+                    ...groupedHoldings.entries.map((entry) {
+                      final assetClass = entry.key;
+                      final holdings = entry.value;
+                      final classTotal = holdings.fold(
+                        0.0,
+                        (sum, h) => sum + h.currentValue,
+                      );
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  assetClass.icon,
+                                  color: assetClass.color,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${assetClass.displayName} (${holdings.length})',
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  CurrencyFormatter.format(classTotal),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: assetClass.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ...holdings.map((inv) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _buildHoldingCard(context, ref, inv),
+                            );
+                          }),
+                          const SizedBox(height: 8),
+                        ],
                       );
                     }),
-                    const SizedBox(height: 8),
                   ],
                 );
-              }),
-            ],
-          );
-        },
-      ),
+              },
+            ),
           ),
         ),
       ),
@@ -330,13 +386,19 @@ class InvestmentsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHoldingCard(BuildContext context, WidgetRef ref, InvestmentEntity inv) {
+  Widget _buildHoldingCard(
+    BuildContext context,
+    WidgetRef ref,
+    InvestmentEntity inv,
+  ) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
 
     final pnl = inv.currentValue - inv.investedAmount;
-    final returnPct = inv.investedAmount > 0 ? (pnl / inv.investedAmount) * 100 : 0.0;
+    final returnPct = inv.investedAmount > 0
+        ? (pnl / inv.investedAmount) * 100
+        : 0.0;
     final isProfit = pnl >= 0;
 
     return Dismissible(
@@ -354,7 +416,9 @@ class InvestmentsScreen extends ConsumerWidget {
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.expense,
+                ),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Remove'),
               ),
@@ -363,7 +427,9 @@ class InvestmentsScreen extends ConsumerWidget {
         );
       },
       onDismissed: (_) {
-        ref.read(investmentListNotifierProvider.notifier).deleteInvestment(inv.id);
+        ref
+            .read(investmentListNotifierProvider.notifier)
+            .deleteInvestment(inv.id);
       },
       background: Container(
         alignment: Alignment.centerRight,
@@ -377,7 +443,13 @@ class InvestmentsScreen extends ConsumerWidget {
           children: [
             Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
             SizedBox(width: 8),
-            Text('Remove', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            Text(
+              'Remove',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),
@@ -430,9 +502,14 @@ class InvestmentsScreen extends ConsumerWidget {
                               if (inv.institution != null) ...[
                                 const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                                    color: isDark
+                                        ? AppColors.darkSurfaceVariant
+                                        : AppColors.lightSurfaceVariant,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -469,15 +546,23 @@ class InvestmentsScreen extends ConsumerWidget {
                               CurrencyFormatter.format(inv.currentValue),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
-                                color: isProfit ? financialColors.income : financialColors.expense,
+                                color: isProfit
+                                    ? financialColors.income
+                                    : financialColors.expense,
                               ),
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: (isProfit ? financialColors.income : financialColors.expense)
-                                  .withAlpha(isDark ? 35 : 20),
+                              color:
+                                  (isProfit
+                                          ? financialColors.income
+                                          : financialColors.expense)
+                                      .withAlpha(isDark ? 35 : 20),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -485,7 +570,9 @@ class InvestmentsScreen extends ConsumerWidget {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: isProfit ? financialColors.income : financialColors.expense,
+                                color: isProfit
+                                    ? financialColors.income
+                                    : financialColors.expense,
                               ),
                             ),
                           ),
@@ -514,7 +601,9 @@ class InvestmentsScreen extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: isProfit ? financialColors.income : financialColors.expense,
+                            color: isProfit
+                                ? financialColors.income
+                                : financialColors.expense,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -523,7 +612,10 @@ class InvestmentsScreen extends ConsumerWidget {
                     FilledButton.tonalIcon(
                       style: FilledButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                       ),
                       icon: const Icon(Icons.edit_note_rounded, size: 16),
                       label: const Text('Update Value'),

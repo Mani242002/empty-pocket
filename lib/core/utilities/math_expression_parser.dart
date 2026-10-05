@@ -43,7 +43,8 @@ class MathExpressionParser {
 
     for (int i = 0; i < input.length; i++) {
       final char = input[i];
-      final isDigitOrDot = (char.codeUnitAt(0) >= 48 && char.codeUnitAt(0) <= 57) || char == '.';
+      final isDigitOrDot =
+          (char.codeUnitAt(0) >= 48 && char.codeUnitAt(0) <= 57) || char == '.';
 
       if (isDigitOrDot) {
         // Support implicit multiplication like "(100 + 50)2"
@@ -54,17 +55,25 @@ class MathExpressionParser {
       } else if (char == '(') {
         flushNumber();
         // Support implicit multiplication like "2(3+4)" or ")(..."
-        if (tokens.isNotEmpty && (tokens.last == ')' || double.tryParse(tokens.last) != null)) {
+        if (tokens.isNotEmpty &&
+            (tokens.last == ')' || double.tryParse(tokens.last) != null)) {
           tokens.add('*');
         }
         tokens.add('(');
       } else if (char == ')') {
         flushNumber();
         tokens.add(')');
-      } else if (char == '+' || char == '-' || char == '*' || char == 'x' || char == 'X' || char == '/') {
+      } else if (char == '+' ||
+          char == '-' ||
+          char == '*' ||
+          char == 'x' ||
+          char == 'X' ||
+          char == '/') {
         if (currentNumber.isEmpty && char == '-') {
           // Negative unary prefix (e.g. at start or after operator/open-parenthesis)
-          if (tokens.isEmpty || tokens.last == '(' || _isOperator(tokens.last)) {
+          if (tokens.isEmpty ||
+              tokens.last == '(' ||
+              _isOperator(tokens.last)) {
             currentNumber.write(char);
             continue;
           }
@@ -128,7 +137,9 @@ class MathExpressionParser {
 
     while (opStack.isNotEmpty) {
       final top = opStack.removeLast();
-      if (top == '(' || top == ')') return null; // Mismatched opening parenthesis
+      if (top == '(' || top == ')') {
+        return null; // Mismatched opening parenthesis
+      }
       output.add(top);
     }
 

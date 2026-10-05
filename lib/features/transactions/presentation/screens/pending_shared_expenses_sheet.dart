@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
@@ -9,6 +10,7 @@ import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/transactions_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 enum SharedSettleMode { byBill, byPerson, settleAll }
 
@@ -57,8 +59,8 @@ class _PendingSharedExpensesSheetState
     _amountController = TextEditingController(
       text: initialAmt > 0
           ? (initialAmt == initialAmt.roundToDouble()
-              ? initialAmt.toInt().toString()
-              : initialAmt.toStringAsFixed(2))
+                ? initialAmt.toInt().toString()
+                : initialAmt.toStringAsFixed(2))
           : '',
     );
     _notesController = TextEditingController(
@@ -79,7 +81,9 @@ class _PendingSharedExpensesSheetState
     if (!_formKey.currentState!.validate()) return;
     if (_selectedTransaction == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a shared expense to settle.')),
+        const SnackBar(
+          content: Text('Please select a shared expense to settle.'),
+        ),
       );
       return;
     }
@@ -94,18 +98,24 @@ class _PendingSharedExpensesSheetState
 
     if (_selectedAccountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select the receiving bank account.')),
+        const SnackBar(
+          content: Text('Please select the receiving bank account.'),
+        ),
       );
       return;
     }
 
     setState(() => _isSaving = true);
     try {
-      await ref.read(transactionListNotifierProvider.notifier).settleSharedExpense(
+      await ref
+          .read(transactionListNotifierProvider.notifier)
+          .settleSharedExpense(
             transactionId: _selectedTransaction!.id,
             amountReceived: amount,
             destinationAccountId: _selectedAccountId!,
-            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
           );
 
       AppHaptics.success();
@@ -124,7 +134,10 @@ class _PendingSharedExpensesSheetState
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to record settlement: $e'), backgroundColor: AppColors.expense),
+          SnackBar(
+            content: Text('Failed to record settlement: $e'),
+            backgroundColor: AppColors.expense,
+          ),
         );
       }
     }
@@ -148,18 +161,24 @@ class _PendingSharedExpensesSheetState
 
     if (_selectedAccountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select the receiving bank account.')),
+        const SnackBar(
+          content: Text('Please select the receiving bank account.'),
+        ),
       );
       return;
     }
 
     setState(() => _isSaving = true);
     try {
-      await ref.read(transactionListNotifierProvider.notifier).settlePersonReimbursements(
+      await ref
+          .read(transactionListNotifierProvider.notifier)
+          .settlePersonReimbursements(
             personName: _selectedPerson!,
             destinationAccountId: _selectedAccountId!,
             customAmount: amount,
-            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
           );
 
       AppHaptics.success();
@@ -167,7 +186,9 @@ class _PendingSharedExpensesSheetState
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Settled ${CurrencyFormatter.format(amount)} from $_selectedPerson!'),
+            content: Text(
+              'Settled ${CurrencyFormatter.format(amount)} from $_selectedPerson!',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -176,7 +197,10 @@ class _PendingSharedExpensesSheetState
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to record settlement: $e'), backgroundColor: AppColors.expense),
+          SnackBar(
+            content: Text('Failed to record settlement: $e'),
+            backgroundColor: AppColors.expense,
+          ),
         );
       }
     }
@@ -185,16 +209,22 @@ class _PendingSharedExpensesSheetState
   Future<void> _submitAllSettlement(double pendingTotal) async {
     if (_selectedAccountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select the receiving bank account.')),
+        const SnackBar(
+          content: Text('Please select the receiving bank account.'),
+        ),
       );
       return;
     }
 
     setState(() => _isSaving = true);
     try {
-      await ref.read(transactionListNotifierProvider.notifier).settleAllPendingSharedExpenses(
+      await ref
+          .read(transactionListNotifierProvider.notifier)
+          .settleAllPendingSharedExpenses(
             destinationAccountId: _selectedAccountId!,
-            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
           );
 
       AppHaptics.success();
@@ -202,7 +232,9 @@ class _PendingSharedExpensesSheetState
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('All pending reimbursements have been successfully settled!'),
+            content: Text(
+              'All pending reimbursements have been successfully settled!',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -211,7 +243,10 @@ class _PendingSharedExpensesSheetState
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to record settlement: $e'), backgroundColor: AppColors.expense),
+          SnackBar(
+            content: Text('Failed to record settlement: $e'),
+            backgroundColor: AppColors.expense,
+          ),
         );
       }
     }
@@ -223,6 +258,7 @@ class _PendingSharedExpensesSheetState
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
 
+    ref.watch(currencyProvider);
     final pendingList = ref.watch(pendingSharedExpensesProvider);
     final pendingTotal = ref.watch(pendingReimbursementsTotalProvider);
     final pendingByPerson = ref.watch(pendingByPersonSummaryProvider);
@@ -237,7 +273,9 @@ class _PendingSharedExpensesSheetState
     // Default select first bank account if none selected
     if (_selectedAccountId == null && bankAccounts.isNotEmpty) {
       final defaultAcc = bankAccounts.where((a) => a.isDefault);
-      _selectedAccountId = defaultAcc.isNotEmpty ? defaultAcc.first.id : bankAccounts.first.id;
+      _selectedAccountId = defaultAcc.isNotEmpty
+          ? defaultAcc.first.id
+          : bankAccounts.first.id;
     }
 
     // Default select first pending shared transaction if none preselected
@@ -247,12 +285,15 @@ class _PendingSharedExpensesSheetState
       _amountController.text = pendingAmt == pendingAmt.roundToDouble()
           ? pendingAmt.toInt().toString()
           : pendingAmt.toStringAsFixed(2);
-      _notesController.text = 'Share payback for "${_selectedTransaction!.title}"';
+      _notesController.text =
+          'Share payback for "${_selectedTransaction!.title}"';
     }
 
     CreditCardEntity? linkedCard;
     if (_selectedTransaction?.creditCardId != null) {
-      final matches = creditCards.where((c) => c.id == _selectedTransaction!.creditCardId);
+      final matches = creditCards.where(
+        (c) => c.id == _selectedTransaction!.creditCardId,
+      );
       if (matches.isNotEmpty) linkedCard = matches.first;
     }
 
@@ -294,10 +335,16 @@ class _PendingSharedExpensesSheetState
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                          color: AppColors.primaryEmerald.withAlpha(
+                            isDark ? 40 : 25,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.handshake_rounded, color: AppColors.primaryEmerald, size: 24),
+                        child: const Icon(
+                          Icons.handshake_rounded,
+                          color: AppColors.primaryEmerald,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -333,22 +380,33 @@ class _PendingSharedExpensesSheetState
                       width: double.infinity,
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                        color: isDark
+                            ? AppColors.darkSurfaceVariant
+                            : AppColors.lightSurfaceVariant,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: financialColors.cardBorder),
                       ),
                       child: Column(
                         children: [
-                          const Icon(Icons.check_circle_outline_rounded, size: 48, color: AppColors.primaryEmerald),
+                          const Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 48,
+                            color: AppColors.primaryEmerald,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'All Caught Up!',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'You have no pending shared expenses awaiting reimbursement.',
-                            style: TextStyle(fontSize: 12, color: financialColors.textMuted),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: financialColors.textMuted,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -357,24 +415,43 @@ class _PendingSharedExpensesSheetState
                   ] else ...[
                     // Mode Selector (By Bill vs By Person vs Settle All)
                     if (widget.preselectedTransaction == null &&
-                        (pendingList.length > 1 || pendingByPerson.length > 1)) ...[
+                        (pendingList.length > 1 ||
+                            pendingByPerson.length > 1)) ...[
                       SizedBox(
                         width: double.infinity,
                         child: SegmentedButton<SharedSettleMode>(
                           segments: const [
                             ButtonSegment(
                               value: SharedSettleMode.byBill,
-                              label: Text('By Bill', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              label: Text(
+                                'By Bill',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               icon: Icon(Icons.receipt_rounded, size: 15),
                             ),
                             ButtonSegment(
                               value: SharedSettleMode.byPerson,
-                              label: Text('By Person', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              label: Text(
+                                'By Person',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               icon: Icon(Icons.person_rounded, size: 15),
                             ),
                             ButtonSegment(
                               value: SharedSettleMode.settleAll,
-                              label: Text('All Bills', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              label: Text(
+                                'All Bills',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               icon: Icon(Icons.done_all_rounded, size: 15),
                             ),
                           ],
@@ -382,23 +459,34 @@ class _PendingSharedExpensesSheetState
                           onSelectionChanged: (newSelection) {
                             setState(() {
                               _settleMode = newSelection.first;
-                              if (_settleMode == SharedSettleMode.byPerson && _selectedPerson != null) {
-                                final matches = pendingByPerson.where((p) => p.personName == _selectedPerson);
+                              if (_settleMode == SharedSettleMode.byPerson &&
+                                  _selectedPerson != null) {
+                                final matches = pendingByPerson.where(
+                                  (p) => p.personName == _selectedPerson,
+                                );
                                 if (matches.isNotEmpty) {
                                   final amt = matches.first.totalPending;
-                                  _amountController.text = amt == amt.roundToDouble()
+                                  _amountController.text =
+                                      amt == amt.roundToDouble()
                                       ? amt.toInt().toString()
                                       : amt.toStringAsFixed(2);
-                                  _notesController.text = 'Reimbursement from $_selectedPerson';
+                                  _notesController.text =
+                                      'Reimbursement from $_selectedPerson';
                                 }
-                              } else if (_settleMode == SharedSettleMode.settleAll) {
+                              } else if (_settleMode ==
+                                  SharedSettleMode.settleAll) {
                                 _notesController.text = 'Bulk settlement of all pending reimbursements';
-                              } else if (_settleMode == SharedSettleMode.byBill && _selectedTransaction != null) {
-                                final amt = _selectedTransaction!.pendingReimbursement;
-                                _amountController.text = amt == amt.roundToDouble()
+                              } else if (_settleMode ==
+                                      SharedSettleMode.byBill &&
+                                  _selectedTransaction != null) {
+                                final amt =
+                                    _selectedTransaction!.pendingReimbursement;
+                                _amountController.text =
+                                    amt == amt.roundToDouble()
                                     ? amt.toInt().toString()
                                     : amt.toStringAsFixed(2);
-                                _notesController.text = 'Share payback for "${_selectedTransaction!.title}"';
+                                _notesController.text =
+                                    'Share payback for "${_selectedTransaction!.title}"';
                               }
                             });
                           },
@@ -433,20 +521,26 @@ class _PendingSharedExpensesSheetState
                               '${tx.title} (${CurrencyFormatter.format(tx.pendingReimbursement)} pending)',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                             ),
                           );
                         }).toList(),
                         onChanged: (val) {
                           if (val == null) return;
-                          final matched = pendingList.firstWhere((t) => t.id == val);
+                          final matched = pendingList.firstWhere(
+                            (t) => t.id == val,
+                          );
                           setState(() {
                             _selectedTransaction = matched;
                             final amt = matched.pendingReimbursement;
                             _amountController.text = amt == amt.roundToDouble()
                                 ? amt.toInt().toString()
                                 : amt.toStringAsFixed(2);
-                            _notesController.text = 'Share payback for "${matched.title}"';
+                            _notesController.text =
+                                'Share payback for "${matched.title}"';
                           });
                         },
                       ),
@@ -457,25 +551,56 @@ class _PendingSharedExpensesSheetState
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                            color: isDark
+                                ? AppColors.darkSurfaceVariant
+                                : AppColors.lightSurfaceVariant,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: financialColors.cardBorder),
+                            border: Border.all(
+                              color: financialColors.cardBorder,
+                            ),
                           ),
                           child: Column(
                             children: [
                               Row(
                                 children: [
-                                  _buildSummaryItem(context, 'Total Bill', CurrencyFormatter.format(_selectedTransaction!.amount)),
+                                  _buildSummaryItem(
+                                    context,
+                                    'Total Bill',
+                                    CurrencyFormatter.format(
+                                      _selectedTransaction!.amount,
+                                    ),
+                                  ),
                                   const SizedBox(width: 12),
-                                  _buildSummaryItem(context, 'Your Share', CurrencyFormatter.format(_selectedTransaction!.myShareAmount ?? _selectedTransaction!.amount)),
+                                  _buildSummaryItem(
+                                    context,
+                                    'Your Share',
+                                    CurrencyFormatter.format(
+                                      _selectedTransaction!.myShareAmount ??
+                                          _selectedTransaction!.amount,
+                                    ),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
-                                  _buildSummaryItem(context, 'Friends\' Share', CurrencyFormatter.format(_selectedTransaction!.friendsShare)),
+                                  _buildSummaryItem(
+                                    context,
+                                    'Friends\' Share',
+                                    CurrencyFormatter.format(
+                                      _selectedTransaction!.friendsShare,
+                                    ),
+                                  ),
                                   const SizedBox(width: 12),
-                                  _buildSummaryItem(context, 'Pending', CurrencyFormatter.format(_selectedTransaction!.pendingReimbursement), isHighlight: true),
+                                  _buildSummaryItem(
+                                    context,
+                                    'Pending',
+                                    CurrencyFormatter.format(
+                                      _selectedTransaction!
+                                          .pendingReimbursement,
+                                    ),
+                                    isHighlight: true,
+                                  ),
                                 ],
                               ),
                             ],
@@ -490,17 +615,26 @@ class _PendingSharedExpensesSheetState
                             decoration: BoxDecoration(
                               color: AppColors.info.withAlpha(isDark ? 30 : 20),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.info.withAlpha(100)),
+                              border: Border.all(
+                                color: AppColors.info.withAlpha(100),
+                              ),
                             ),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.credit_card_rounded, color: AppColors.info, size: 20),
+                                const Icon(
+                                  Icons.credit_card_rounded,
+                                  color: AppColors.info,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     'Originally paid on ${linkedCard.cardName}. Depositing this reimbursement to your bank account will earmark it to help clear your credit card balance!',
-                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -536,7 +670,10 @@ class _PendingSharedExpensesSheetState
                               '${p.personName} (${CurrencyFormatter.format(p.totalPending)} pending • ${p.expenseCount} bills)',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                             ),
                           );
                         }).toList(),
@@ -544,10 +681,13 @@ class _PendingSharedExpensesSheetState
                           if (val == null) return;
                           setState(() {
                             _selectedPerson = val;
-                            final matches = pendingByPerson.where((p) => p.personName == val);
+                            final matches = pendingByPerson.where(
+                              (p) => p.personName == val,
+                            );
                             if (matches.isNotEmpty) {
                               final amt = matches.first.totalPending;
-                              _amountController.text = amt == amt.roundToDouble()
+                              _amountController.text =
+                                  amt == amt.roundToDouble()
                                   ? amt.toInt().toString()
                                   : amt.toStringAsFixed(2);
                               _notesController.text = 'Reimbursement from $val';
@@ -560,42 +700,69 @@ class _PendingSharedExpensesSheetState
                       if (_selectedPerson != null) ...[
                         Builder(
                           builder: (context) {
-                            final matches = pendingByPerson.where((p) => p.personName == _selectedPerson);
+                            final matches = pendingByPerson.where(
+                              (p) => p.personName == _selectedPerson,
+                            );
                             if (matches.isEmpty) return const SizedBox.shrink();
                             final summary = matches.first;
                             return Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                                color: isDark
+                                    ? AppColors.darkSurfaceVariant
+                                    : AppColors.lightSurfaceVariant,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: financialColors.cardBorder),
+                                border: Border.all(
+                                  color: financialColors.cardBorder,
+                                ),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'TOTAL OWED BY ${_selectedPerson!.toUpperCase()}',
-                                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: financialColors.textMuted),
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: financialColors.textMuted,
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        CurrencyFormatter.format(summary.totalPending),
-                                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: financialColors.income),
+                                        CurrencyFormatter.format(
+                                          summary.totalPending,
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                          color: financialColors.income,
+                                        ),
                                       ),
                                     ],
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: financialColors.income.withAlpha(20),
+                                      color: financialColors.income.withAlpha(
+                                        20,
+                                      ),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
                                       '${summary.expenseCount} ${summary.expenseCount == 1 ? 'Bill' : 'Bills'}',
-                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: financialColors.income),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: financialColors.income,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -613,7 +780,9 @@ class _PendingSharedExpensesSheetState
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                          color: isDark
+                              ? AppColors.darkSurfaceVariant
+                              : AppColors.lightSurfaceVariant,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: financialColors.cardBorder),
                         ),
@@ -625,24 +794,39 @@ class _PendingSharedExpensesSheetState
                               children: [
                                 Text(
                                   'TOTAL PENDING REIMBURSEMENTS',
-                                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: financialColors.textMuted),
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: financialColors.textMuted,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   CurrencyFormatter.format(pendingTotal),
-                                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: financialColors.income),
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: financialColors.income,
+                                  ),
                                 ),
                               ],
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: financialColors.income.withAlpha(25),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 '${pendingList.length} Bills',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: financialColors.income),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: financialColors.income,
+                                ),
                               ),
                             ),
                           ],
@@ -664,22 +848,31 @@ class _PendingSharedExpensesSheetState
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _amountController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d+\.?\d{0,2}'),
+                          ),
                         ],
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w800,
                           color: financialColors.income,
                         ),
                         decoration: InputDecoration(
-                          prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                          prefixText:
+                              '${CurrencyFormatter.activeCurrency.symbol} ',
                           hintText: '1,500',
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Enter amount received';
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Enter amount received';
+                          }
                           final numVal = double.tryParse(val.trim());
-                          if (numVal == null || numVal <= 0) return 'Enter a valid positive number';
+                          if (numVal == null || numVal <= 0) {
+                            return 'Enter a valid positive number';
+                          }
                           return null;
                         },
                       ),
@@ -703,7 +896,10 @@ class _PendingSharedExpensesSheetState
                           color: financialColors.cardBorder.withAlpha(60),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text('No bank accounts configured. Will default to Cash/Wallet.', style: TextStyle(fontSize: 12)),
+                        child: const Text(
+                          'No bank accounts configured. Will default to Cash/Wallet.',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       )
                     else
                       DropdownButtonFormField<String>(
@@ -720,14 +916,20 @@ class _PendingSharedExpensesSheetState
                               '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                             ),
                           );
                         }).toList(),
                         onChanged: (val) {
-                          if (val != null) setState(() => _selectedAccountId = val);
+                          if (val != null) {
+                            setState(() => _selectedAccountId = val);
+                          }
                         },
-                        validator: (val) => val == null ? 'Select an account' : null,
+                        validator: (val) =>
+                            val == null ? 'Select an account' : null,
                       ),
                     const SizedBox(height: 16),
 
@@ -757,30 +959,45 @@ class _PendingSharedExpensesSheetState
                           backgroundColor: AppColors.primaryEmerald,
                           foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                         onPressed: _isSaving
                             ? null
                             : () {
                                 if (_settleMode == SharedSettleMode.settleAll) {
                                   _submitAllSettlement(pendingTotal);
-                                } else if (_settleMode == SharedSettleMode.byPerson) {
+                                } else if (_settleMode ==
+                                    SharedSettleMode.byPerson) {
                                   _submitPersonSettlement();
                                 } else {
                                   _submitSettlement();
                                 }
                               },
                         child: _isSaving
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.black,
+                                ),
+                              )
                             : FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
                                   _settleMode == SharedSettleMode.settleAll
                                       ? 'Confirm Settle All (${CurrencyFormatter.format(pendingTotal)})'
-                                      : (_settleMode == SharedSettleMode.byPerson && _selectedPerson != null
-                                          ? 'Confirm Settle with $_selectedPerson'
-                                          : 'Confirm Reimbursement'),
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                                      : (_settleMode ==
+                                                    SharedSettleMode.byPerson &&
+                                                _selectedPerson != null
+                                            ? 'Confirm Settle with $_selectedPerson'
+                                            : 'Confirm Reimbursement'),
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
                       ),
@@ -795,7 +1012,12 @@ class _PendingSharedExpensesSheetState
     );
   }
 
-  Widget _buildSummaryItem(BuildContext context, String label, String value, {bool isHighlight = false}) {
+  Widget _buildSummaryItem(
+    BuildContext context,
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
     final financialColors = context.financialColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -824,7 +1046,9 @@ class _PendingSharedExpensesSheetState
                 fontWeight: FontWeight.w800,
                 color: isHighlight
                     ? AppColors.primaryEmerald
-                    : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                    : (isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary),
               ),
             ),
           ),

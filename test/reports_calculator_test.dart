@@ -32,7 +32,10 @@ void main() {
         ),
       ];
 
-      final trends = FinancialCalculator.calculateMonthlyTrends(txs, monthsCount: 6);
+      final trends = FinancialCalculator.calculateMonthlyTrends(
+        txs,
+        monthsCount: 6,
+      );
 
       expect(trends.length, 6);
       final currentMonthTrend = trends.last;
@@ -63,51 +66,56 @@ void main() {
       expect(forecast[2].projectedCumulativeBalance, 230000.0); // 170k + 60k
     });
 
-    test('calculatePaymentSourceBreakdown groups expenses by payment method', () {
-      final txs = [
-        TransactionEntity(
-          id: 't1',
-          title: 'Grocery',
-          amount: 3000.0,
-          type: TransactionType.expense,
-          category: 'Groceries',
-          date: now,
-          paymentSource: 'UPI / Wallet',
-          createdAt: now,
-          updatedAt: now,
-        ),
-        TransactionEntity(
-          id: 't2',
-          title: 'Dining',
-          amount: 2000.0,
-          type: TransactionType.expense,
-          category: 'Food & Dining',
-          date: now,
-          paymentSource: 'Credit Card',
-          createdAt: now,
-          updatedAt: now,
-        ),
-        TransactionEntity(
-          id: 't3',
-          title: 'Coffee',
-          amount: 500.0,
-          type: TransactionType.expense,
-          category: 'Food & Dining',
-          date: now,
-          paymentSource: 'UPI / Wallet',
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ];
+    test(
+      'calculatePaymentSourceBreakdown groups expenses by payment method',
+      () {
+        final txs = [
+          TransactionEntity(
+            id: 't1',
+            title: 'Grocery',
+            amount: 3000.0,
+            type: TransactionType.expense,
+            category: 'Groceries',
+            date: now,
+            paymentSource: 'UPI / Wallet',
+            createdAt: now,
+            updatedAt: now,
+          ),
+          TransactionEntity(
+            id: 't2',
+            title: 'Dining',
+            amount: 2000.0,
+            type: TransactionType.expense,
+            category: 'Food & Dining',
+            date: now,
+            paymentSource: 'Credit Card',
+            createdAt: now,
+            updatedAt: now,
+          ),
+          TransactionEntity(
+            id: 't3',
+            title: 'Coffee',
+            amount: 500.0,
+            type: TransactionType.expense,
+            category: 'Food & Dining',
+            date: now,
+            paymentSource: 'UPI / Wallet',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ];
 
-      final breakdown = FinancialCalculator.calculatePaymentSourceBreakdown(txs);
+        final breakdown = FinancialCalculator.calculatePaymentSourceBreakdown(
+          txs,
+        );
 
-      expect(breakdown.length, 2);
-      expect(breakdown.first.source, 'UPI / Wallet');
-      expect(breakdown.first.amount, 3500.0);
-      expect(breakdown.first.count, 2);
-      expect(breakdown[1].source, 'Credit Card');
-      expect(breakdown[1].amount, 2000.0);
-    });
+        expect(breakdown.length, 2);
+        expect(breakdown.first.source, 'UPI / Wallet');
+        expect(breakdown.first.amount, 3500.0);
+        expect(breakdown.first.count, 2);
+        expect(breakdown[1].source, 'Credit Card');
+        expect(breakdown[1].amount, 2000.0);
+      },
+    );
   });
 }

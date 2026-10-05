@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/category_constants.dart';
@@ -33,7 +35,9 @@ class BankAccountListNotifier extends AsyncNotifier<List<BankAccountEntity>> {
     final current = state.valueOrNull ?? [];
     final target = current.where((a) => a.id == id).firstOrNull;
     if (target != null) {
-      await saveAccount(target.copyWith(isArchived: true, updatedAt: DateTime.now()));
+      await saveAccount(
+        target.copyWith(isArchived: true, updatedAt: DateTime.now()),
+      );
     }
   }
 
@@ -51,7 +55,9 @@ class BankAccountListNotifier extends AsyncNotifier<List<BankAccountEntity>> {
     for (final acc in current) {
       final isDef = acc.id == id;
       if (acc.isDefault != isDef) {
-        await saveAccount(acc.copyWith(isDefault: isDef, updatedAt: DateTime.now()));
+        await saveAccount(
+          acc.copyWith(isDefault: isDef, updatedAt: DateTime.now()),
+        );
       }
     }
   }
@@ -66,15 +72,17 @@ class BankAccountListNotifier extends AsyncNotifier<List<BankAccountEntity>> {
       );
       await repository.updateAccount(updated);
       final current = state.valueOrNull ?? [];
-      state = AsyncValue.data(current.map((a) => a.id == id ? updated : a).toList());
+      state = AsyncValue.data(
+        current.map((a) => a.id == id ? updated : a).toList(),
+      );
     }
   }
 }
 
 final bankAccountListProvider =
     AsyncNotifierProvider<BankAccountListNotifier, List<BankAccountEntity>>(
-  BankAccountListNotifier.new,
-);
+      BankAccountListNotifier.new,
+    );
 
 /// Active (non-archived) Bank Accounts
 final activeBankAccountsProvider = Provider<List<BankAccountEntity>>((ref) {
@@ -120,7 +128,9 @@ class CreditCardListNotifier extends AsyncNotifier<List<CreditCardEntity>> {
     final current = state.valueOrNull ?? [];
     final target = current.where((c) => c.id == id).firstOrNull;
     if (target != null) {
-      await saveCard(target.copyWith(isArchived: true, updatedAt: DateTime.now()));
+      await saveCard(
+        target.copyWith(isArchived: true, updatedAt: DateTime.now()),
+      );
     }
   }
 
@@ -144,15 +154,17 @@ class CreditCardListNotifier extends AsyncNotifier<List<CreditCardEntity>> {
       );
       await repository.updateCard(updated);
       final current = state.valueOrNull ?? [];
-      state = AsyncValue.data(current.map((c) => c.id == id ? updated : c).toList());
+      state = AsyncValue.data(
+        current.map((c) => c.id == id ? updated : c).toList(),
+      );
     }
   }
 }
 
 final creditCardListProvider =
     AsyncNotifierProvider<CreditCardListNotifier, List<CreditCardEntity>>(
-  CreditCardListNotifier.new,
-);
+      CreditCardListNotifier.new,
+    );
 
 /// Active (non-archived) Credit Cards
 final activeCreditCardsProvider = Provider<List<CreditCardEntity>>((ref) {
@@ -186,17 +198,6 @@ class AccountOperationsNotifier {
     if (amount <= 0) return;
     final now = date ?? DateTime.now();
 
-    // 1. Decrement source account
-    await _ref
-        .read(bankAccountListProvider.notifier)
-        .adjustAccountBalance(fromAccount.id, -amount);
-
-    // 2. Increment destination account
-    await _ref
-        .read(bankAccountListProvider.notifier)
-        .adjustAccountBalance(toAccount.id, amount);
-
-    // 3. Record transfer transaction
     final tx = TransactionEntity(
       id: const Uuid().v4(),
       title: 'Transfer: ${fromAccount.accountName} → ${toAccount.accountName}',
@@ -207,12 +208,35 @@ class AccountOperationsNotifier {
       paymentSource: fromAccount.accountName,
       accountId: fromAccount.id,
       toAccountId: toAccount.id,
-      notes: notes ?? 'Transfer to ${toAccount.accountName} (${toAccount.usedFor})',
+      notes:
+          notes ??
+          'Transfer to ${toAccount.accountName} (${toAccount.usedFor})',
       createdAt: now,
       updatedAt: now,
     );
 
-    await _ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
+    final txRepo = _ref.read(transactionRepositoryProvider);
+    if (txRepo is SqliteTransactionRepository) {
+      await txRepo.performTransferAtomic(
+        fromAccount: fromAccount,
+        toAccount: toAccount,
+        amount: amount,
+        transaction: tx,
+      );
+    } else {
+      await _ref
+          .read(bankAccountListProvider.notifier)
+          .adjustAccountBalance(fromAccount.id, -amount);
+      await _ref
+          .read(bankAccountListProvider.notifier)
+          .adjustAccountBalance(toAccount.id, amount);
+      await _ref
+          .read(transactionListNotifierProvider.notifier)
+          .addTransaction(tx);
+    }
+
+    _ref.invalidate(bankAccountListProvider);
+    _ref.invalidate(transactionListNotifierProvider);
   }
 
   /// Pay Credit Card bill from a Bank Account
@@ -226,17 +250,6 @@ class AccountOperationsNotifier {
     if (amount <= 0) return;
     final now = date ?? DateTime.now();
 
-    // 1. Deduct money from bank account
-    await _ref
-        .read(bankAccountListProvider.notifier)
-        .adjustAccountBalance(fromAccount.id, -amount);
-
-    // 2. Reduce credit card used amount
-    await _ref
-        .read(creditCardListProvider.notifier)
-        .adjustUsedAmount(creditCard.id, -amount);
-
-    // 3. Record repayment transaction as internal transfer (avoiding double-counting in expenses)
     final tx = TransactionEntity(
       id: const Uuid().v4(),
       title: 'Bill Pay: ${creditCard.cardName}',
@@ -252,7 +265,29 @@ class AccountOperationsNotifier {
       updatedAt: now,
     );
 
-    await _ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
+    final txRepo = _ref.read(transactionRepositoryProvider);
+    if (txRepo is SqliteTransactionRepository) {
+      await txRepo.payCreditCardBillAtomic(
+        fromAccount: fromAccount,
+        creditCard: creditCard,
+        amount: amount,
+        transaction: tx,
+      );
+    } else {
+      await _ref
+          .read(bankAccountListProvider.notifier)
+          .adjustAccountBalance(fromAccount.id, -amount);
+      await _ref
+          .read(creditCardListProvider.notifier)
+          .adjustUsedAmount(creditCard.id, -amount);
+      await _ref
+          .read(transactionListNotifierProvider.notifier)
+          .addTransaction(tx);
+    }
+
+    _ref.invalidate(bankAccountListProvider);
+    _ref.invalidate(creditCardListProvider);
+    _ref.invalidate(transactionListNotifierProvider);
   }
 
   /// Reconciles all Bank Account and Credit Card balances from the transaction ledger.
@@ -279,7 +314,8 @@ class AccountOperationsNotifier {
             computedBalance -= tx.amount;
           }
         }
-        if (tx.toAccountId == account.id && tx.type == TransactionType.transfer) {
+        if (tx.toAccountId == account.id &&
+            tx.type == TransactionType.transfer) {
           computedBalance += tx.amount;
         }
       }

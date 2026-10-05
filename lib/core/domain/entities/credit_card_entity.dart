@@ -1,4 +1,5 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 enum CardNetwork {
@@ -84,7 +85,8 @@ class CreditCardEntity {
   final double initialUsedAmount;
   final int statementDateDay; // 1 to 31
   final int gracePeriodDays; // e.g. 20 days
-  final String cardTheme; // 'obsidian', 'emerald', 'midnightBlue', 'roseGold', 'royalPurple'
+  final String
+  cardTheme; // 'obsidian', 'emerald', 'midnightBlue', 'roseGold', 'royalPurple'
   final bool isArchived;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -135,14 +137,20 @@ class CreditCardEntity {
     } else {
       final nextMonthYear = now.month == 12 ? now.year + 1 : now.year;
       final nextMonth = now.month == 12 ? 1 : now.month + 1;
-      final nextClampedDay = min(statementDateDay, _daysInMonth(nextMonthYear, nextMonth));
+      final nextClampedDay = min(
+        statementDateDay,
+        _daysInMonth(nextMonthYear, nextMonth),
+      );
       return DateTime(nextMonthYear, nextMonth, nextClampedDay);
     }
   }
 
   DateTime _getStatementDateForMonth(int year, int month) {
     final date = DateTime(year, month, 1);
-    final clampedDay = min(statementDateDay, _daysInMonth(date.year, date.month));
+    final clampedDay = min(
+      statementDateDay,
+      _daysInMonth(date.year, date.month),
+    );
     return DateTime(date.year, date.month, clampedDay);
   }
 
@@ -154,7 +162,10 @@ class CreditCardEntity {
     final now = DateTime(rawNow.year, rawNow.month, rawNow.day);
 
     for (int monthOffset = -2; monthOffset <= 2; monthOffset++) {
-      final stmtDate = _getStatementDateForMonth(now.year, now.month + monthOffset);
+      final stmtDate = _getStatementDateForMonth(
+        now.year,
+        now.month + monthOffset,
+      );
       final dueDate = stmtDate.add(Duration(days: gracePeriodDays));
       if (!now.isAfter(dueDate)) {
         return dueDate;
@@ -242,10 +253,13 @@ class CreditCardEntity {
       id: map['id'] as String,
       cardName: map['card_name'] as String,
       bankName: map['bank_name'] as String? ?? 'Credit Card',
-      cardNetwork: CardNetwork.fromString(map['card_network'] as String? ?? 'visa'),
+      cardNetwork: CardNetwork.fromString(
+        map['card_network'] as String? ?? 'visa',
+      ),
       creditLimit: (map['credit_limit'] as num).toDouble(),
       usedAmount: (map['used_amount'] as num?)?.toDouble() ?? 0.0,
-      initialUsedAmount: (map['initial_used_amount'] as num?)?.toDouble() ??
+      initialUsedAmount:
+          (map['initial_used_amount'] as num?)?.toDouble() ??
           ((map['used_amount'] as num?)?.toDouble() ?? 0.0),
       statementDateDay: (map['statement_date_day'] as num?)?.toInt() ?? 1,
       gracePeriodDays: (map['grace_period_days'] as num?)?.toInt() ?? 20,
@@ -275,16 +289,16 @@ class CreditCardEntity {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        cardName,
-        bankName,
-        cardNetwork,
-        creditLimit,
-        usedAmount,
-        initialUsedAmount,
-        statementDateDay,
-        gracePeriodDays,
-        cardTheme,
-        isArchived,
-      );
+    id,
+    cardName,
+    bankName,
+    cardNetwork,
+    creditLimit,
+    usedAmount,
+    initialUsedAmount,
+    statementDateDay,
+    gracePeriodDays,
+    cardTheme,
+    isArchived,
+  );
 }

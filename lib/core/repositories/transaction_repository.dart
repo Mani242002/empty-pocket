@@ -1,6 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart';
+
 import '../database/app_database.dart';
 import '../domain/entities/transaction_entity.dart';
+import '../domain/entities/bank_account_entity.dart';
+import '../domain/entities/credit_card_entity.dart';
+import '../domain/entities/savings_goal_entity.dart';
+import '../domain/entities/debt_entity.dart';
 
 abstract class TransactionRepository {
   Future<List<TransactionEntity>> getAllTransactions();
@@ -8,20 +14,88 @@ abstract class TransactionRepository {
     int limit = 50,
     int offset = 0,
   });
-  Future<void> addTransaction(TransactionEntity transaction);
+  Future<void> addTransaction(
+    TransactionEntity transaction, {
+    DatabaseExecutor? executor,
+  });
   Future<void> addTransactions(List<TransactionEntity> transactions);
-  Future<void> updateTransaction(TransactionEntity transaction);
-  Future<void> deleteTransaction(String id);
+  Future<void> updateTransaction(
+    TransactionEntity transaction, {
+    DatabaseExecutor? executor,
+  });
+  Future<void> deleteTransaction(String id, {DatabaseExecutor? executor});
   Future<void> clearAllTransactions();
 
-  /// Atomically saves a transaction (add or edit) and syncs ledger accounts/cards in a single ACID transaction
+  /// Atomically saves a transaction (add or edit) and syncs ledger accounts/cards, savings goals, and debts
   Future<void> saveTransactionAtomic({
     required TransactionEntity transaction,
     TransactionEntity? previousTransaction,
+    Map<String, double>? multiGoalAllocations,
+    String? multiGoalSourceAccountId,
+    DatabaseExecutor? executor,
   });
 
   /// Atomically deletes a transaction and reverts its ledger balance impact
-  Future<void> deleteTransactionAtomic(String id);
+  Future<void> deleteTransactionAtomic(String id, {DatabaseExecutor? executor});
+
+  /// Atomically settles multiple shared expenses
+  Future<void> settleSharedExpensesAtomic({
+    required List<TransactionEntity> updatedOriginals,
+    required TransactionEntity settlementTransaction,
+    List<TransactionEntity>? additionalTransactions,
+    DatabaseExecutor? executor,
+  });
+
+  /// Atomically deletes a settlement transaction and updates original transactions
+  Future<void> deleteSettlementTransactionAtomic({
+    required String settlementTransactionId,
+    required List<TransactionEntity> updatedOriginals,
+    DatabaseExecutor? executor,
+  });
+
+  /// Atomically transfers funds between accounts
+  Future<void> performTransferAtomic({
+    required BankAccountEntity fromAccount,
+    required BankAccountEntity toAccount,
+    required double amount,
+    required TransactionEntity transaction,
+    DatabaseExecutor? executor,
+  });
+
+  /// Atomically pays a credit card bill
+  Future<void> payCreditCardBillAtomic({
+    required BankAccountEntity fromAccount,
+    required CreditCardEntity creditCard,
+    required double amount,
+    required TransactionEntity transaction,
+    DatabaseExecutor? executor,
+  });
+
+  /// Atomically contributes to a savings goal
+  Future<void> addSavingsGoalContributionAtomic({
+    required SavingsGoalEntity goal,
+    required double amount,
+    String? notes,
+    bool logAsTransaction = true,
+    String paymentSource = 'Bank Account',
+    String? accountId,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  });
+
+  /// Atomically records a debt payment
+  Future<void> recordDebtPaymentAtomic({
+    required DebtEntity debt,
+    required double amount,
+    double principalPortion = 0.0,
+    double interestPortion = 0.0,
+    String? notes,
+    bool logAsTransaction = true,
+    String paymentSource = 'Bank Account',
+    String? accountId,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  });
 }
 
 class SqliteTransactionRepository implements TransactionRepository {
@@ -43,8 +117,11 @@ class SqliteTransactionRepository implements TransactionRepository {
   }
 
   @override
-  Future<void> addTransaction(TransactionEntity transaction) async {
-    await _db.insertTransaction(transaction);
+  Future<void> addTransaction(
+    TransactionEntity transaction, {
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.insertTransaction(transaction, executor: executor);
   }
 
   @override
@@ -53,13 +130,19 @@ class SqliteTransactionRepository implements TransactionRepository {
   }
 
   @override
-  Future<void> updateTransaction(TransactionEntity transaction) async {
-    await _db.updateTransaction(transaction);
+  Future<void> updateTransaction(
+    TransactionEntity transaction, {
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.updateTransaction(transaction, executor: executor);
   }
 
   @override
-  Future<void> deleteTransaction(String id) async {
-    await _db.deleteTransaction(id);
+  Future<void> deleteTransaction(
+    String id, {
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.deleteTransaction(id, executor: executor);
   }
 
   @override
@@ -71,16 +154,137 @@ class SqliteTransactionRepository implements TransactionRepository {
   Future<void> saveTransactionAtomic({
     required TransactionEntity transaction,
     TransactionEntity? previousTransaction,
+    Map<String, double>? multiGoalAllocations,
+    String? multiGoalSourceAccountId,
+    DatabaseExecutor? executor,
   }) async {
     await _db.saveTransactionAtomic(
       transaction: transaction,
       previousTransaction: previousTransaction,
+      multiGoalAllocations: multiGoalAllocations,
+      multiGoalSourceAccountId: multiGoalSourceAccountId,
+      executor: executor,
     );
   }
 
   @override
-  Future<void> deleteTransactionAtomic(String id) async {
-    await _db.deleteTransactionAtomic(id);
+  Future<void> deleteTransactionAtomic(
+    String id, {
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.deleteTransactionAtomic(id, executor: executor);
+  }
+
+  @override
+  Future<void> settleSharedExpensesAtomic({
+    required List<TransactionEntity> updatedOriginals,
+    required TransactionEntity settlementTransaction,
+    List<TransactionEntity>? additionalTransactions,
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.settleSharedExpensesAtomic(
+      updatedOriginals: updatedOriginals,
+      settlementTransaction: settlementTransaction,
+      additionalTransactions: additionalTransactions,
+      executor: executor,
+    );
+  }
+
+  @override
+  Future<void> deleteSettlementTransactionAtomic({
+    required String settlementTransactionId,
+    required List<TransactionEntity> updatedOriginals,
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.deleteSettlementTransactionAtomic(
+      settlementTransactionId: settlementTransactionId,
+      updatedOriginals: updatedOriginals,
+      executor: executor,
+    );
+  }
+
+  @override
+  Future<void> performTransferAtomic({
+    required BankAccountEntity fromAccount,
+    required BankAccountEntity toAccount,
+    required double amount,
+    required TransactionEntity transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.performTransferAtomic(
+      fromAccount: fromAccount,
+      toAccount: toAccount,
+      amount: amount,
+      transaction: transaction,
+      executor: executor,
+    );
+  }
+
+  @override
+  Future<void> payCreditCardBillAtomic({
+    required BankAccountEntity fromAccount,
+    required CreditCardEntity creditCard,
+    required double amount,
+    required TransactionEntity transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.payCreditCardBillAtomic(
+      fromAccount: fromAccount,
+      creditCard: creditCard,
+      amount: amount,
+      transaction: transaction,
+      executor: executor,
+    );
+  }
+
+  @override
+  Future<void> addSavingsGoalContributionAtomic({
+    required SavingsGoalEntity goal,
+    required double amount,
+    String? notes,
+    bool logAsTransaction = true,
+    String paymentSource = 'Bank Account',
+    String? accountId,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.addSavingsGoalContributionAtomic(
+      goal: goal,
+      amount: amount,
+      notes: notes,
+      logAsTransaction: logAsTransaction,
+      paymentSource: paymentSource,
+      accountId: accountId,
+      transaction: transaction,
+      executor: executor,
+    );
+  }
+
+  @override
+  Future<void> recordDebtPaymentAtomic({
+    required DebtEntity debt,
+    required double amount,
+    double principalPortion = 0.0,
+    double interestPortion = 0.0,
+    String? notes,
+    bool logAsTransaction = true,
+    String paymentSource = 'Bank Account',
+    String? accountId,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.recordDebtPaymentAtomic(
+      debt: debt,
+      amount: amount,
+      principalPortion: principalPortion,
+      interestPortion: interestPortion,
+      notes: notes,
+      logAsTransaction: logAsTransaction,
+      paymentSource: paymentSource,
+      accountId: accountId,
+      transaction: transaction,
+      executor: executor,
+    );
   }
 }
 
@@ -107,12 +311,17 @@ class InMemoryTransactionRepository implements TransactionRepository {
     final sorted = List<TransactionEntity>.from(_transactions)
       ..sort((a, b) => b.date.compareTo(a.date));
     if (offset >= sorted.length) return [];
-    final end = (offset + limit < sorted.length) ? offset + limit : sorted.length;
+    final end = (offset + limit < sorted.length)
+        ? offset + limit
+        : sorted.length;
     return sorted.sublist(offset, end);
   }
 
   @override
-  Future<void> addTransaction(TransactionEntity transaction) async {
+  Future<void> addTransaction(
+    TransactionEntity transaction, {
+    DatabaseExecutor? executor,
+  }) async {
     _transactions.removeWhere((t) => t.id == transaction.id);
     _transactions.add(transaction);
   }
@@ -125,7 +334,10 @@ class InMemoryTransactionRepository implements TransactionRepository {
   }
 
   @override
-  Future<void> updateTransaction(TransactionEntity transaction) async {
+  Future<void> updateTransaction(
+    TransactionEntity transaction, {
+    DatabaseExecutor? executor,
+  }) async {
     final index = _transactions.indexWhere((t) => t.id == transaction.id);
     if (index != -1) {
       _transactions[index] = transaction;
@@ -135,7 +347,10 @@ class InMemoryTransactionRepository implements TransactionRepository {
   }
 
   @override
-  Future<void> deleteTransaction(String id) async {
+  Future<void> deleteTransaction(
+    String id, {
+    DatabaseExecutor? executor,
+  }) async {
     _transactions.removeWhere((t) => t.id == id);
   }
 
@@ -148,6 +363,9 @@ class InMemoryTransactionRepository implements TransactionRepository {
   Future<void> saveTransactionAtomic({
     required TransactionEntity transaction,
     TransactionEntity? previousTransaction,
+    Map<String, double>? multiGoalAllocations,
+    String? multiGoalSourceAccountId,
+    DatabaseExecutor? executor,
   }) async {
     if (previousTransaction != null) {
       await updateTransaction(transaction);
@@ -157,8 +375,97 @@ class InMemoryTransactionRepository implements TransactionRepository {
   }
 
   @override
-  Future<void> deleteTransactionAtomic(String id) async {
+  Future<void> deleteTransactionAtomic(
+    String id, {
+    DatabaseExecutor? executor,
+  }) async {
     await deleteTransaction(id);
+  }
+
+  @override
+  Future<void> settleSharedExpensesAtomic({
+    required List<TransactionEntity> updatedOriginals,
+    required TransactionEntity settlementTransaction,
+    List<TransactionEntity>? additionalTransactions,
+    DatabaseExecutor? executor,
+  }) async {
+    for (final orig in updatedOriginals) {
+      await updateTransaction(orig);
+    }
+    await addTransaction(settlementTransaction);
+    if (additionalTransactions != null) {
+      for (final addTx in additionalTransactions) {
+        await addTransaction(addTx);
+      }
+    }
+  }
+
+  @override
+  Future<void> deleteSettlementTransactionAtomic({
+    required String settlementTransactionId,
+    required List<TransactionEntity> updatedOriginals,
+    DatabaseExecutor? executor,
+  }) async {
+    for (final orig in updatedOriginals) {
+      await updateTransaction(orig);
+    }
+    await deleteTransaction(settlementTransactionId);
+  }
+
+  @override
+  Future<void> performTransferAtomic({
+    required BankAccountEntity fromAccount,
+    required BankAccountEntity toAccount,
+    required double amount,
+    required TransactionEntity transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    await addTransaction(transaction);
+  }
+
+  @override
+  Future<void> payCreditCardBillAtomic({
+    required BankAccountEntity fromAccount,
+    required CreditCardEntity creditCard,
+    required double amount,
+    required TransactionEntity transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    await addTransaction(transaction);
+  }
+
+  @override
+  Future<void> addSavingsGoalContributionAtomic({
+    required SavingsGoalEntity goal,
+    required double amount,
+    String? notes,
+    bool logAsTransaction = true,
+    String paymentSource = 'Bank Account',
+    String? accountId,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    if (transaction != null) {
+      await addTransaction(transaction);
+    }
+  }
+
+  @override
+  Future<void> recordDebtPaymentAtomic({
+    required DebtEntity debt,
+    required double amount,
+    double principalPortion = 0.0,
+    double interestPortion = 0.0,
+    String? notes,
+    bool logAsTransaction = true,
+    String paymentSource = 'Bank Account',
+    String? accountId,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    if (transaction != null) {
+      await addTransaction(transaction);
+    }
   }
 }
 

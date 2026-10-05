@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
@@ -9,6 +10,7 @@ import '../../../../core/domain/entities/debt_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/debts_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class AddEditDebtSheet extends ConsumerStatefulWidget {
   final DebtEntity? initialDebt;
@@ -56,19 +58,21 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
     _principalController = TextEditingController(
       text: debt != null
           ? (debt.principalAmount == debt.principalAmount.roundToDouble()
-              ? debt.principalAmount.toInt().toString()
-              : debt.principalAmount.toString())
+                ? debt.principalAmount.toInt().toString()
+                : debt.principalAmount.toString())
           : '',
     );
     _remainingController = TextEditingController(
       text: debt != null
           ? (debt.remainingAmount == debt.remainingAmount.roundToDouble()
-              ? debt.remainingAmount.toInt().toString()
-              : debt.remainingAmount.toString())
+                ? debt.remainingAmount.toInt().toString()
+                : debt.remainingAmount.toString())
           : '',
     );
     _interestRateController = TextEditingController(
-      text: debt != null && debt.interestRate > 0 ? debt.interestRate.toString() : '8.5',
+      text: debt != null && debt.interestRate > 0
+          ? debt.interestRate.toString()
+          : '8.5',
     );
     _tenureController = TextEditingController(
       text: debt != null ? debt.tenureMonths.toString() : '36',
@@ -76,8 +80,8 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
     _emiController = TextEditingController(
       text: debt != null
           ? (debt.monthlyEmi == debt.monthlyEmi.roundToDouble()
-              ? debt.monthlyEmi.toInt().toString()
-              : debt.monthlyEmi.toString())
+                ? debt.monthlyEmi.toInt().toString()
+                : debt.monthlyEmi.toString())
           : '',
     );
     _lenderController = TextEditingController(text: debt?.lenderName ?? '');
@@ -104,7 +108,11 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
     final tenure = int.tryParse(_tenureController.text.trim()) ?? 12;
 
     if (principal > 0 && tenure > 0) {
-      final emi = FinancialCalculator.calculateStandardEmi(principal, rate, tenure);
+      final emi = FinancialCalculator.calculateStandardEmi(
+        principal,
+        rate,
+        tenure,
+      );
       setState(() {
         _emiController.text = emi.round().toString();
         if (_remainingController.text.trim().isEmpty) {
@@ -128,14 +136,18 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
       return;
     }
 
-    final remaining = double.tryParse(_remainingController.text.trim()) ?? principal;
+    final remaining =
+        double.tryParse(_remainingController.text.trim()) ?? principal;
     final rate = double.tryParse(_interestRateController.text.trim()) ?? 0.0;
     final tenure = int.tryParse(_tenureController.text.trim()) ?? 12;
-    final emi = double.tryParse(_emiController.text.trim()) ??
+    final emi =
+        double.tryParse(_emiController.text.trim()) ??
         FinancialCalculator.calculateStandardEmi(principal, rate, tenure);
 
     final title = _titleController.text.trim();
-    final lender = _lenderController.text.trim().isEmpty ? null : _lenderController.text.trim();
+    final lender = _lenderController.text.trim().isEmpty
+        ? null
+        : _lenderController.text.trim();
     final now = DateTime.now();
 
     final debt = DebtEntity(
@@ -163,7 +175,9 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Saved "${debt.title}" (${CurrencyFormatter.format(debt.principalAmount)} loan).'),
+            content: Text(
+              'Saved "${debt.title}" (${CurrencyFormatter.format(debt.principalAmount)} loan).',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -188,7 +202,9 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Debt Record?'),
-        content: Text('Permanently remove "${widget.initialDebt!.title}" and all repayment history?'),
+        content: Text(
+          'Permanently remove "${widget.initialDebt!.title}" and all repayment history?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -205,7 +221,9 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
 
     if (confirmed == true && mounted) {
       try {
-        await ref.read(debtListNotifierProvider.notifier).deleteDebt(widget.initialDebt!.id);
+        await ref
+            .read(debtListNotifierProvider.notifier)
+            .deleteDebt(widget.initialDebt!.id);
 
         if (mounted) {
           Navigator.of(context).pop();
@@ -236,6 +254,7 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
 
+    ref.watch(currencyProvider);
     final bankAccounts = ref.watch(activeBankAccountsProvider);
     final defaultAcc = ref.watch(defaultBankAccountProvider);
 
@@ -281,7 +300,9 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                     children: [
                       Flexible(
                         child: Text(
-                          _isEditMode ? 'Edit Loan / Liability' : 'Add Loan / Debt',
+                          _isEditMode
+                              ? 'Edit Loan / Liability'
+                              : 'Add Loan / Debt',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -291,7 +312,10 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                       ),
                       if (_isEditMode)
                         IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: AppColors.expense,
+                          ),
                           onPressed: _deleteDebt,
                           tooltip: 'Delete',
                         ),
@@ -315,8 +339,9 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                       hintText: 'e.g. HDFC Home Loan, Axis Car Loan, Borrowed from Rahul',
                       prefixIcon: Icon(Icons.account_balance_wallet_rounded),
                     ),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Please enter loan title' : null,
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Please enter loan title'
+                        : null,
                   ),
                   const SizedBox(height: 18),
 
@@ -373,21 +398,29 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _principalController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                  ),
                                 ],
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
                                   color: financialColors.expense,
                                 ),
                                 decoration: InputDecoration(
-                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  prefixText:
+                                      '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '5,00,000',
                                 ),
                                 onChanged: (_) => _calculateEmi(),
                                 validator: (val) =>
-                                    val == null || val.trim().isEmpty ? 'Enter principal' : null,
+                                    val == null || val.trim().isEmpty
+                                    ? 'Enter principal'
+                                    : null,
                               ),
                             ],
                           ),
@@ -408,15 +441,21 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _remainingController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                  ),
                                 ],
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
                                 decoration: InputDecoration(
-                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  prefixText:
+                                      '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '5,00,000',
                                 ),
                               ),
@@ -448,7 +487,10 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _interestRateController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 decoration: const InputDecoration(
                                   suffixText: '%',
                                   hintText: '8.5',
@@ -475,7 +517,9 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                               TextFormField(
                                 controller: _tenureController,
                                 keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
                                 decoration: const InputDecoration(
                                   suffixText: 'mo',
                                   hintText: '36',
@@ -510,20 +554,28 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _emiController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                  ),
                                 ],
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w800,
                                   color: financialColors.warning,
                                 ),
                                 decoration: InputDecoration(
-                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  prefixText:
+                                      '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '15,780',
                                 ),
                                 validator: (val) =>
-                                    val == null || val.trim().isEmpty ? 'Enter EMI' : null,
+                                    val == null || val.trim().isEmpty
+                                    ? 'Enter EMI'
+                                    : null,
                               ),
                             ],
                           ),
@@ -546,7 +598,9 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                                 initialValue: _dueDateDay,
                                 isExpanded: true,
                                 isDense: true,
-                                items: List.generate(31, (i) => i + 1).map((day) {
+                                items: List.generate(31, (i) => i + 1).map((
+                                  day,
+                                ) {
                                   return DropdownMenuItem(
                                     value: day,
                                     child: Text(
@@ -557,7 +611,9 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                                   );
                                 }).toList(),
                                 onChanged: (val) {
-                                  if (val != null) setState(() => _dueDateDay = val);
+                                  if (val != null) {
+                                    setState(() => _dueDateDay = val);
+                                  }
                                 },
                               ),
                             ],
@@ -615,7 +671,9 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                         );
                       }).toList(),
                       onChanged: (val) {
-                        if (val != null) setState(() => _selectedAccountId = val);
+                        if (val != null) {
+                          setState(() => _selectedAccountId = val);
+                        }
                       },
                     ),
                     const SizedBox(height: 18),
@@ -633,7 +691,10 @@ class _AddEditDebtSheetState extends ConsumerState<AddEditDebtSheet> {
                       onPressed: _saveDebt,
                       child: Text(
                         _isEditMode ? 'Update Loan Record' : 'Save Loan Record',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),

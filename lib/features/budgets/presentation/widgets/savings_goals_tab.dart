@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/savings_goal_entity.dart';
@@ -8,12 +9,14 @@ import '../../../../core/utilities/currency_formatter.dart';
 import '../../../savings/presentation/screens/add_contribution_sheet.dart';
 import '../../../savings/presentation/screens/add_edit_savings_goal_sheet.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class SavingsGoalsTab extends ConsumerWidget {
   const SavingsGoalsTab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -39,11 +42,16 @@ class SavingsGoalsTab extends ConsumerWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: isDark
-                      ? [AppColors.primaryEmerald.withAlpha(50), AppColors.darkSurface]
+                      ? [
+                          AppColors.primaryEmerald.withAlpha(50),
+                          AppColors.darkSurface,
+                        ]
                       : [AppColors.primaryEmerald.withAlpha(20), Colors.white],
                 ),
                 border: Border.all(
-                  color: isDark ? AppColors.income.withAlpha(60) : AppColors.income.withAlpha(40),
+                  color: isDark
+                      ? AppColors.income.withAlpha(60)
+                      : AppColors.income.withAlpha(40),
                   width: 1.5,
                 ),
               ),
@@ -68,9 +76,14 @@ class SavingsGoalsTab extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: financialColors.income.withAlpha(isDark ? 40 : 25),
+                          color: financialColors.income.withAlpha(
+                            isDark ? 40 : 25,
+                          ),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -113,7 +126,9 @@ class SavingsGoalsTab extends ConsumerWidget {
                       backgroundColor: isDark
                           ? AppColors.darkSurfaceVariant
                           : AppColors.lightSurfaceVariant,
-                      valueColor: AlwaysStoppedAnimation<Color>(financialColors.income),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        financialColors.income,
+                      ),
                     ),
                   ),
                 ],
@@ -128,7 +143,9 @@ class SavingsGoalsTab extends ConsumerWidget {
                 children: [
                   Text(
                     'Your Goals (${goals.length})',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   if (goals.isNotEmpty)
                     TextButton.icon(
@@ -144,7 +161,10 @@ class SavingsGoalsTab extends ConsumerWidget {
             if (goals.isEmpty)
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 36,
+                    horizontal: 20,
+                  ),
                   child: Column(
                     children: [
                       Container(
@@ -152,7 +172,9 @@ class SavingsGoalsTab extends ConsumerWidget {
                         height: 64,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: financialColors.savings.withAlpha(isDark ? 40 : 25),
+                          color: financialColors.savings.withAlpha(
+                            isDark ? 40 : 25,
+                          ),
                         ),
                         child: Icon(
                           Icons.savings_rounded,
@@ -163,7 +185,9 @@ class SavingsGoalsTab extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         'No Savings Goals Yet',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -176,7 +200,9 @@ class SavingsGoalsTab extends ConsumerWidget {
                       ),
                       const SizedBox(height: 20),
                       FilledButton.icon(
-                        style: FilledButton.styleFrom(backgroundColor: financialColors.savings),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: financialColors.savings,
+                        ),
                         onPressed: () => AddEditSavingsGoalSheet.show(context),
                         icon: const Icon(Icons.add_rounded, size: 18),
                         label: const Text('Create First Goal'),
@@ -198,7 +224,11 @@ class SavingsGoalsTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildSavingsGoalCard(BuildContext context, WidgetRef ref, GoalProgressMetrics metric) {
+  Widget _buildSavingsGoalCard(
+    BuildContext context,
+    WidgetRef ref,
+    GoalProgressMetrics metric,
+  ) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -219,7 +249,9 @@ class SavingsGoalsTab extends ConsumerWidget {
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.expense,
+                ),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Delete'),
               ),
@@ -244,7 +276,10 @@ class SavingsGoalsTab extends ConsumerWidget {
             SizedBox(width: 8),
             Text(
               'Remove',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -275,13 +310,21 @@ class SavingsGoalsTab extends ConsumerWidget {
                       height: 44,
                       decoration: BoxDecoration(
                         color: goal.isEmergencyFund
-                            ? AppColors.primaryEmerald.withAlpha(isDark ? 45 : 30)
-                            : financialColors.savings.withAlpha(isDark ? 45 : 30),
+                            ? AppColors.primaryEmerald.withAlpha(
+                                isDark ? 45 : 30,
+                              )
+                            : financialColors.savings.withAlpha(
+                                isDark ? 45 : 30,
+                              ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        goal.isEmergencyFund ? Icons.shield_rounded : Icons.savings_rounded,
-                        color: goal.isEmergencyFund ? AppColors.primaryEmerald : financialColors.savings,
+                        goal.isEmergencyFund
+                            ? Icons.shield_rounded
+                            : Icons.savings_rounded,
+                        color: goal.isEmergencyFund
+                            ? AppColors.primaryEmerald
+                            : financialColors.savings,
                         size: 22,
                       ),
                     ),
@@ -305,9 +348,14 @@ class SavingsGoalsTab extends ConsumerWidget {
                               if (goal.isEmergencyFund) ...[
                                 const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primaryEmerald.withAlpha(isDark ? 50 : 30),
+                                    color: AppColors.primaryEmerald.withAlpha(
+                                      isDark ? 50 : 30,
+                                    ),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Text(
@@ -328,7 +376,9 @@ class SavingsGoalsTab extends ConsumerWidget {
                                 ? '🎉 Goal Completed!'
                                 : '${CurrencyFormatter.format(metric.remainingAmount)} remaining',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: metric.isCompleted ? financialColors.income : financialColors.textMuted,
+                              color: metric.isCompleted
+                                  ? financialColors.income
+                                  : financialColors.textMuted,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -347,7 +397,9 @@ class SavingsGoalsTab extends ConsumerWidget {
                               CurrencyFormatter.format(goal.currentAmount),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
-                                color: metric.isCompleted ? financialColors.income : null,
+                                color: metric.isCompleted
+                                    ? financialColors.income
+                                    : null,
                               ),
                             ),
                           ),
@@ -380,7 +432,9 @@ class SavingsGoalsTab extends ConsumerWidget {
                     valueColor: AlwaysStoppedAnimation<Color>(
                       metric.isCompleted
                           ? financialColors.income
-                          : (goal.isEmergencyFund ? AppColors.primaryEmerald : financialColors.savings),
+                          : (goal.isEmergencyFund
+                                ? AppColors.primaryEmerald
+                                : financialColors.savings),
                     ),
                   ),
                 ),
@@ -403,7 +457,8 @@ class SavingsGoalsTab extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (!metric.isCompleted && metric.recommendedMonthlySavings > 0)
+                          if (!metric.isCompleted &&
+                              metric.recommendedMonthlySavings > 0)
                             Text(
                               'Save ${CurrencyFormatter.format(metric.recommendedMonthlySavings)}/mo',
                               style: TextStyle(
@@ -425,10 +480,20 @@ class SavingsGoalsTab extends ConsumerWidget {
                       child: FilledButton.tonalIcon(
                         style: FilledButton.styleFrom(
                           visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                         ),
-                        icon: Icon(goal.autoSyncAccount ? Icons.sync_rounded : Icons.add_rounded, size: 16),
-                        label: Text(goal.autoSyncAccount ? 'Auto-Synced' : 'Add Funds'),
+                        icon: Icon(
+                          goal.autoSyncAccount
+                              ? Icons.sync_rounded
+                              : Icons.add_rounded,
+                          size: 16,
+                        ),
+                        label: Text(
+                          goal.autoSyncAccount ? 'Auto-Synced' : 'Add Funds',
+                        ),
                         onPressed: goal.autoSyncAccount
                             ? null
                             : () => AddContributionSheet.show(context, goal),

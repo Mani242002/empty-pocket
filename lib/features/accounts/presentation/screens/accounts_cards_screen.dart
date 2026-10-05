@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/calculation/financial_calculator.dart';
@@ -12,6 +13,7 @@ import 'account_transfer_sheet.dart';
 import 'add_edit_bank_account_sheet.dart';
 import 'add_edit_credit_card_sheet.dart';
 import 'pay_credit_card_sheet.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class AccountsCardsScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
@@ -19,7 +21,8 @@ class AccountsCardsScreen extends ConsumerStatefulWidget {
   const AccountsCardsScreen({super.key, this.initialTabIndex = 0});
 
   @override
-  ConsumerState<AccountsCardsScreen> createState() => _AccountsCardsScreenState();
+  ConsumerState<AccountsCardsScreen> createState() =>
+      _AccountsCardsScreenState();
 }
 
 class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
@@ -44,6 +47,7 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -64,7 +68,10 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
           indicatorWeight: 3,
           labelColor: isDark ? AppColors.primaryMint : AppColors.primaryTeal,
           unselectedLabelColor: financialColors.textMuted,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
           tabs: [
             Tab(
               icon: const Icon(Icons.account_balance_rounded, size: 20),
@@ -85,9 +92,21 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
               controller: _tabController,
               children: [
                 // Tab 1: Bank Accounts
-                _buildBankAccountsTab(context, accounts, combinedCash, isDark, financialColors),
+                _buildBankAccountsTab(
+                  context,
+                  accounts,
+                  combinedCash,
+                  isDark,
+                  financialColors,
+                ),
                 // Tab 2: Credit Cards
-                _buildCreditCardsTab(context, cards, creditSummary, isDark, financialColors),
+                _buildCreditCardsTab(
+                  context,
+                  cards,
+                  creditSummary,
+                  isDark,
+                  financialColors,
+                ),
               ],
             ),
           ),
@@ -119,14 +138,8 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: isDark
-                      ? [
-                          const Color(0xFF13221B),
-                          const Color(0xFF131B26),
-                        ]
-                      : [
-                          const Color(0xFFECFDF5),
-                          const Color(0xFFF0FDF4),
-                        ],
+                      ? [const Color(0xFF13221B), const Color(0xFF131B26)]
+                      : [const Color(0xFFECFDF5), const Color(0xFFF0FDF4)],
                 ),
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
@@ -154,9 +167,14 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                          color: AppColors.primaryEmerald.withAlpha(
+                            isDark ? 40 : 25,
+                          ),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -175,7 +193,9 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                     CurrencyFormatter.format(combinedCash),
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: combinedCash >= 0 ? financialColors.income : financialColors.expense,
+                      color: combinedCash >= 0
+                          ? financialColors.income
+                          : financialColors.expense,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -185,7 +205,9 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                         child: FilledButton.tonalIcon(
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           icon: const Icon(Icons.swap_horiz_rounded, size: 18),
                           label: const FittedBox(
@@ -201,14 +223,17 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.primaryEmerald,
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           icon: const Icon(Icons.add_rounded, size: 18),
                           label: const FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text('Add Account'),
                           ),
-                          onPressed: () => AddEditBankAccountSheet.show(context),
+                          onPressed: () =>
+                              AddEditBankAccountSheet.show(context),
                         ),
                       ),
                     ],
@@ -277,16 +302,18 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final acc = accounts[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _buildAccountCard(context, acc, isDark, financialColors),
-                  );
-                },
-                childCount: accounts.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final acc = accounts[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildAccountCard(
+                    context,
+                    acc,
+                    isDark,
+                    financialColors,
+                  ),
+                );
+              }, childCount: accounts.length),
             ),
           ),
       ],
@@ -305,10 +332,7 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: BorderSide(
-          color: financialColors.cardBorder,
-          width: 1,
-        ),
+        side: BorderSide(color: financialColors.cardBorder, width: 1),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -331,10 +355,16 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                      color: AppColors.primaryEmerald.withAlpha(
+                        isDark ? 40 : 25,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(acc.accountType.icon, color: AppColors.primaryEmerald, size: 22),
+                    child: Icon(
+                      acc.accountType.icon,
+                      color: AppColors.primaryEmerald,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -356,9 +386,14 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                             if (acc.isDefault) ...[
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                                  color: AppColors.primaryEmerald.withAlpha(
+                                    isDark ? 40 : 25,
+                                  ),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
@@ -392,7 +427,9 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                         CurrencyFormatter.format(acc.currentBalance),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: acc.currentBalance >= 0 ? financialColors.income : financialColors.expense,
+                          color: acc.currentBalance >= 0
+                              ? financialColors.income
+                              : financialColors.expense,
                         ),
                       ),
                     ),
@@ -404,23 +441,34 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      color: isDark
+                          ? AppColors.darkSurfaceVariant
+                          : AppColors.lightSurfaceVariant,
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: financialColors.cardBorder),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.label_outline_rounded, size: 12, color: financialColors.textMuted),
+                        Icon(
+                          Icons.label_outline_rounded,
+                          size: 12,
+                          color: financialColors.textMuted,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           acc.usedFor,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
                           ),
                         ),
                       ],
@@ -435,13 +483,17 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                         ),
                         icon: const Icon(Icons.swap_horiz_rounded, size: 16),
                         label: const Text('Transfer'),
-                        onPressed: () => AccountTransferSheet.show(context, fromAccount: acc),
+                        onPressed: () => AccountTransferSheet.show(
+                          context,
+                          fromAccount: acc,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       IconButton(
                         visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.edit_outlined, size: 16),
-                        onPressed: () => AddEditBankAccountSheet.show(context, account: acc),
+                        onPressed: () =>
+                            AddEditBankAccountSheet.show(context, account: acc),
                         tooltip: 'Edit Account',
                       ),
                     ],
@@ -510,11 +562,20 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: creditSummary.overallHealth.color.withAlpha(40),
+                          color: creditSummary.overallHealth.color.withAlpha(
+                            40,
+                          ),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: creditSummary.overallHealth.color.withAlpha(100)),
+                          border: Border.all(
+                            color: creditSummary.overallHealth.color.withAlpha(
+                              100,
+                            ),
+                          ),
                         ),
                         child: Text(
                           '${creditSummary.overallUtilizationRatio.toStringAsFixed(0)}% • ${creditSummary.overallHealth.displayName}',
@@ -554,10 +615,13 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: LinearProgressIndicator(
-                      value: (creditSummary.overallUtilizationRatio / 100).clamp(0.0, 1.0),
+                      value: (creditSummary.overallUtilizationRatio / 100)
+                          .clamp(0.0, 1.0),
                       minHeight: 8,
                       backgroundColor: Colors.white12,
-                      valueColor: AlwaysStoppedAnimation<Color>(creditSummary.overallHealth.color),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        creditSummary.overallHealth.color,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -567,9 +631,14 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                         child: FilledButton.tonalIcon(
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          icon: const Icon(Icons.credit_score_rounded, size: 18),
+                          icon: const Icon(
+                            Icons.credit_score_rounded,
+                            size: 18,
+                          ),
                           label: const FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text('Pay Card Bill'),
@@ -583,7 +652,9 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.investment,
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           icon: const Icon(Icons.add_rounded, size: 18),
                           label: const FittedBox(
@@ -659,16 +730,18 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final card = cards[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildCreditCardItem(context, card, isDark, financialColors),
-                  );
-                },
-                childCount: cards.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final card = cards[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildCreditCardItem(
+                    context,
+                    card,
+                    isDark,
+                    financialColors,
+                  ),
+                );
+              }, childCount: cards.length),
             ),
           ),
       ],
@@ -687,20 +760,40 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
     List<Color> gradientColors;
     switch (card.cardTheme) {
       case 'emerald':
-        gradientColors = [const Color(0xFF065F46), const Color(0xFF047857), const Color(0xFF064E3B)];
+        gradientColors = [
+          const Color(0xFF065F46),
+          const Color(0xFF047857),
+          const Color(0xFF064E3B),
+        ];
         break;
       case 'midnightBlue':
-        gradientColors = [const Color(0xFF1E3A8A), const Color(0xFF1E40AF), const Color(0xFF0F172A)];
+        gradientColors = [
+          const Color(0xFF1E3A8A),
+          const Color(0xFF1E40AF),
+          const Color(0xFF0F172A),
+        ];
         break;
       case 'royalPurple':
-        gradientColors = [const Color(0xFF581C87), const Color(0xFF6B21A8), const Color(0xFF3B0764)];
+        gradientColors = [
+          const Color(0xFF581C87),
+          const Color(0xFF6B21A8),
+          const Color(0xFF3B0764),
+        ];
         break;
       case 'roseGold':
-        gradientColors = [const Color(0xFF9D174D), const Color(0xFFBE185D), const Color(0xFF831843)];
+        gradientColors = [
+          const Color(0xFF9D174D),
+          const Color(0xFFBE185D),
+          const Color(0xFF831843),
+        ];
         break;
       case 'obsidian':
       default:
-        gradientColors = [const Color(0xFF1E293B), const Color(0xFF0F172A), const Color(0xFF020617)];
+        gradientColors = [
+          const Color(0xFF1E293B),
+          const Color(0xFF0F172A),
+          const Color(0xFF020617),
+        ];
     }
 
     return Container(
@@ -859,7 +952,9 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                     value: (ratio / 100).clamp(0.0, 1.0),
                     minHeight: 6,
                     backgroundColor: Colors.white12,
-                    valueColor: AlwaysStoppedAnimation<Color>(card.utilizationHealth.color),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      card.utilizationHealth.color,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -868,7 +963,11 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.event_repeat_rounded, size: 14, color: Colors.white70),
+                        const Icon(
+                          Icons.event_repeat_rounded,
+                          size: 14,
+                          color: Colors.white70,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Bill day: ${card.statementDateDay}th • Due in ${card.daysUntilDue()}d',
@@ -889,14 +988,23 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                             backgroundColor: Colors.white24,
                             foregroundColor: Colors.white,
                           ),
-                          onPressed: () => PayCreditCardSheet.show(context, card: card),
-                          child: const Text('Pay Bill', style: TextStyle(fontSize: 11)),
+                          onPressed: () =>
+                              PayCreditCardSheet.show(context, card: card),
+                          child: const Text(
+                            'Pay Bill',
+                            style: TextStyle(fontSize: 11),
+                          ),
                         ),
                         const SizedBox(width: 4),
                         IconButton(
                           visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 16),
-                          onPressed: () => AddEditCreditCardSheet.show(context, card: card),
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: Colors.white70,
+                            size: 16,
+                          ),
+                          onPressed: () =>
+                              AddEditCreditCardSheet.show(context, card: card),
                         ),
                       ],
                     ),

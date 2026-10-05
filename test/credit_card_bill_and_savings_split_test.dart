@@ -4,6 +4,7 @@ import 'package:empty_pocket/core/calculation/financial_calculator.dart';
 import 'package:empty_pocket/core/domain/entities/bank_account_entity.dart';
 import 'package:empty_pocket/core/domain/entities/budget_entity.dart';
 import 'package:empty_pocket/core/domain/entities/credit_card_entity.dart';
+import 'package:empty_pocket/core/domain/entities/debt_entity.dart';
 import 'package:empty_pocket/core/domain/entities/savings_goal_entity.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
 import 'package:empty_pocket/core/repositories/bank_account_repository.dart';
@@ -12,16 +13,21 @@ import 'package:empty_pocket/core/repositories/savings_goal_repository.dart';
 import 'package:empty_pocket/core/repositories/transaction_repository.dart';
 import 'package:empty_pocket/features/accounts/presentation/state/accounts_cards_provider.dart';
 import 'package:empty_pocket/features/savings/presentation/state/savings_goals_provider.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:empty_pocket/features/transactions/presentation/state/transactions_provider.dart';
 
 class InMemoryTxRepo implements TransactionRepository {
   final Map<String, TransactionEntity> _db = {};
 
   @override
-  Future<List<TransactionEntity>> getAllTransactions() async => _db.values.toList();
+  Future<List<TransactionEntity>> getAllTransactions() async =>
+      _db.values.toList();
 
   @override
-  Future<void> addTransaction(TransactionEntity tx) async => _db[tx.id] = tx;
+  Future<void> addTransaction(
+    TransactionEntity tx, {
+    DatabaseExecutor? executor,
+  }) async => _db[tx.id] = tx;
 
   @override
   Future<void> addTransactions(List<TransactionEntity> transactions) async {
@@ -31,16 +37,25 @@ class InMemoryTxRepo implements TransactionRepository {
   }
 
   @override
-  Future<void> updateTransaction(TransactionEntity tx) async => _db[tx.id] = tx;
+  Future<void> updateTransaction(
+    TransactionEntity tx, {
+    DatabaseExecutor? executor,
+  }) async => _db[tx.id] = tx;
 
   @override
-  Future<void> deleteTransaction(String id) async => _db.remove(id);
+  Future<void> deleteTransaction(
+    String id, {
+    DatabaseExecutor? executor,
+  }) async => _db.remove(id);
 
   @override
   Future<void> clearAllTransactions() async => _db.clear();
 
   @override
-  Future<List<TransactionEntity>> getTransactionsPaginated({int limit = 50, int offset = 0}) async {
+  Future<List<TransactionEntity>> getTransactionsPaginated({
+    int limit = 50,
+    int offset = 0,
+  }) async {
     final all = _db.values.toList();
     if (offset >= all.length) return [];
     return all.skip(offset).take(limit).toList();
@@ -50,6 +65,9 @@ class InMemoryTxRepo implements TransactionRepository {
   Future<void> saveTransactionAtomic({
     required TransactionEntity transaction,
     TransactionEntity? previousTransaction,
+    Map<String, double>? multiGoalAllocations,
+    String? multiGoalSourceAccountId,
+    DatabaseExecutor? executor,
   }) async {
     if (previousTransaction != null) {
       _db.remove(previousTransaction.id);
@@ -58,8 +76,97 @@ class InMemoryTxRepo implements TransactionRepository {
   }
 
   @override
-  Future<void> deleteTransactionAtomic(String id) async {
+  Future<void> deleteTransactionAtomic(
+    String id, {
+    DatabaseExecutor? executor,
+  }) async {
     _db.remove(id);
+  }
+
+  @override
+  Future<void> settleSharedExpensesAtomic({
+    required List<TransactionEntity> updatedOriginals,
+    required TransactionEntity settlementTransaction,
+    List<TransactionEntity>? additionalTransactions,
+    DatabaseExecutor? executor,
+  }) async {
+    for (final orig in updatedOriginals) {
+      _db[orig.id] = orig;
+    }
+    _db[settlementTransaction.id] = settlementTransaction;
+    if (additionalTransactions != null) {
+      for (final addTx in additionalTransactions) {
+        _db[addTx.id] = addTx;
+      }
+    }
+  }
+
+  @override
+  Future<void> deleteSettlementTransactionAtomic({
+    required String settlementTransactionId,
+    required List<TransactionEntity> updatedOriginals,
+    DatabaseExecutor? executor,
+  }) async {
+    _db.remove(settlementTransactionId);
+    for (final orig in updatedOriginals) {
+      _db[orig.id] = orig;
+    }
+  }
+
+  @override
+  Future<void> performTransferAtomic({
+    required BankAccountEntity fromAccount,
+    required BankAccountEntity toAccount,
+    required double amount,
+    required TransactionEntity transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    _db[transaction.id] = transaction;
+  }
+
+  @override
+  Future<void> payCreditCardBillAtomic({
+    required BankAccountEntity fromAccount,
+    required CreditCardEntity creditCard,
+    required double amount,
+    required TransactionEntity transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    _db[transaction.id] = transaction;
+  }
+
+  @override
+  Future<void> addSavingsGoalContributionAtomic({
+    required SavingsGoalEntity goal,
+    required double amount,
+    String? notes,
+    bool logAsTransaction = true,
+    String paymentSource = 'Bank Account',
+    String? accountId,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    if (transaction != null) {
+      _db[transaction.id] = transaction;
+    }
+  }
+
+  @override
+  Future<void> recordDebtPaymentAtomic({
+    required DebtEntity debt,
+    required double amount,
+    double principalPortion = 0.0,
+    double interestPortion = 0.0,
+    String? notes,
+    bool logAsTransaction = true,
+    String paymentSource = 'Bank Account',
+    String? accountId,
+    TransactionEntity? transaction,
+    DatabaseExecutor? executor,
+  }) async {
+    if (transaction != null) {
+      _db[transaction.id] = transaction;
+    }
   }
 }
 
@@ -152,7 +259,8 @@ void main() {
         date: now,
         paymentSource: 'ICICI Salary Account',
         accountId: 'acc_icici',
-        toAccountId: null, // Critical: toAccountId must be null for card bill pay
+        toAccountId:
+            null, // Critical: toAccountId must be null for card bill pay
         creditCardId: 'card_amazon',
         createdAt: now,
         updatedAt: now,
@@ -162,9 +270,15 @@ void main() {
           .read(transactionListNotifierProvider.notifier)
           .saveTransactionWithLedgerImpact(transaction: billTx);
 
-      final icici = (await bankRepo.getAllAccounts()).firstWhere((a) => a.id == 'acc_icici');
-      final hdfc = (await bankRepo.getAllAccounts()).firstWhere((a) => a.id == 'acc_hdfc');
-      final card = (await cardRepo.getAllCards()).firstWhere((c) => c.id == 'card_amazon');
+      final icici = (await bankRepo.getAllAccounts()).firstWhere(
+        (a) => a.id == 'acc_icici',
+      );
+      final hdfc = (await bankRepo.getAllAccounts()).firstWhere(
+        (a) => a.id == 'acc_hdfc',
+      );
+      final card = (await cardRepo.getAllCards()).firstWhere(
+        (c) => c.id == 'card_amazon',
+      );
 
       // Bank account deducted by 10,000
       expect(icici.currentBalance, 40000.0);
@@ -195,8 +309,18 @@ void main() {
           .saveTransactionWithLedgerImpact(transaction: initialBillTx);
 
       // Verify intermediate balances: Bank: 40,000, Card: 5,000
-      expect((await bankRepo.getAllAccounts()).firstWhere((a) => a.id == 'acc_icici').currentBalance, 40000.0);
-      expect((await cardRepo.getAllCards()).firstWhere((c) => c.id == 'card_amazon').usedAmount, 5000.0);
+      expect(
+        (await bankRepo.getAllAccounts())
+            .firstWhere((a) => a.id == 'acc_icici')
+            .currentBalance,
+        40000.0,
+      );
+      expect(
+        (await cardRepo.getAllCards())
+            .firstWhere((c) => c.id == 'card_amazon')
+            .usedAmount,
+        5000.0,
+      );
 
       // Now edit the bill payment: change amount from 10,000 to 12,000
       final updatedBillTx = initialBillTx.copyWith(
@@ -211,9 +335,15 @@ void main() {
             previousTransaction: initialBillTx,
           );
 
-      final icici = (await bankRepo.getAllAccounts()).firstWhere((a) => a.id == 'acc_icici');
-      final hdfc = (await bankRepo.getAllAccounts()).firstWhere((a) => a.id == 'acc_hdfc');
-      final card = (await cardRepo.getAllCards()).firstWhere((c) => c.id == 'card_amazon');
+      final icici = (await bankRepo.getAllAccounts()).firstWhere(
+        (a) => a.id == 'acc_icici',
+      );
+      final hdfc = (await bankRepo.getAllAccounts()).firstWhere(
+        (a) => a.id == 'acc_hdfc',
+      );
+      final card = (await cardRepo.getAllCards()).firstWhere(
+        (c) => c.id == 'card_amazon',
+      );
 
       // ICICI balance should reflect 12,000 deduction: 50,000 - 12,000 = 38,000
       expect(icici.currentBalance, 38000.0);
@@ -298,14 +428,13 @@ void main() {
     tearDown(() => container.dispose());
 
     test('Splitting transfer amount across multiple linked goals updates progress without creating expenses', () async {
-      final notifier = container.read(savingsGoalsListNotifierProvider.notifier);
+      final notifier = container.read(
+        savingsGoalsListNotifierProvider.notifier,
+      );
 
       // Transfer 10,000 to AU Small Finance Bank: 8,000 for ring, 2,000 for dishwasher
       await notifier.allocateToMultipleGoals(
-        goalAllocations: {
-          'goal_ring': 8000.0,
-          'goal_dishwasher': 2000.0,
-        },
+        goalAllocations: {'goal_ring': 8000.0, 'goal_dishwasher': 2000.0},
         sourceAccountId: 'acc_au',
         transactionTitle: 'Salary Transfer',
       );
@@ -324,7 +453,9 @@ void main() {
       expect(ringContribs.length, 1);
       expect(ringContribs.first.amount, 8000.0);
 
-      final dishContribs = await goalRepo.getContributionsForGoal('goal_dishwasher');
+      final dishContribs = await goalRepo.getContributionsForGoal(
+        'goal_dishwasher',
+      );
       expect(dishContribs.length, 1);
       expect(dishContribs.first.amount, 2000.0);
 
@@ -334,7 +465,9 @@ void main() {
     });
 
     test('Single linked goal (e.g. IDFC Emergency Fund) allocates 100% cleanly without expense', () async {
-      final notifier = container.read(savingsGoalsListNotifierProvider.notifier);
+      final notifier = container.read(
+        savingsGoalsListNotifierProvider.notifier,
+      );
 
       await notifier.saveGoal(
         SavingsGoalEntity(

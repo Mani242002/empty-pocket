@@ -12,14 +12,21 @@ void main() {
       expect(emi, closeTo(8678.23, 0.5));
     });
 
-    test('calculateStandardEmi calculates simple division for 0% interest loan', () {
-      final emi = FinancialCalculator.calculateStandardEmi(60000.0, 0.0, 12);
-      expect(emi, 5000.0);
-    });
+    test(
+      'calculateStandardEmi calculates simple division for 0% interest loan',
+      () {
+        final emi = FinancialCalculator.calculateStandardEmi(60000.0, 0.0, 12);
+        expect(emi, 5000.0);
+      },
+    );
 
     test('calculateTotalInterest calculates total interest over tenure', () {
       // Principal: 1,00,000, EMI: 9,000, Tenure: 12 months -> Total Paid: 1,08,000 -> Interest: 8,000
-      final interest = FinancialCalculator.calculateTotalInterest(100000.0, 9000.0, 12);
+      final interest = FinancialCalculator.calculateTotalInterest(
+        100000.0,
+        9000.0,
+        12,
+      );
       expect(interest, 8000.0);
     });
 
@@ -41,49 +48,60 @@ void main() {
       expect(metrics.paidAmount, 300000.0);
       expect(metrics.paidPercentage, 60.0);
       expect(metrics.isPaidOff, isFalse);
-      expect(metrics.estimatedMonthsRemaining, 17); // 200000 / 12000 = 16.66 -> 17
+      expect(
+        metrics.estimatedMonthsRemaining,
+        17,
+      ); // 200000 / 12000 = 16.66 -> 17
     });
 
-    test('calculateOverallLiabilitiesSummary aggregates active and paid off debts', () {
-      final debts = [
-        DebtEntity(
-          id: 'd1',
-          title: 'Car Loan',
-          type: DebtType.carLoan,
-          principalAmount: 400000.0,
-          remainingAmount: 200000.0,
-          monthlyEmi: 10000.0,
-          status: DebtStatus.active,
-          startDate: now,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        DebtEntity(
-          id: 'd2',
-          title: 'Old Credit Card',
-          type: DebtType.creditCard,
-          principalAmount: 50000.0,
-          remainingAmount: 0.0,
-          monthlyEmi: 0.0,
-          status: DebtStatus.paidOff,
-          startDate: now,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ];
+    test(
+      'calculateOverallLiabilitiesSummary aggregates active and paid off debts',
+      () {
+        final debts = [
+          DebtEntity(
+            id: 'd1',
+            title: 'Car Loan',
+            type: DebtType.carLoan,
+            principalAmount: 400000.0,
+            remainingAmount: 200000.0,
+            monthlyEmi: 10000.0,
+            status: DebtStatus.active,
+            startDate: now,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          DebtEntity(
+            id: 'd2',
+            title: 'Old Credit Card',
+            type: DebtType.creditCard,
+            principalAmount: 50000.0,
+            remainingAmount: 0.0,
+            monthlyEmi: 0.0,
+            status: DebtStatus.paidOff,
+            startDate: now,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ];
 
-      final summary = FinancialCalculator.calculateOverallLiabilitiesSummary(debts);
+        final summary = FinancialCalculator.calculateOverallLiabilitiesSummary(
+          debts,
+        );
 
-      expect(summary.totalOutstanding, 200000.0);
-      expect(summary.totalMonthlyEmi, 10000.0);
-      expect(summary.totalOriginalPrincipal, 450000.0);
-      expect(summary.totalPaidOff, 250000.0);
-      expect(summary.activeDebtsCount, 1);
-      expect(summary.paidOffDebtsCount, 1);
-    });
+        expect(summary.totalOutstanding, 200000.0);
+        expect(summary.totalMonthlyEmi, 10000.0);
+        expect(summary.totalOriginalPrincipal, 450000.0);
+        expect(summary.totalPaidOff, 250000.0);
+        expect(summary.activeDebtsCount, 1);
+        expect(summary.paidOffDebtsCount, 1);
+      },
+    );
 
     test('calculateDebtToIncomeRatio computes DTI percentage', () {
-      final dti = FinancialCalculator.calculateDebtToIncomeRatio(25000.0, 100000.0);
+      final dti = FinancialCalculator.calculateDebtToIncomeRatio(
+        25000.0,
+        100000.0,
+      );
       expect(dti, 25.0);
     });
   });

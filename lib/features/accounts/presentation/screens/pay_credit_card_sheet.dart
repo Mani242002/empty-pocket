@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../state/accounts_cards_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class PayCreditCardSheet extends ConsumerStatefulWidget {
   final CreditCardEntity? initialCard;
@@ -59,8 +61,8 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
     _amountController = TextEditingController(
       text: initialAmount > 0
           ? (initialAmount == initialAmount.roundToDouble()
-              ? initialAmount.toInt().toString()
-              : initialAmount.toString())
+                ? initialAmount.toInt().toString()
+                : initialAmount.toString())
           : '',
     );
     _notesController = TextEditingController();
@@ -82,7 +84,9 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
     if (_cardId == null || _fromAccountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select both the credit card and payment bank account.'),
+          content: Text(
+            'Please select both the credit card and payment bank account.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -127,11 +131,15 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
     }
 
     try {
-      await ref.read(accountOperationsProvider).payCreditCardBill(
+      await ref
+          .read(accountOperationsProvider)
+          .payCreditCardBill(
             fromAccount: account,
             creditCard: card,
             amount: amount,
-            notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+            notes: _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
             date: _selectedDate,
           );
 
@@ -161,6 +169,7 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -219,7 +228,9 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.investment.withAlpha(isDark ? 40 : 25),
+                          color: AppColors.investment.withAlpha(
+                            isDark ? 40 : 25,
+                          ),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
@@ -267,7 +278,10 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                           '${c.cardName} (${c.bankName}) • Due: ${CurrencyFormatter.format(c.usedAmount)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
                         ),
                       );
                     }).toList(),
@@ -277,7 +291,8 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                           _cardId = val;
                           final card = cards.firstWhere((c) => c.id == val);
                           if (card.usedAmount > 0) {
-                            _amountController.text = card.usedAmount.toStringAsFixed(0);
+                            _amountController.text = card.usedAmount
+                                .toStringAsFixed(0);
                           }
                         });
                       }
@@ -309,7 +324,10 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                           '${a.accountName} [${a.usedFor}] • Balance: ${CurrencyFormatter.format(a.currentBalance)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
                         ),
                       );
                     }).toList(),
@@ -329,9 +347,13 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}'),
+                      ),
                     ],
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
@@ -349,12 +371,19 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                           ),
                         ),
                       ),
-                      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                      prefixIconConstraints: const BoxConstraints(
+                        minWidth: 0,
+                        minHeight: 0,
+                      ),
                       hintText: '0.00',
                     ),
                     validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Enter amount';
-                      if ((double.tryParse(val) ?? 0) <= 0) return 'Invalid amount';
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Enter amount';
+                      }
+                      if ((double.tryParse(val) ?? 0) <= 0) {
+                        return 'Invalid amount';
+                      }
                       return null;
                     },
                   ),
@@ -367,22 +396,42 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                       child: Row(
                         children: [
                           ActionChip(
-                            label: Text('Full Outstanding (${CurrencyFormatter.format(selectedCard.usedAmount)})'),
-                            labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                            label: Text(
+                              'Full Outstanding (${CurrencyFormatter.format(selectedCard.usedAmount)})',
+                            ),
+                            labelStyle: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
                             onPressed: () {
-                              _amountController.text = selectedCard.usedAmount.toStringAsFixed(0);
-                              _amountController.selection = TextSelection.collapsed(offset: _amountController.text.length);
+                              _amountController.text = selectedCard.usedAmount
+                                  .toStringAsFixed(0);
+                              _amountController.selection =
+                                  TextSelection.collapsed(
+                                    offset: _amountController.text.length,
+                                  );
                             },
                           ),
                           const SizedBox(width: 8),
                           if (selectedCard.usedAmount > 1000)
                             ActionChip(
-                              label: Text('Min Due (~5%: ${CurrencyFormatter.format(selectedCard.usedAmount * 0.05)})'),
-                              labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                              label: Text(
+                                'Min Due (~5%: ${CurrencyFormatter.format(selectedCard.usedAmount * 0.05)})',
+                              ),
+                              labelStyle: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
                               onPressed: () {
-                                final minDue = (selectedCard.usedAmount * 0.05).clamp(500, selectedCard.usedAmount);
-                                _amountController.text = minDue.toStringAsFixed(0);
-                                _amountController.selection = TextSelection.collapsed(offset: _amountController.text.length);
+                                final minDue = (selectedCard.usedAmount * 0.05)
+                                    .clamp(500, selectedCard.usedAmount);
+                                _amountController.text = minDue.toStringAsFixed(
+                                  0,
+                                );
+                                _amountController.selection =
+                                    TextSelection.collapsed(
+                                      offset: _amountController.text.length,
+                                    );
                               },
                             ),
                         ],
@@ -418,10 +467,16 @@ class _PayCreditCardSheetState extends ConsumerState<PayCreditCardSheet> {
                         backgroundColor: const Color(0xFF6366F1),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                      icon: const Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 20,
+                      ),
                       label: const Text(
                         'Record Bill Payment',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       onPressed: _submitPayment,
                     ),

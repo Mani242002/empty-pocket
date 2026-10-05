@@ -4,6 +4,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
@@ -76,14 +77,21 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     _scrollToBottom();
   }
 
-  void _copyText(String text, {String feedback = 'Message copied to clipboard'}) {
+  void _copyText(
+    String text, {
+    String feedback = 'Message copied to clipboard',
+  }) {
     AppHaptics.selectionClick();
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const Icon(
+              Icons.check_circle_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
             const SizedBox(width: 10),
             Text(feedback),
           ],
@@ -97,10 +105,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   void _shareText(String text) {
     AppHaptics.selectionClick();
     SharePlus.instance.share(
-      ShareParams(
-        text: text,
-        subject: 'PocketAI Financial Insight',
-      ),
+      ShareParams(text: text, subject: 'PocketAI Financial Insight'),
     );
   }
 
@@ -124,11 +129,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primaryEmerald),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryEmerald,
+            ),
             onPressed: () {
               final newTitle = controller.text.trim();
               if (newTitle.isNotEmpty) {
-                ref.read(aiChatProvider.notifier).renameSession(session.id, newTitle);
+                ref
+                    .read(aiChatProvider.notifier)
+                    .renameSession(session.id, newTitle);
               }
               Navigator.pop(ctx);
             },
@@ -259,11 +268,17 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          const Icon(Icons.tune_rounded, color: AppColors.primaryEmerald, size: 20),
+                          const Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.primaryEmerald,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'AI Provider & Model',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ],
                       ),
@@ -274,8 +289,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: AiProviderType.values.map((provider) {
-                          final isSelected = liveConfig.providerType == provider;
-                          final isConfigured = liveConfig.isProviderConfigured(provider);
+                          final isSelected =
+                              liveConfig.providerType == provider;
+                          final isConfigured = liveConfig.isProviderConfigured(
+                            provider,
+                          );
 
                           return ChoiceChip(
                             avatar: Icon(provider.icon, size: 16),
@@ -286,7 +304,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                                   provider.displayName,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
                                   ),
                                 ),
                                 if (isConfigured) ...[
@@ -305,7 +325,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                             selected: isSelected,
                             onSelected: (sel) {
                               if (sel) {
-                                ref.read(aiProviderConfigProvider.notifier).updateProvider(provider);
+                                ref
+                                    .read(aiProviderConfigProvider.notifier)
+                                    .updateProvider(provider);
                               }
                             },
                           );
@@ -319,7 +341,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.8,
-                          color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                          color: isDark
+                              ? AppColors.darkTextMuted
+                              : AppColors.lightTextMuted,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -334,37 +358,56 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                               margin: const EdgeInsets.only(bottom: 6),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25)
+                                    ? AppColors.primaryEmerald.withAlpha(
+                                        isDark ? 40 : 25,
+                                      )
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: isSelected
                                       ? AppColors.primaryEmerald
-                                      : (isDark ? Colors.white10 : Colors.black12),
+                                      : (isDark
+                                            ? Colors.white10
+                                            : Colors.black12),
                                 ),
                               ),
                               child: ListTile(
                                 dense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 2,
+                                ),
                                 title: Text(
                                   opt.displayName,
                                   style: TextStyle(
-                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                    color: isSelected ? AppColors.primaryEmerald : null,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? AppColors.primaryEmerald
+                                        : null,
                                   ),
                                 ),
                                 subtitle: Text(
                                   opt.id,
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted,
                                   ),
                                 ),
                                 trailing: isSelected
-                                    ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryEmerald, size: 20)
+                                    ? const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: AppColors.primaryEmerald,
+                                        size: 20,
+                                      )
                                     : null,
                                 onTap: () {
-                                  ref.read(aiProviderConfigProvider.notifier).updateModel(opt.id);
+                                  ref
+                                      .read(aiProviderConfigProvider.notifier)
+                                      .updateModel(opt.id);
                                   Navigator.pop(ctx);
                                 },
                               ),
@@ -448,7 +491,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                              color: AppColors.primaryEmerald.withAlpha(
+                                isDark ? 40 : 25,
+                              ),
                             ),
                             child: const Icon(
                               Icons.history_rounded,
@@ -470,7 +515,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                                 Text(
                                   '${sessions.length} conversation${sessions.length == 1 ? '' : 's'}',
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                    color: isDark
+                                        ? AppColors.darkTextMuted
+                                        : AppColors.lightTextMuted,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -480,12 +527,23 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                           FilledButton.icon(
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.primaryEmerald,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
                             ),
-                            icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                            icon: const Icon(
+                              Icons.add_rounded,
+                              size: 18,
+                              color: Colors.white,
+                            ),
                             label: const Text(
                               'New Chat',
-                              style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 13),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                fontSize: 13,
+                              ),
                             ),
                             onPressed: () {
                               Navigator.pop(bottomSheetContext);
@@ -507,20 +565,28 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                                     Icon(
                                       Icons.forum_outlined,
                                       size: 48,
-                                      color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
+                                      color: isDark
+                                          ? AppColors.darkTextMuted
+                                          : AppColors.lightTextMuted,
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
                                       'No past conversations yet',
-                                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       'Start chatting with PocketAI and your conversations will be securely stored here.',
                                       textAlign: TextAlign.center,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: isDark
+                                                ? AppColors.darkTextMuted
+                                                : AppColors.lightTextMuted,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -528,23 +594,60 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                             )
                           : ListView(
                               controller: scrollController,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
                               children: [
                                 if (todaySessions.isNotEmpty) ...[
                                   _buildSessionSectionHeader('Today', isDark),
-                                  ...todaySessions.map((s) => _buildSessionTile(bottomSheetContext, s, currentId, isDark)),
+                                  ...todaySessions.map(
+                                    (s) => _buildSessionTile(
+                                      bottomSheetContext,
+                                      s,
+                                      currentId,
+                                      isDark,
+                                    ),
+                                  ),
                                 ],
                                 if (yesterdaySessions.isNotEmpty) ...[
-                                  _buildSessionSectionHeader('Yesterday', isDark),
-                                  ...yesterdaySessions.map((s) => _buildSessionTile(bottomSheetContext, s, currentId, isDark)),
+                                  _buildSessionSectionHeader(
+                                    'Yesterday',
+                                    isDark,
+                                  ),
+                                  ...yesterdaySessions.map(
+                                    (s) => _buildSessionTile(
+                                      bottomSheetContext,
+                                      s,
+                                      currentId,
+                                      isDark,
+                                    ),
+                                  ),
                                 ],
                                 if (previousWeekSessions.isNotEmpty) ...[
-                                  _buildSessionSectionHeader('Previous 7 Days', isDark),
-                                  ...previousWeekSessions.map((s) => _buildSessionTile(bottomSheetContext, s, currentId, isDark)),
+                                  _buildSessionSectionHeader(
+                                    'Previous 7 Days',
+                                    isDark,
+                                  ),
+                                  ...previousWeekSessions.map(
+                                    (s) => _buildSessionTile(
+                                      bottomSheetContext,
+                                      s,
+                                      currentId,
+                                      isDark,
+                                    ),
+                                  ),
                                 ],
                                 if (olderSessions.isNotEmpty) ...[
                                   _buildSessionSectionHeader('Older', isDark),
-                                  ...olderSessions.map((s) => _buildSessionTile(bottomSheetContext, s, currentId, isDark)),
+                                  ...olderSessions.map(
+                                    (s) => _buildSessionTile(
+                                      bottomSheetContext,
+                                      s,
+                                      currentId,
+                                      isDark,
+                                    ),
+                                  ),
                                 ],
                               ],
                             ),
@@ -552,13 +655,25 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     if (sessions.isNotEmpty) ...[
                       const Divider(height: 1),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         child: TextButton.icon(
                           style: TextButton.styleFrom(
                             foregroundColor: AppColors.expense,
                           ),
-                          icon: const Icon(Icons.delete_sweep_outlined, size: 18),
-                          label: const Text('Clear All Conversations', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          icon: const Icon(
+                            Icons.delete_sweep_outlined,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Clear All Conversations',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
                           onPressed: () {
                             Navigator.pop(bottomSheetContext);
                             _showClearAllChatsDialog(context);
@@ -591,7 +706,12 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     );
   }
 
-  Widget _buildSessionTile(BuildContext sheetContext, AiChatSession session, String? currentId, bool isDark) {
+  Widget _buildSessionTile(
+    BuildContext sheetContext,
+    AiChatSession session,
+    String? currentId,
+    bool isDark,
+  ) {
     final isSelected = session.id == currentId;
     final timeFormat = DateFormat('h:mm a');
 
@@ -600,7 +720,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
       decoration: BoxDecoration(
         color: isSelected
             ? AppColors.primaryEmerald.withAlpha(isDark ? 35 : 25)
-            : (isDark ? AppColors.darkSurfaceVariant.withAlpha(120) : AppColors.lightSurfaceVariant.withAlpha(120)),
+            : (isDark
+                  ? AppColors.darkSurfaceVariant.withAlpha(120)
+                  : AppColors.lightSurfaceVariant.withAlpha(120)),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isSelected
@@ -621,9 +743,13 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 : (isDark ? Colors.white10 : Colors.black12),
           ),
           child: Icon(
-            isSelected ? Icons.chat_bubble_rounded : Icons.chat_bubble_outline_rounded,
+            isSelected
+                ? Icons.chat_bubble_rounded
+                : Icons.chat_bubble_outline_rounded,
             size: 16,
-            color: isSelected ? AppColors.primaryEmerald : (isDark ? Colors.white70 : Colors.black87),
+            color: isSelected
+                ? AppColors.primaryEmerald
+                : (isDark ? Colors.white70 : Colors.black87),
           ),
         ),
         title: Text(
@@ -633,7 +759,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             fontSize: 13.5,
             color: isSelected
                 ? AppColors.primaryEmerald
-                : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                : (isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary),
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -672,7 +800,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               value: 'delete',
               child: Row(
                 children: [
-                  Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.expense),
+                  Icon(
+                    Icons.delete_outline_rounded,
+                    size: 18,
+                    color: AppColors.expense,
+                  ),
                   SizedBox(width: 8),
                   Text('Delete', style: TextStyle(color: AppColors.expense)),
                 ],
@@ -701,7 +833,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     final isGenerating = chatState.isGenerating;
 
     // Filter out welcome message placeholder from display list if we want to show hero state
-    final isChatEmpty = chatMessages.isEmpty || (chatMessages.length == 1 && chatMessages.first.id == 'welcome');
+    final isChatEmpty =
+        chatMessages.isEmpty ||
+        (chatMessages.length == 1 && chatMessages.first.id == 'welcome');
 
     return Scaffold(
       appBar: AppBar(
@@ -718,7 +852,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                color: isDark
+                    ? AppColors.darkSurfaceVariant
+                    : AppColors.lightSurfaceVariant,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: AppColors.primaryEmerald.withAlpha(isDark ? 80 : 50),
@@ -727,13 +863,22 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(config.providerType.icon, size: 14, color: AppColors.primaryEmerald),
+                  Icon(
+                    config.providerType.icon,
+                    size: 14,
+                    color: AppColors.primaryEmerald,
+                  ),
                   const SizedBox(width: 6),
                   ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.42),
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.42,
+                    ),
                     child: Text(
                       config.activeModelDisplayName,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -772,22 +917,39 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               color: AppColors.warning.withAlpha(25),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 18),
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.warning,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'No ${config.providerType.displayName} API Key configured.',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   TextButton(
-                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const AiSettingsScreen(),
+                        ),
                       );
                     },
-                    child: const Text('Configure', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                    child: const Text(
+                      'Configure',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -804,7 +966,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     itemBuilder: (context, index) {
                       final message = chatMessages[index];
                       // Check if it's the last AI message
-                      final isLastAiMessage = !message.isUser && index == chatMessages.length - 1;
+                      final isLastAiMessage =
+                          !message.isUser && index == chatMessages.length - 1;
                       return _buildMessageItem(
                         context,
                         message,
@@ -826,7 +989,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   const SizedBox(
                     width: 14,
                     height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryEmerald),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primaryEmerald,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -870,10 +1036,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primaryEmerald,
-                  AppColors.primaryTeal,
-                ],
+                colors: [AppColors.primaryEmerald, AppColors.primaryTeal],
               ),
               boxShadow: [
                 BoxShadow(
@@ -925,7 +1088,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     icon: Icons.pie_chart_outline_rounded,
                     iconColor: AppColors.expense,
                     prompt: 'Audit my highest expense category this month and give me practical tips to reduce it.',
-                    width: isNarrow ? constraints.maxWidth : (constraints.maxWidth - 10) / 2,
+                    width: isNarrow
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 10) / 2,
                     isDark: isDark,
                     financialColors: financialColors,
                   ),
@@ -935,7 +1100,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     icon: Icons.shield_outlined,
                     iconColor: AppColors.income,
                     prompt: 'Analyze my emergency fund buffer and safety duration based on my monthly expenses.',
-                    width: isNarrow ? constraints.maxWidth : (constraints.maxWidth - 10) / 2,
+                    width: isNarrow
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 10) / 2,
                     isDark: isDark,
                     financialColors: financialColors,
                   ),
@@ -945,7 +1112,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     icon: Icons.account_balance_outlined,
                     iconColor: AppColors.investment,
                     prompt: 'Should I prioritize prepaying my active loans or investing more in mutual funds/equity?',
-                    width: isNarrow ? constraints.maxWidth : (constraints.maxWidth - 10) / 2,
+                    width: isNarrow
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 10) / 2,
                     isDark: isDark,
                     financialColors: financialColors,
                   ),
@@ -954,8 +1123,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     subtitle: 'Vacation readiness evaluation',
                     icon: Icons.flight_takeoff_rounded,
                     iconColor: AppColors.info,
-                    prompt: 'Based on my current cash balance, expenses, and safety runway, can I comfortably afford a ${CurrencyFormatter.currentSymbol}15,000 trip next month?',
-                    width: isNarrow ? constraints.maxWidth : (constraints.maxWidth - 10) / 2,
+                    prompt:
+                        'Based on my current cash balance, expenses, and safety runway, can I comfortably afford a ${CurrencyFormatter.currentSymbol}15,000 trip next month?',
+                    width: isNarrow
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 10) / 2,
                     isDark: isDark,
                     financialColors: financialColors,
                   ),
@@ -985,7 +1157,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         width: width,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+          color: isDark
+              ? AppColors.darkSurfaceVariant
+              : AppColors.lightSurfaceVariant,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: financialColors.cardBorder),
         ),
@@ -1011,10 +1185,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: TextStyle(
-                fontSize: 11,
-                color: financialColors.textMuted,
-              ),
+              style: TextStyle(fontSize: 11, color: financialColors.textMuted),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1041,7 +1212,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         alignment: Alignment.centerRight,
         child: Container(
           margin: const EdgeInsets.only(bottom: 16),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.82,
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF047857) : AppColors.primaryEmerald,
@@ -1094,7 +1267,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   shape: BoxShape.circle,
                   color: AppColors.primaryEmerald.withAlpha(isDark ? 45 : 30),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primaryEmerald, size: 16),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppColors.primaryEmerald,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
@@ -1131,7 +1308,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               selectable: true,
               styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
                 tableColumnWidth: const IntrinsicColumnWidth(),
-                tableCellsPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                tableCellsPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 tableBorder: TableBorder.all(
                   color: isDark ? Colors.white24 : Colors.black12,
                   borderRadius: BorderRadius.circular(8),
@@ -1142,13 +1322,17 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   fontSize: 12.5,
                 ),
                 tableBody: TextStyle(
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
                   fontSize: 12,
                 ),
                 p: TextStyle(
                   fontSize: 14,
                   height: 1.55,
-                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.lightTextPrimary,
                 ),
                 h1: TextStyle(
                   fontSize: 18,
@@ -1165,7 +1349,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 h3: TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w800,
-                  color: isDark ? AppColors.primaryEmerald : const Color(0xFF047857),
+                  color: isDark
+                      ? AppColors.primaryEmerald
+                      : const Color(0xFF047857),
                   height: 1.4,
                 ),
                 listBullet: const TextStyle(
@@ -1174,7 +1360,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 ),
                 strong: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: isDark ? AppColors.primaryEmerald : const Color(0xFF047857),
+                  color: isDark
+                      ? AppColors.primaryEmerald
+                      : const Color(0xFF047857),
                 ),
                 blockquote: TextStyle(
                   color: financialColors.textMuted,
@@ -1186,7 +1374,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     left: BorderSide(color: AppColors.primaryEmerald, width: 3),
                   ),
                   color: AppColors.primaryEmerald.withAlpha(isDark ? 25 : 15),
-                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
+                  borderRadius: const BorderRadius.horizontal(
+                    right: Radius.circular(6),
+                  ),
                 ),
                 code: TextStyle(
                   backgroundColor: isDark ? Colors.white10 : Colors.black12,
@@ -1221,12 +1411,19 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   icon: const Icon(Icons.refresh_rounded, size: 16),
                   tooltip: 'Regenerate Response',
                   onPressed: () {
                     // Find preceding user message
-                    final userMsgs = ref.read(aiChatProvider).messages.where((m) => m.isUser).toList();
+                    final userMsgs = ref
+                        .read(aiChatProvider)
+                        .messages
+                        .where((m) => m.isUser)
+                        .toList();
                     if (userMsgs.isNotEmpty) {
                       _sendMessage(userMsgs.last.text);
                     }
@@ -1261,7 +1458,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.lightSurfaceVariant,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: _focusNode.hasFocus
@@ -1290,7 +1489,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                             color: financialColors.textMuted,
                           ),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -1314,7 +1516,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 shape: BoxShape.circle,
                 color: isGenerating
                     ? AppColors.primaryEmerald.withAlpha(40)
-                    : (_hasInputText ? AppColors.primaryEmerald : (isDark ? Colors.white12 : Colors.black12)),
+                    : (_hasInputText
+                          ? AppColors.primaryEmerald
+                          : (isDark ? Colors.white12 : Colors.black12)),
               ),
               child: IconButton(
                 padding: EdgeInsets.zero,
@@ -1322,14 +1526,21 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryEmerald),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primaryEmerald,
+                        ),
                       )
                     : Icon(
                         Icons.arrow_upward_rounded,
-                        color: _hasInputText ? Colors.white : (isDark ? Colors.white38 : Colors.black38),
+                        color: _hasInputText
+                            ? Colors.white
+                            : (isDark ? Colors.white38 : Colors.black38),
                         size: 22,
                       ),
-                onPressed: (isGenerating || !_hasInputText) ? null : () => _sendMessage(),
+                onPressed: (isGenerating || !_hasInputText)
+                    ? null
+                    : () => _sendMessage(),
               ),
             ),
           ],

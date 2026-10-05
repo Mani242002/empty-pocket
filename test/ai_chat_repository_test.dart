@@ -43,32 +43,35 @@ void main() {
       expect(all.first.id, 's-2');
     });
 
-    test('saveMessage and getMessagesForSession ordered by timestamp', () async {
-      final now = DateTime.now();
-      final msg1 = AiChatMessage(
-        id: 'm-1',
-        sessionId: 's-1',
-        text: 'First question',
-        isUser: true,
-        timestamp: now,
-      );
+    test(
+      'saveMessage and getMessagesForSession ordered by timestamp',
+      () async {
+        final now = DateTime.now();
+        final msg1 = AiChatMessage(
+          id: 'm-1',
+          sessionId: 's-1',
+          text: 'First question',
+          isUser: true,
+          timestamp: now,
+        );
 
-      final msg2 = AiChatMessage(
-        id: 'm-2',
-        sessionId: 's-1',
-        text: 'Second answer',
-        isUser: false,
-        timestamp: now.add(const Duration(seconds: 5)),
-      );
+        final msg2 = AiChatMessage(
+          id: 'm-2',
+          sessionId: 's-1',
+          text: 'Second answer',
+          isUser: false,
+          timestamp: now.add(const Duration(seconds: 5)),
+        );
 
-      await repository.saveMessage(msg2);
-      await repository.saveMessage(msg1);
+        await repository.saveMessage(msg2);
+        await repository.saveMessage(msg1);
 
-      final sessionMessages = await repository.getMessagesForSession('s-1');
-      expect(sessionMessages.length, 2);
-      expect(sessionMessages[0].id, 'm-1');
-      expect(sessionMessages[1].id, 'm-2');
-    });
+        final sessionMessages = await repository.getMessagesForSession('s-1');
+        expect(sessionMessages.length, 2);
+        expect(sessionMessages[0].id, 'm-1');
+        expect(sessionMessages[1].id, 'm-2');
+      },
+    );
 
     test('deleteSession removes session and associated messages', () async {
       final now = DateTime.now();

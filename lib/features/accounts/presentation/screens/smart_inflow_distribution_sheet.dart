@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
 
 /// Sheet for distributing inflows into multi-purpose accounts
@@ -13,12 +15,12 @@ import '../../../savings/presentation/state/savings_goals_provider.dart';
 class SmartInflowDistributionSheet extends ConsumerStatefulWidget {
   final BankAccountEntity account;
 
-  const SmartInflowDistributionSheet({
-    super.key,
-    required this.account,
-  });
+  const SmartInflowDistributionSheet({super.key, required this.account});
 
-  static Future<void> show(BuildContext context, {required BankAccountEntity account}) {
+  static Future<void> show(
+    BuildContext context, {
+    required BankAccountEntity account,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -28,10 +30,12 @@ class SmartInflowDistributionSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<SmartInflowDistributionSheet> createState() => _SmartInflowDistributionSheetState();
+  ConsumerState<SmartInflowDistributionSheet> createState() =>
+      _SmartInflowDistributionSheetState();
 }
 
-class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistributionSheet> {
+class _SmartInflowDistributionSheetState
+    extends ConsumerState<SmartInflowDistributionSheet> {
   late TextEditingController _amountController;
   double _primaryPercent = 60.0;
   double _secondaryPercent = 30.0;
@@ -41,7 +45,11 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
     super.initState();
     final bal = widget.account.currentBalance;
     _amountController = TextEditingController(
-      text: bal > 0 ? (bal == bal.roundToDouble() ? bal.toInt().toString() : bal.toStringAsFixed(2)) : '50000',
+      text: bal > 0
+          ? (bal == bal.roundToDouble()
+                ? bal.toInt().toString()
+                : bal.toStringAsFixed(2))
+          : '50000',
     );
   }
 
@@ -61,17 +69,26 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
+    final currency =
+        ref.watch(currencyProvider).valueOrNull ??
+        CurrencyFormatter.activeCurrency;
+    final currencySymbol = currency.symbol;
 
     final totalAmount = double.tryParse(_amountController.text.trim()) ?? 0.0;
     final primaryAmount = totalAmount * (_primaryPercent / 100.0);
     final secondaryAmount = totalAmount * (_secondaryPercent / 100.0);
     final idleAmount = totalAmount * (_idlePercent / 100.0);
 
-    final isMultiPurpose = widget.account.usedFor.toLowerCase().contains('insurance') ||
+    final isMultiPurpose =
+        widget.account.usedFor.toLowerCase().contains('insurance') ||
         widget.account.usedFor.toLowerCase().contains('investment');
 
-    final primaryLabel = isMultiPurpose ? 'Investments & SIPs' : 'Primary Purpose (${widget.account.usedFor})';
-    final secondaryLabel = isMultiPurpose ? 'Insurance Premiums' : 'Secondary Goal / Buffer';
+    final primaryLabel = isMultiPurpose
+        ? 'Investments & SIPs'
+        : 'Primary Purpose (${widget.account.usedFor})';
+    final secondaryLabel = isMultiPurpose
+        ? 'Insurance Premiums'
+        : 'Secondary Goal / Buffer';
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -111,7 +128,11 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                         color: AppColors.investment.withAlpha(isDark ? 60 : 35),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.pie_chart_rounded, color: AppColors.investment, size: 24),
+                      child: const Icon(
+                        Icons.pie_chart_rounded,
+                        color: AppColors.investment,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -151,10 +172,24 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Enter deposit / inflow amount',
-                    prefixIcon: const Icon(Icons.currency_rupee_rounded),
+                    prefixIcon: Center(
+                      widthFactor: 1.0,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text(
+                          currencySymbol,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ),
                     suffixIcon: TextButton(
                       onPressed: () {
                         setState(() {
@@ -164,7 +199,13 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                               : bal.toStringAsFixed(2);
                         });
                       },
-                      child: const Text('Use Balance', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      child: const Text(
+                        'Use Balance',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                   onChanged: (_) => setState(() {}),
@@ -225,7 +266,9 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.lightSurfaceVariant,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: financialColors.cardBorder),
                   ),
@@ -237,7 +280,11 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                           color: AppColors.info.withAlpha(isDark ? 50 : 30),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.nightlight_round, size: 20, color: AppColors.info),
+                        child: const Icon(
+                          Icons.nightlight_round,
+                          size: 20,
+                          color: AppColors.info,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -246,18 +293,28 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                           children: [
                             const Text(
                               'Idle Cash Buffer (Sits Quiet in Account)',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             Text(
                               '${_idlePercent.toInt()}% unassigned reserve in ${widget.account.bankName}',
-                              style: TextStyle(fontSize: 11, color: financialColors.textMuted),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: financialColors.textMuted,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       Text(
                         CurrencyFormatter.format(idleAmount),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.info),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.info,
+                        ),
                       ),
                     ],
                   ),
@@ -274,9 +331,19 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                     ),
                     onPressed: () async {
                       try {
-                        final totalAmount = double.tryParse(_amountController.text.trim()) ?? widget.account.currentBalance;
-                        final allGoals = ref.read(savingsGoalsListNotifierProvider).valueOrNull ?? [];
-                        final linkedGoals = allGoals.where((g) => g.linkedAccountId == widget.account.id).toList();
+                        final totalAmount =
+                            double.tryParse(_amountController.text.trim()) ??
+                            widget.account.currentBalance;
+                        final allGoals =
+                            ref
+                                .read(savingsGoalsListNotifierProvider)
+                                .valueOrNull ??
+                            [];
+                        final linkedGoals = allGoals
+                            .where(
+                              (g) => g.linkedAccountId == widget.account.id,
+                            )
+                            .toList();
 
                         if (linkedGoals.isEmpty) {
                           // Automatically initialize primary and secondary goals for this account so the distribution is recorded and tracked
@@ -284,9 +351,13 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                           final pGoal = SavingsGoalEntity(
                             id: const Uuid().v4(),
                             title: primaryLabel,
-                            targetAmount: primaryAmount > 0 ? (primaryAmount * 2).clamp(50000.0, 10000000.0) : 100000.0,
+                            targetAmount: primaryAmount > 0
+                                ? (primaryAmount * 2).clamp(50000.0, 10000000.0)
+                                : 100000.0,
                             currentAmount: primaryAmount,
-                            category: isMultiPurpose ? 'Investments' : 'General',
+                            category: isMultiPurpose
+                                ? 'Investments'
+                                : 'General',
                             targetDate: now.add(const Duration(days: 365)),
                             linkedAccountId: widget.account.id,
                             allocationPercentage: _primaryPercent,
@@ -297,9 +368,16 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                           final sGoal = SavingsGoalEntity(
                             id: const Uuid().v4(),
                             title: secondaryLabel,
-                            targetAmount: secondaryAmount > 0 ? (secondaryAmount * 2).clamp(50000.0, 10000000.0) : 50000.0,
+                            targetAmount: secondaryAmount > 0
+                                ? (secondaryAmount * 2).clamp(
+                                    50000.0,
+                                    10000000.0,
+                                  )
+                                : 50000.0,
                             currentAmount: secondaryAmount,
-                            category: isMultiPurpose ? 'Insurance' : 'Emergency Fund',
+                            category: isMultiPurpose
+                                ? 'Insurance'
+                                : 'Emergency Fund',
                             targetDate: now.add(const Duration(days: 365)),
                             linkedAccountId: widget.account.id,
                             allocationPercentage: _secondaryPercent,
@@ -307,15 +385,21 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                             createdAt: now,
                             updatedAt: now,
                           );
-                          await ref.read(savingsGoalsListNotifierProvider.notifier).saveGoal(pGoal);
-                          await ref.read(savingsGoalsListNotifierProvider.notifier).saveGoal(sGoal);
+                          await ref
+                              .read(savingsGoalsListNotifierProvider.notifier)
+                              .saveGoal(pGoal);
+                          await ref
+                              .read(savingsGoalsListNotifierProvider.notifier)
+                              .saveGoal(sGoal);
                         } else {
-                          await ref.read(savingsGoalsListNotifierProvider.notifier).applyInflowDistribution(
-                            accountId: widget.account.id,
-                            primaryPercent: _primaryPercent,
-                            secondaryPercent: _secondaryPercent,
-                            customBalance: totalAmount,
-                          );
+                          await ref
+                              .read(savingsGoalsListNotifierProvider.notifier)
+                              .applyInflowDistribution(
+                                accountId: widget.account.id,
+                                primaryPercent: _primaryPercent,
+                                secondaryPercent: _secondaryPercent,
+                                customBalance: totalAmount,
+                              );
                         }
 
                         if (context.mounted) {
@@ -333,7 +417,9 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Failed to apply distribution plan: $e'),
+                              content: Text(
+                                'Failed to apply distribution plan: $e',
+                              ),
                               behavior: SnackBarBehavior.floating,
                               backgroundColor: AppColors.expense,
                             ),
@@ -343,7 +429,10 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                     },
                     child: const Text(
                       'Apply Distribution Plan',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -356,7 +445,8 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
   }
 
   Widget _buildPresetChip(String label, double primary, double secondary) {
-    final isSelected = _primaryPercent == primary && _secondaryPercent == secondary;
+    final isSelected =
+        _primaryPercent == primary && _secondaryPercent == secondary;
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -370,7 +460,9 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
           color: isSelected ? AppColors.primaryEmerald : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? AppColors.primaryEmerald : Colors.grey.withAlpha(80),
+            color: isSelected
+                ? AppColors.primaryEmerald
+                : Colors.grey.withAlpha(80),
           ),
         ),
         child: Text(
@@ -399,7 +491,9 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+        color: isDark
+            ? AppColors.darkSurfaceVariant
+            : AppColors.lightSurfaceVariant,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: financialColors.cardBorder),
       ),
@@ -423,18 +517,28 @@ class _SmartInflowDistributionSheetState extends ConsumerState<SmartInflowDistri
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     Text(
                       '${percentage.toInt()}% allocation',
-                      style: TextStyle(fontSize: 11, color: financialColors.textMuted),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: financialColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
               ),
               Text(
                 CurrencyFormatter.format(amount),
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
               ),
             ],
           ),

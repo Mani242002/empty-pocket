@@ -77,7 +77,9 @@ class SharedExpenseImpact {
     required this.settledReimbursement,
   });
 
-  double get reimbursementRate => grossExpense > 0 ? (settledReimbursement / grossExpense * 100).clamp(0.0, 100.0) : 0.0;
+  double get reimbursementRate => grossExpense > 0
+      ? (settledReimbursement / grossExpense * 100).clamp(0.0, 100.0)
+      : 0.0;
 }
 
 class WealthBuildingSummary {

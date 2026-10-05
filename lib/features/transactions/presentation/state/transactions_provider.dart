@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/domain/entities/split_person_share.dart';
@@ -13,10 +15,10 @@ import '../../../../core/domain/entities/savings_goal_entity.dart';
 import '../../../../core/domain/entities/debt_entity.dart';
 import '../../../../core/repositories/savings_goal_repository.dart';
 import '../../../../core/repositories/debt_repository.dart';
-import '../../../../core/services/log_service.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../debts/presentation/state/debts_provider.dart';
+import '../../../../core/services/log_service.dart';
 
 /// Monthly Financial Summary model
 class MonthlyFinancialSummary {
@@ -49,7 +51,7 @@ class MonthlyFinancialSummary {
 /// Selected Month Provider for filtering
 class SelectedMonthNotifier extends StateNotifier<DateTime> {
   SelectedMonthNotifier()
-      : super(DateTime(DateTime.now().year, DateTime.now().month, 1));
+    : super(DateTime(DateTime.now().year, DateTime.now().month, 1));
 
   void previousMonth() {
     state = DateTime(state.year, state.month - 1, 1);
@@ -71,8 +73,8 @@ class SelectedMonthNotifier extends StateNotifier<DateTime> {
 
 final selectedMonthProvider =
     StateNotifierProvider<SelectedMonthNotifier, DateTime>((ref) {
-  return SelectedMonthNotifier();
-});
+      return SelectedMonthNotifier();
+    });
 
 /// Reactive Transaction List AsyncNotifier
 class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
@@ -97,7 +99,10 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
   Future<void> loadMore({int pageSize = 100}) async {
     _currentLimit += pageSize;
     final repository = ref.read(transactionRepositoryProvider);
-    final items = await repository.getTransactionsPaginated(limit: _currentLimit, offset: 0);
+    final items = await repository.getTransactionsPaginated(
+      limit: _currentLimit,
+      offset: 0,
+    );
     _hasMore = items.length >= _currentLimit;
     state = AsyncValue.data(items);
   }
@@ -116,7 +121,8 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
 
   Future<void> addTransaction(TransactionEntity transaction) async {
     final previous = state.valueOrNull ?? [];
-    final optimistic = [transaction, ...previous]..sort((a, b) => b.date.compareTo(a.date));
+    final optimistic = [transaction, ...previous]
+      ..sort((a, b) => b.date.compareTo(a.date));
     state = AsyncValue.data(optimistic);
 
     try {
@@ -131,8 +137,9 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
 
   Future<void> updateTransaction(TransactionEntity transaction) async {
     final previous = state.valueOrNull ?? [];
-    final optimistic = previous.map((t) => t.id == transaction.id ? transaction : t).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    final optimistic =
+        previous.map((t) => t.id == transaction.id ? transaction : t).toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
     state = AsyncValue.data(optimistic);
 
     try {
@@ -145,141 +152,156 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     }
   }
 
-  /// Atomically saves a transaction (add or update) and syncs ledger accounts/cards in a single ACID transaction
+  /// Atomically saves a transaction (add or update) and syncs ledger accounts/cards,
+  /// savings goals, and debts in a single ACID transaction.
   Future<void> saveTransactionWithLedgerImpact({
     required TransactionEntity transaction,
     TransactionEntity? previousTransaction,
+    Map<String, double>? multiGoalAllocations,
+    String? multiGoalSourceAccountId,
   }) async {
     final previous = state.valueOrNull ?? [];
     List<TransactionEntity> optimistic;
     if (previousTransaction != null) {
-      optimistic = previous.map((t) => t.id == transaction.id ? transaction : t).toList()
-        ..sort((a, b) => b.date.compareTo(a.date));
+      optimistic =
+          previous.map((t) => t.id == transaction.id ? transaction : t).toList()
+            ..sort((a, b) => b.date.compareTo(a.date));
+      if (transaction.category ==
+              CategoryConstants.categorySharedReimbursement ||
+          transaction.category == CategoryConstants.categoryLoanRepayment) {
+        final parentIds = (transaction.linkedEntityId ?? '')
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toSet();
+        if (parentIds.isNotEmpty) {
+          final delta = transaction.amount - previousTransaction.amount;
+          if (delta.abs() > 0.001) {
+            optimistic = optimistic.map((t) {
+              if (parentIds.contains(t.id)) {
+                final newReimbursed = (t.reimbursedAmount + delta).clamp(
+                  0.0,
+                  double.infinity,
+                );
+                final newSettled =
+                    t.friendsShare > 0 && newReimbursed >= t.friendsShare;
+                return t.copyWith(
+                  reimbursedAmount: newReimbursed,
+                  isSettled: newSettled,
+                  updatedAt: DateTime.now(),
+                );
+              }
+              return t;
+            }).toList();
+          }
+        }
+      }
     } else {
-      optimistic = [transaction, ...previous]..sort((a, b) => b.date.compareTo(a.date));
+      optimistic = [transaction, ...previous]
+        ..sort((a, b) => b.date.compareTo(a.date));
     }
     state = AsyncValue.data(optimistic);
 
     try {
-      if (previousTransaction != null) {
-        await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
-          ref,
-          previousTransaction,
-          isRevert: true,
-        );
-      }
-      await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
-        ref,
-        transaction,
-        isRevert: false,
-      );
-
       final repository = ref.read(transactionRepositoryProvider);
-      if (previousTransaction != null) {
-        await repository.updateTransaction(transaction);
-
-        // Synchronize linked Savings Goals or Debts on edit if amount or details changed
-        final linkedId = (transaction.linkedEntityId ?? previousTransaction.linkedEntityId)?.trim();
-        if (previousTransaction.category != CategoryConstants.categorySharedReimbursement &&
-            previousTransaction.category != CategoryConstants.categoryLoanRepayment &&
-            linkedId != null &&
-            linkedId.isNotEmpty) {
-          try {
-            final delta = transaction.amount - previousTransaction.amount;
-            if (delta.abs() > 0.0001) {
-              // 1. Check Savings Goals
-              final savingsGoalRepo = ref.read(savingsGoalRepositoryProvider);
-              final goals = await savingsGoalRepo.getAllGoals();
-              final matchedGoal = goals.where((g) => g.id == linkedId).firstOrNull;
-              if (matchedGoal != null) {
-                final newAmount = (matchedGoal.currentAmount + delta).clamp(0.0, double.infinity).toDouble();
-                final newStatus = (newAmount >= matchedGoal.targetAmount)
-                    ? GoalStatus.completed
-                    : (matchedGoal.status == GoalStatus.completed ? GoalStatus.active : matchedGoal.status);
-                final updatedGoal = matchedGoal.copyWith(
-                  currentAmount: newAmount,
-                  status: newStatus,
-                  updatedAt: DateTime.now(),
-                );
-                await savingsGoalRepo.saveGoal(updatedGoal);
-
-                // Update corresponding contribution entry if found
-                final contributions = await savingsGoalRepo.getContributionsForGoal(matchedGoal.id);
-                final candidateContribs = contributions.where((c) => (c.amount - previousTransaction.amount).abs() < 0.001).toList();
-                if (candidateContribs.isNotEmpty) {
-                  candidateContribs.sort((a, b) {
-                    final diffA = (a.date.millisecondsSinceEpoch - previousTransaction.date.millisecondsSinceEpoch).abs();
-                    final diffB = (b.date.millisecondsSinceEpoch - previousTransaction.date.millisecondsSinceEpoch).abs();
-                    return diffA.compareTo(diffB);
-                  });
-                  final contrib = candidateContribs.first;
-                  await savingsGoalRepo.addContribution(contrib.copyWith(amount: transaction.amount, date: transaction.date));
-                }
-                ref.invalidate(savingsGoalsListNotifierProvider);
-              }
-
-              // 2. Check Debts
-              final debtRepo = ref.read(debtRepositoryProvider);
-              final debts = await debtRepo.getAllDebts();
-              final matchedDebt = debts.where((d) => d.id == linkedId).firstOrNull;
-              if (matchedDebt != null) {
-                // More payment reduces remaining debt
-                final newRemaining = (matchedDebt.remainingAmount - delta).clamp(0.0, matchedDebt.principalAmount).toDouble();
-                final newStatus = newRemaining <= 0
-                    ? DebtStatus.paidOff
-                    : (matchedDebt.status == DebtStatus.paidOff ? DebtStatus.active : matchedDebt.status);
-                final updatedDebt = matchedDebt.copyWith(
-                  remainingAmount: newRemaining,
-                  status: newStatus,
-                  updatedAt: DateTime.now(),
-                );
-                await debtRepo.saveDebt(updatedDebt);
-
-                // Update corresponding debt payment entry if found
-                final payments = await debtRepo.getPaymentsForDebt(matchedDebt.id);
-                final candidatePayments = payments.where((p) => (p.amount - previousTransaction.amount).abs() < 0.001).toList();
-                if (candidatePayments.isNotEmpty) {
-                  candidatePayments.sort((a, b) {
-                    final diffA = (a.date.millisecondsSinceEpoch - previousTransaction.date.millisecondsSinceEpoch).abs();
-                    final diffB = (b.date.millisecondsSinceEpoch - previousTransaction.date.millisecondsSinceEpoch).abs();
-                    return diffA.compareTo(diffB);
-                  });
-                  final payment = candidatePayments.first;
-                  await debtRepo.addPayment(payment.copyWith(amount: transaction.amount, date: transaction.date));
-                }
-                ref.invalidate(debtListNotifierProvider);
-              }
-            }
-          } catch (linkedErr, linkedSt) {
-            LogService.error('TransactionsProvider', 'Failed to synchronize linked entity on tx edit ${transaction.id}', linkedErr, linkedSt);
-          }
-        }
-      } else {
-        await repository.addTransaction(transaction);
-      }
-      // Synchronize in-memory presentation providers with updated state
-      ref.invalidate(bankAccountListProvider);
-      ref.invalidate(creditCardListProvider);
-    } catch (e, stack) {
-      try {
-        await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
-          ref,
-          transaction,
-          isRevert: true,
+      if (repository is SqliteTransactionRepository) {
+        await repository.saveTransactionAtomic(
+          transaction: transaction,
+          previousTransaction: previousTransaction,
+          multiGoalAllocations: multiGoalAllocations,
+          multiGoalSourceAccountId: multiGoalSourceAccountId,
         );
+      } else {
         if (previousTransaction != null) {
           await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
             ref,
             previousTransaction,
-            isRevert: false,
+            isRevert: true,
           );
         }
-      } catch (rollbackErr, rollbackSt) {
-        LogService.error('TransactionsProvider', 'Failed to rollback ledger balance impact on error', rollbackErr, rollbackSt);
-      } finally {
-        ref.invalidate(bankAccountListProvider);
-        ref.invalidate(creditCardListProvider);
+        await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
+          ref,
+          transaction,
+          isRevert: false,
+        );
+        if (previousTransaction != null) {
+          if (transaction.category ==
+                  CategoryConstants.categorySharedReimbursement ||
+              transaction.category == CategoryConstants.categoryLoanRepayment) {
+            final parentIds = (transaction.linkedEntityId ?? '')
+                .split(',')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toSet();
+            if (parentIds.isNotEmpty) {
+              final allTxs = await repository.getAllTransactions();
+              final parents = allTxs
+                  .where((t) => parentIds.contains(t.id))
+                  .toList();
+              for (final parent in parents) {
+                final delta = transaction.amount - previousTransaction.amount;
+                final newReimbursed = (parent.reimbursedAmount + delta).clamp(
+                  0.0,
+                  double.infinity,
+                );
+                final newSettled =
+                    parent.friendsShare > 0 &&
+                    newReimbursed >= parent.friendsShare;
+                await repository.updateTransaction(
+                  parent.copyWith(
+                    reimbursedAmount: newReimbursed,
+                    isSettled: newSettled,
+                    updatedAt: DateTime.now(),
+                  ),
+                );
+              }
+            }
+          }
+          await repository.updateTransaction(transaction);
+        } else {
+          await repository.addTransaction(transaction);
+        }
       }
+
+      try {
+        // Reload authoritative transaction list from repository to synchronize in-memory provider state
+        // with all atomic SQLite database changes (including parent updates, split details, etc.)
+        final refreshed = await repository.getAllTransactions();
+        state = AsyncValue.data(refreshed);
+      } catch (refreshErr, refreshStack) {
+        LogService.error(
+          'TransactionsProvider',
+          'Post-commit refresh failed',
+          refreshErr,
+          refreshStack,
+        );
+        ref.invalidateSelf();
+      }
+
+      // Invalidate presentation providers to reflect the atomic database updates
+      ref.invalidate(bankAccountListProvider);
+      ref.invalidate(creditCardListProvider);
+      final isNotSharedReimbursement =
+          transaction.category !=
+              CategoryConstants.categorySharedReimbursement &&
+          transaction.category != CategoryConstants.categoryLoanRepayment &&
+          (previousTransaction == null ||
+              (previousTransaction.category !=
+                      CategoryConstants.categorySharedReimbursement &&
+                  previousTransaction.category !=
+                      CategoryConstants.categoryLoanRepayment));
+      final hasGoalOrDebtImpact =
+          isNotSharedReimbursement &&
+          ((multiGoalAllocations != null && multiGoalAllocations.isNotEmpty) ||
+              (transaction.linkedEntityId != null &&
+                  transaction.linkedEntityId!.trim().isNotEmpty) ||
+              (previousTransaction?.linkedEntityId != null &&
+                  previousTransaction!.linkedEntityId!.trim().isNotEmpty));
+      if (hasGoalOrDebtImpact) {
+        ref.invalidate(savingsGoalsListNotifierProvider);
+        ref.invalidate(debtListNotifierProvider);
+      }
+    } catch (e, stack) {
       state = AsyncValue.data(previous);
       state = AsyncValue.error(e, stack);
       rethrow;
@@ -296,31 +318,53 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
 
     try {
       final repository = ref.read(transactionRepositoryProvider);
+      final updatedOriginals = <TransactionEntity>[];
       if (prevTx != null) {
         // If this was a reimbursement or loan repayment settlement, roll back the original transaction
         if (prevTx.category == CategoryConstants.categorySharedReimbursement ||
             prevTx.category == CategoryConstants.categoryLoanRepayment) {
           List<TransactionEntity> origMatches = [];
-          if (prevTx.linkedEntityId != null && prevTx.linkedEntityId!.trim().isNotEmpty) {
-            final parentIds = prevTx.linkedEntityId!.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toSet();
-            origMatches = previous.where((t) => parentIds.contains(t.id)).toList();
+          final allFreshTxs = await repository.getAllTransactions();
+          if (prevTx.linkedEntityId != null &&
+              prevTx.linkedEntityId!.trim().isNotEmpty) {
+            final parentIds = prevTx.linkedEntityId!
+                .split(',')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toSet();
+            origMatches = allFreshTxs
+                .where((t) => parentIds.contains(t.id))
+                .toList();
           }
 
           // Determine person name from sharedWith, title, or notes
           String? targetPerson = prevTx.sharedWith?.trim();
-          if (targetPerson != null && (targetPerson.startsWith('{') || targetPerson.startsWith('['))) {
+          if (targetPerson != null &&
+              (targetPerson.startsWith('{') || targetPerson.startsWith('['))) {
             targetPerson = null;
           }
           if (targetPerson == null || targetPerson.isEmpty) {
             final title = prevTx.title;
             if (title.startsWith('Reimbursement: ')) {
-              final sub = title.substring('Reimbursement: '.length).split('(').first.trim();
-              if (sub.isNotEmpty && !sub.startsWith('{') && !sub.startsWith('[')) {
+              final sub = title
+                  .substring('Reimbursement: '.length)
+                  .split('(')
+                  .first
+                  .trim();
+              if (sub.isNotEmpty &&
+                  !sub.startsWith('{') &&
+                  !sub.startsWith('[')) {
                 targetPerson = sub;
               }
             } else if (title.startsWith('Loan Repayment: ')) {
-              final sub = title.substring('Loan Repayment: '.length).split('(').first.trim();
-              if (sub.isNotEmpty && !sub.startsWith('{') && !sub.startsWith('[')) {
+              final sub = title
+                  .substring('Loan Repayment: '.length)
+                  .split('(')
+                  .first
+                  .trim();
+              if (sub.isNotEmpty &&
+                  !sub.startsWith('{') &&
+                  !sub.startsWith('[')) {
                 targetPerson = sub;
               }
             }
@@ -328,19 +372,53 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           final cleanPerson = targetPerson?.toLowerCase();
 
           // Fallback if linkedEntityId was missing (e.g. legacy data)
-          if (origMatches.isEmpty && cleanPerson != null && cleanPerson.isNotEmpty) {
-            origMatches = previous.where((t) {
+          if (origMatches.isEmpty &&
+              cleanPerson != null &&
+              cleanPerson.isNotEmpty) {
+            final candidateMatches = allFreshTxs.where((t) {
               if (!t.isShared) return false;
               final loan = LoanShareHelper.parseLoan(t.sharedWith);
-              if (loan != null && loan.borrowerName.trim().toLowerCase() == cleanPerson) {
+              if (loan != null &&
+                  loan.borrowerName.trim().toLowerCase() == cleanPerson) {
                 return loan.repaidAmount > 0;
               }
               final shares = SplitHelper.parseShares(t.sharedWith);
-              if (shares.any((s) => s.personName.trim().toLowerCase() == cleanPerson && s.reimbursedAmount > 0)) {
+              if (shares.any(
+                (s) =>
+                    s.personName.trim().toLowerCase() == cleanPerson &&
+                    s.reimbursedAmount > 0,
+              )) {
                 return true;
               }
               return false;
             }).toList();
+
+            if (candidateMatches.length == 1) {
+              origMatches = candidateMatches;
+            } else if (candidateMatches.length > 1) {
+              // Unambiguous matching only: match if exactly one candidate has repayment equal to this settlement
+              final exactMatches = candidateMatches.where((t) {
+                final loan = LoanShareHelper.parseLoan(t.sharedWith);
+                if (loan != null &&
+                    (loan.repaidAmount - prevTx.amount).abs() < 0.001) {
+                  return true;
+                }
+                final shares = SplitHelper.parseShares(t.sharedWith);
+                return shares.any(
+                  (s) =>
+                      s.personName.trim().toLowerCase() == cleanPerson &&
+                      (s.reimbursedAmount - prevTx.amount).abs() < 0.001,
+                );
+              }).toList();
+              if (exactMatches.length == 1) {
+                origMatches = exactMatches;
+              } else {
+                LogService.warning(
+                  'TransactionsProvider',
+                  'Skipped unlinked settlement rollback on delete: ambiguous candidates (${candidateMatches.length}) found for person $cleanPerson',
+                );
+              }
+            }
           }
 
           double remainingRollback = prevTx.amount;
@@ -354,38 +432,61 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
             double amountRevertedFromThisTx = 0.0;
 
             if (loan != null) {
-              amountRevertedFromThisTx = min(remainingRollback, loan.repaidAmount);
-              if (amountRevertedFromThisTx <= 0) amountRevertedFromThisTx = remainingRollback;
-              final newRepaid = (loan.repaidAmount - amountRevertedFromThisTx).clamp(0.0, double.infinity);
-              final isRepaid = newRepaid >= loan.totalExpected && loan.totalExpected > 0;
-              updatedLoan = loan.copyWith(repaidAmount: newRepaid, isRepaid: isRepaid);
+              amountRevertedFromThisTx = min(
+                remainingRollback,
+                loan.repaidAmount,
+              );
+              if (amountRevertedFromThisTx <= 0) {
+                amountRevertedFromThisTx = remainingRollback;
+              }
+              final newRepaid = (loan.repaidAmount - amountRevertedFromThisTx)
+                  .clamp(0.0, double.infinity);
+              final isRepaid =
+                  newRepaid >= loan.totalExpected && loan.totalExpected > 0;
+              updatedLoan = loan.copyWith(
+                repaidAmount: newRepaid,
+                isRepaid: isRepaid,
+              );
               updatedSharedWith = LoanShareHelper.encodeLoan(updatedLoan);
             } else {
               final shares = SplitHelper.parseShares(orig.sharedWith);
               if (shares.isNotEmpty) {
                 // If cleanPerson does not match any actual person in shares, treat as general/unnamed rollback
-                final isRealPersonInShares = cleanPerson != null &&
-                    shares.any((s) => s.personName.trim().toLowerCase() == cleanPerson);
-                final effectivePerson = isRealPersonInShares ? cleanPerson : null;
+                final isRealPersonInShares =
+                    cleanPerson != null &&
+                    shares.any(
+                      (s) => s.personName.trim().toLowerCase() == cleanPerson,
+                    );
+                final effectivePerson = isRealPersonInShares
+                    ? cleanPerson
+                    : null;
 
                 // Roll back in reverse order (to undo the most recently reimbursed shares first)
                 final reversedShares = shares.reversed.toList();
                 final updatedReversed = <SplitPersonShare>[];
                 for (final s in reversedShares) {
-                  final isPersonMatch = effectivePerson != null &&
+                  final isPersonMatch =
+                      effectivePerson != null &&
                       s.personName.trim().toLowerCase() == effectivePerson;
-                  final availableToRevert = remainingRollback - amountRevertedFromThisTx;
+                  final availableToRevert =
+                      remainingRollback - amountRevertedFromThisTx;
                   if ((isPersonMatch || effectivePerson == null) &&
                       s.reimbursedAmount > 0 &&
                       availableToRevert > 0) {
-                    final canRevert = min(availableToRevert, s.reimbursedAmount);
+                    final canRevert = min(
+                      availableToRevert,
+                      s.reimbursedAmount,
+                    );
                     amountRevertedFromThisTx += canRevert;
-                    final newShareReimbursed =
-                        (s.reimbursedAmount - canRevert).clamp(0.0, s.amount);
-                    updatedReversed.add(s.copyWith(
-                      reimbursedAmount: newShareReimbursed,
-                      isSettled: newShareReimbursed >= s.amount && s.amount > 0,
-                    ));
+                    final newShareReimbursed = (s.reimbursedAmount - canRevert)
+                        .clamp(0.0, s.amount);
+                    updatedReversed.add(
+                      s.copyWith(
+                        reimbursedAmount: newShareReimbursed,
+                        isSettled:
+                            newShareReimbursed >= s.amount && s.amount > 0,
+                      ),
+                    );
                   } else {
                     updatedReversed.add(s);
                   }
@@ -394,17 +495,26 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
                 updatedSharedWith = SplitHelper.encodeShares(updatedShares);
               }
               if (amountRevertedFromThisTx <= 0) {
-                amountRevertedFromThisTx = min(remainingRollback, orig.reimbursedAmount);
-                if (amountRevertedFromThisTx <= 0) amountRevertedFromThisTx = remainingRollback;
+                amountRevertedFromThisTx = min(
+                  remainingRollback,
+                  orig.reimbursedAmount,
+                );
+                if (amountRevertedFromThisTx <= 0) {
+                  amountRevertedFromThisTx = remainingRollback;
+                }
               }
             }
 
             remainingRollback -= amountRevertedFromThisTx;
             final rolledBackReimbursed =
-                (orig.reimbursedAmount - amountRevertedFromThisTx).clamp(0.0, double.infinity);
+                (orig.reimbursedAmount - amountRevertedFromThisTx).clamp(
+                  0.0,
+                  double.infinity,
+                );
             final rolledBackSettled = updatedLoan != null
                 ? updatedLoan.isRepaid
-                : (rolledBackReimbursed >= orig.friendsShare && orig.friendsShare > 0);
+                : (rolledBackReimbursed >= orig.friendsShare &&
+                      orig.friendsShare > 0);
 
             final updatedOrig = orig.copyWith(
               reimbursedAmount: rolledBackReimbursed,
@@ -412,112 +522,212 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
               sharedWith: updatedSharedWith,
               updatedAt: DateTime.now(),
             );
-            await repository.updateTransaction(updatedOrig);
-            optimistic = optimistic.map((t) => t.id == orig.id ? updatedOrig : t).toList();
+            updatedOriginals.add(updatedOrig);
+            optimistic = optimistic
+                .map((t) => t.id == orig.id ? updatedOrig : t)
+                .toList();
           }
           state = AsyncValue.data(optimistic);
         }
-
-
-        // 1. Revert balance impact for linked accounts and credit cards
-        await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
-          ref,
-          prevTx,
-          isRevert: true,
-        );
-
-        // 2. Synchronize linked Savings Goals or Debts if this transaction was linked
-        if (prevTx.category != CategoryConstants.categorySharedReimbursement &&
-            prevTx.category != CategoryConstants.categoryLoanRepayment &&
-            prevTx.linkedEntityId != null &&
-            prevTx.linkedEntityId!.trim().isNotEmpty) {
-          try {
-            final linkedId = prevTx.linkedEntityId!.trim();
-
-            // Check Savings Goals
-            final savingsGoalRepo = ref.read(savingsGoalRepositoryProvider);
-            final goals = await savingsGoalRepo.getAllGoals();
-            final matchedGoal = goals.where((g) => g.id == linkedId).firstOrNull;
-
-            if (matchedGoal != null) {
-              final newAmount = (matchedGoal.currentAmount - prevTx.amount).clamp(0.0, double.infinity).toDouble();
-              final newStatus = (newAmount >= matchedGoal.targetAmount)
-                  ? GoalStatus.completed
-                  : (matchedGoal.status == GoalStatus.completed ? GoalStatus.active : matchedGoal.status);
-              final updatedGoal = matchedGoal.copyWith(
-                currentAmount: newAmount,
-                status: newStatus,
-                updatedAt: DateTime.now(),
-              );
-              await savingsGoalRepo.saveGoal(updatedGoal);
-
-              // Clean up corresponding contribution entry (matched by amount and closest timestamp proximity)
-              final contributions = await savingsGoalRepo.getContributionsForGoal(matchedGoal.id);
-              final candidateContribs = contributions.where((c) => (c.amount - prevTx.amount).abs() < 0.001).toList();
-              if (candidateContribs.isNotEmpty) {
-                candidateContribs.sort((a, b) {
-                  final diffA = (a.date.millisecondsSinceEpoch - prevTx.date.millisecondsSinceEpoch).abs();
-                  final diffB = (b.date.millisecondsSinceEpoch - prevTx.date.millisecondsSinceEpoch).abs();
-                  return diffA.compareTo(diffB);
-                });
-                await savingsGoalRepo.deleteContribution(candidateContribs.first.id);
-              }
-              ref.invalidate(savingsGoalsListNotifierProvider);
-            }
-
-            // Check Debts
-            final debtRepo = ref.read(debtRepositoryProvider);
-            final debts = await debtRepo.getAllDebts();
-            final matchedDebt = debts.where((d) => d.id == linkedId).firstOrNull;
-
-            if (matchedDebt != null) {
-              final newRemaining = (matchedDebt.remainingAmount + prevTx.amount).clamp(0.0, matchedDebt.principalAmount).toDouble();
-              final newStatus = newRemaining <= 0
-                  ? DebtStatus.paidOff
-                  : (matchedDebt.status == DebtStatus.paidOff ? DebtStatus.active : matchedDebt.status);
-              final updatedDebt = matchedDebt.copyWith(
-                remainingAmount: newRemaining,
-                status: newStatus,
-                updatedAt: DateTime.now(),
-              );
-              await debtRepo.saveDebt(updatedDebt);
-
-              // Clean up corresponding payment entry (matched by amount and closest timestamp proximity)
-              final payments = await debtRepo.getPaymentsForDebt(matchedDebt.id);
-              final candidatePayments = payments.where((p) => (p.amount - prevTx.amount).abs() < 0.001).toList();
-              if (candidatePayments.isNotEmpty) {
-                candidatePayments.sort((a, b) {
-                  final diffA = (a.date.millisecondsSinceEpoch - prevTx.date.millisecondsSinceEpoch).abs();
-                  final diffB = (b.date.millisecondsSinceEpoch - prevTx.date.millisecondsSinceEpoch).abs();
-                  return diffA.compareTo(diffB);
-                });
-                await debtRepo.deletePayment(candidatePayments.first.id);
-              }
-              ref.invalidate(debtListNotifierProvider);
-            }
-          } catch (e, st) {
-            LogService.error('TransactionsProvider', 'Failed to roll back linked entity for tx $id', e, st);
-          }
-        }
       }
-      await repository.deleteTransaction(id);
-      ref.invalidate(bankAccountListProvider);
-      ref.invalidate(creditCardListProvider);
-    } catch (e, stack) {
-      if (prevTx != null) {
-        try {
+      if (repository is SqliteTransactionRepository) {
+        if (updatedOriginals.isNotEmpty) {
+          await repository.deleteSettlementTransactionAtomic(
+            settlementTransactionId: id,
+            updatedOriginals: updatedOriginals,
+          );
+        } else {
+          await repository.deleteTransactionAtomic(id);
+        }
+      } else {
+        if (updatedOriginals.isNotEmpty) {
+          await repository.deleteSettlementTransactionAtomic(
+            settlementTransactionId: id,
+            updatedOriginals: updatedOriginals,
+          );
+        }
+        if (prevTx != null) {
           await LedgerBalanceSynchronizer.applyTransactionImpactFromRef(
             ref,
             prevTx,
-            isRevert: false,
+            isRevert: true,
           );
-        } catch (rollbackErr, rollbackSt) {
-          LogService.error('TransactionsProvider', 'Failed to restore ledger balance on delete error', rollbackErr, rollbackSt);
-        } finally {
-          ref.invalidate(bankAccountListProvider);
-          ref.invalidate(creditCardListProvider);
+
+          if (prevTx.category !=
+                  CategoryConstants.categorySharedReimbursement &&
+              prevTx.category != CategoryConstants.categoryLoanRepayment &&
+              prevTx.linkedEntityId != null &&
+              prevTx.linkedEntityId!.trim().isNotEmpty) {
+            try {
+              final linkedId = prevTx.linkedEntityId!.trim();
+
+              // Check Savings Goals
+              final savingsGoalRepo = ref.read(savingsGoalRepositoryProvider);
+              final goals = await savingsGoalRepo.getAllGoals();
+              final matchedGoal = goals
+                  .where((g) => g.id == linkedId)
+                  .firstOrNull;
+
+              if (matchedGoal != null) {
+                final contributions = await savingsGoalRepo
+                    .getContributionsForGoal(matchedGoal.id);
+                GoalContributionEntity? candidate = contributions
+                    .where((c) => c.transactionId == prevTx.id)
+                    .firstOrNull;
+                if (candidate == null) {
+                  final candidateContribs = contributions.where((c) {
+                    final amtMatches = (c.amount - prevTx.amount).abs() < 0.001;
+                    final dateMatches =
+                        (c.date.millisecondsSinceEpoch -
+                                prevTx.date.millisecondsSinceEpoch)
+                            .abs() <=
+                        60000;
+                    return amtMatches &&
+                        dateMatches &&
+                        (c.transactionId == null || c.transactionId!.isEmpty);
+                  }).toList();
+                  if (candidateContribs.length == 1) {
+                    final allTxs = previous;
+                    final reverseMatches = allTxs.where((t) {
+                      final lMatches = t.linkedEntityId?.trim() == linkedId;
+                      final aMatches = (t.amount - prevTx.amount).abs() < 0.001;
+                      final dMatches =
+                          (t.date.millisecondsSinceEpoch -
+                                  prevTx.date.millisecondsSinceEpoch)
+                              .abs() <=
+                          60000;
+                      return lMatches && aMatches && dMatches;
+                    }).toList();
+                    if (reverseMatches.length == 1) {
+                      candidate = candidateContribs.single;
+                    }
+                  }
+                }
+
+                if (candidate != null) {
+                  await savingsGoalRepo.deleteContribution(candidate.id);
+
+                  final newAmount =
+                      (matchedGoal.currentAmount - candidate.amount)
+                          .clamp(0.0, double.infinity)
+                          .toDouble();
+                  final GoalStatus newStatus;
+                  if (matchedGoal.status == GoalStatus.paused) {
+                    newStatus = GoalStatus.paused;
+                  } else if (newAmount >= matchedGoal.targetAmount) {
+                    newStatus = GoalStatus.completed;
+                  } else if (matchedGoal.status == GoalStatus.completed) {
+                    newStatus = GoalStatus.active;
+                  } else {
+                    newStatus = matchedGoal.status;
+                  }
+
+                  final updatedGoal = matchedGoal.copyWith(
+                    currentAmount: newAmount,
+                    status: newStatus,
+                    updatedAt: DateTime.now(),
+                  );
+                  await savingsGoalRepo.saveGoal(updatedGoal);
+                }
+              }
+
+              // Check Debts
+              final debtRepo = ref.read(debtRepositoryProvider);
+              final debts = await debtRepo.getAllDebts();
+              final matchedDebt = debts
+                  .where((d) => d.id == linkedId)
+                  .firstOrNull;
+
+              if (matchedDebt != null) {
+                final payments = await debtRepo.getPaymentsForDebt(
+                  matchedDebt.id,
+                );
+                DebtPaymentEntity? candidate = payments
+                    .where((p) => p.transactionId == prevTx.id)
+                    .firstOrNull;
+                if (candidate == null) {
+                  final candidatePayments = payments.where((p) {
+                    final amtMatches = (p.amount - prevTx.amount).abs() < 0.001;
+                    final dateMatches =
+                        (p.date.millisecondsSinceEpoch -
+                                prevTx.date.millisecondsSinceEpoch)
+                            .abs() <=
+                        60000;
+                    return amtMatches &&
+                        dateMatches &&
+                        (p.transactionId == null || p.transactionId!.isEmpty);
+                  }).toList();
+                  if (candidatePayments.length == 1) {
+                    final allTxs = previous;
+                    final reverseMatches = allTxs.where((t) {
+                      final lMatches = t.linkedEntityId?.trim() == linkedId;
+                      final aMatches = (t.amount - prevTx.amount).abs() < 0.001;
+                      final dMatches =
+                          (t.date.millisecondsSinceEpoch -
+                                  prevTx.date.millisecondsSinceEpoch)
+                              .abs() <=
+                          60000;
+                      return lMatches && aMatches && dMatches;
+                    }).toList();
+                    if (reverseMatches.length == 1) {
+                      candidate = candidatePayments.single;
+                    }
+                  }
+                }
+
+                if (candidate != null) {
+                  await debtRepo.deletePayment(candidate.id);
+
+                  final principalToRestore = candidate.principalPortion > 0
+                      ? candidate.principalPortion
+                      : candidate.amount;
+                  final newRemaining =
+                      (matchedDebt.remainingAmount + principalToRestore)
+                          .clamp(0.0, matchedDebt.principalAmount)
+                          .toDouble();
+                  final newStatus = newRemaining <= 0
+                      ? DebtStatus.paidOff
+                      : (matchedDebt.status == DebtStatus.paidOff
+                            ? DebtStatus.active
+                            : matchedDebt.status);
+                  final updatedDebt = matchedDebt.copyWith(
+                    remainingAmount: newRemaining,
+                    status: newStatus,
+                    updatedAt: DateTime.now(),
+                  );
+                  await debtRepo.saveDebt(updatedDebt);
+                }
+              }
+            } catch (_) {}
+          }
         }
+        await repository.deleteTransaction(id);
       }
+      try {
+        final refreshed = await repository.getAllTransactions();
+        state = AsyncValue.data(refreshed);
+      } catch (refreshErr, refreshStack) {
+        LogService.error(
+          'TransactionsProvider',
+          'Post-delete refresh failed',
+          refreshErr,
+          refreshStack,
+        );
+        ref.invalidateSelf();
+      }
+      ref.invalidate(bankAccountListProvider);
+      ref.invalidate(creditCardListProvider);
+      final hasGoalOrDebtImpact =
+          prevTx != null &&
+          prevTx.category != CategoryConstants.categorySharedReimbursement &&
+          prevTx.category != CategoryConstants.categoryLoanRepayment &&
+          (prevTx.linkedEntityId != null &&
+              prevTx.linkedEntityId!.trim().isNotEmpty);
+      if (hasGoalOrDebtImpact) {
+        ref.invalidate(savingsGoalsListNotifierProvider);
+        ref.invalidate(debtListNotifierProvider);
+      }
+    } catch (e, stack) {
       state = AsyncValue.data(previous);
       state = AsyncValue.error(e, stack);
       rethrow;
@@ -558,9 +768,15 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     final loan = LoanShareHelper.parseLoan(original.sharedWith);
     if (loan != null) {
       settlementPerson = loan.borrowerName;
-      final newRepaid = (loan.repaidAmount + amountReceived).clamp(0.0, double.infinity);
+      final newRepaid = (loan.repaidAmount + amountReceived).clamp(
+        0.0,
+        double.infinity,
+      );
       final isRepaid = newRepaid >= loan.totalExpected;
-      final updatedLoan = loan.copyWith(repaidAmount: newRepaid, isRepaid: isRepaid);
+      final updatedLoan = loan.copyWith(
+        repaidAmount: newRepaid,
+        isRepaid: isRepaid,
+      );
       updatedSharedWith = LoanShareHelper.encodeLoan(updatedLoan);
       isFullySettled = isRepaid;
     } else {
@@ -581,7 +797,8 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           );
         }).toList();
         updatedSharedWith = SplitHelper.encodeShares(updatedShares);
-        isFullySettled = updatedShares.every((s) => s.isSettled) || isFullySettledByMath;
+        isFullySettled =
+            updatedShares.every((s) => s.isSettled) || isFullySettledByMath;
       }
     }
 
@@ -594,10 +811,13 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
 
     final now = DateTime.now();
     final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
-    final destAcc = destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
+    final destAcc =
+        destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
         destAccounts.firstOrNull;
 
-    final isLoanExpense = original.category == CategoryConstants.categoryMoneyLent || loan != null;
+    final isLoanExpense =
+        original.category == CategoryConstants.categoryMoneyLent ||
+        loan != null;
 
     final settlementTx = TransactionEntity(
       id: const Uuid().v4(),
@@ -606,7 +826,9 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           : 'Reimbursement: ${original.title}',
       amount: amountReceived,
       type: TransactionType.income,
-      category: isLoanExpense ? CategoryConstants.categoryLoanRepayment : CategoryConstants.categorySharedReimbursement,
+      category: isLoanExpense
+          ? CategoryConstants.categoryLoanRepayment
+          : CategoryConstants.categorySharedReimbursement,
       date: now,
       paymentSource: destAcc?.accountName ?? 'Cash',
       accountId: destAcc?.id,
@@ -621,17 +843,34 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     final optimistic = previous
         .map((t) => t.id == transactionId ? updatedOriginal : t)
         .toList();
-    state = AsyncValue.data([settlementTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)));
+    state = AsyncValue.data(
+      [settlementTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)),
+    );
 
     try {
       final repository = ref.read(transactionRepositoryProvider);
-      await repository.updateTransaction(updatedOriginal);
-      await repository.addTransaction(settlementTx);
+      await repository.settleSharedExpensesAtomic(
+        updatedOriginals: [updatedOriginal],
+        settlementTransaction: settlementTx,
+      );
 
-      if (destAcc != null) {
+      if (repository is SqliteTransactionRepository) {
+        ref.invalidate(bankAccountListProvider);
+      } else if (destAcc != null) {
         await ref
             .read(bankAccountListProvider.notifier)
             .adjustAccountBalance(destAcc.id, amountReceived);
+      }
+      try {
+        final refreshed = await repository.getAllTransactions();
+        state = AsyncValue.data(refreshed);
+      } catch (e) {
+        LogService.error(
+          'TransactionsProvider',
+          'Post-settle refresh failed',
+          e,
+        );
+        ref.invalidateSelf();
       }
     } catch (e, stack) {
       state = AsyncValue.data(previous);
@@ -649,7 +888,9 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     String? notes,
   }) async {
     final previous = state.valueOrNull ?? [];
-    final targetList = previous.where((t) => t.id == originalTransactionId).toList();
+    final targetList = previous
+        .where((t) => t.id == originalTransactionId)
+        .toList();
     if (targetList.isEmpty) return;
 
     final original = targetList.first;
@@ -669,13 +910,17 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     final updatedOriginal = original.copyWith(
       reimbursedAmount: newRepaid,
       isSettled: isFullySettled,
-      sharedWith: updatedLoan != null ? LoanShareHelper.encodeLoan(updatedLoan) : original.sharedWith,
+      sharedWith: updatedLoan != null
+          ? LoanShareHelper.encodeLoan(updatedLoan)
+          : original.sharedWith,
       updatedAt: DateTime.now(),
     );
 
     final now = repaymentDate ?? DateTime.now();
     final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
-    final destAcc = destAccounts.where((a) => a.id == destinationAccountId).firstOrNull;
+    final destAcc = destAccounts
+        .where((a) => a.id == destinationAccountId)
+        .firstOrNull;
     final paymentSource = destAcc != null ? destAcc.accountName : 'Cash';
     final borrowerName = loan?.borrowerName ?? 'Friend';
 
@@ -689,7 +934,9 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       paymentSource: paymentSource,
       accountId: destAcc?.id,
       linkedEntityId: original.id,
-      notes: notes ?? 'Loan repayment received from $borrowerName for "${original.title}"',
+      notes:
+          notes ??
+          'Loan repayment received from $borrowerName for "${original.title}"',
       createdAt: now,
       updatedAt: now,
     );
@@ -697,17 +944,34 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     final optimistic = previous
         .map((t) => t.id == originalTransactionId ? updatedOriginal : t)
         .toList();
-    state = AsyncValue.data([repaymentTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)));
+    state = AsyncValue.data(
+      [repaymentTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)),
+    );
 
     try {
       final repository = ref.read(transactionRepositoryProvider);
-      await repository.updateTransaction(updatedOriginal);
-      await repository.addTransaction(repaymentTx);
+      await repository.settleSharedExpensesAtomic(
+        updatedOriginals: [updatedOriginal],
+        settlementTransaction: repaymentTx,
+      );
 
-      if (destAcc != null) {
+      if (repository is SqliteTransactionRepository) {
+        ref.invalidate(bankAccountListProvider);
+      } else if (destAcc != null) {
         await ref
             .read(bankAccountListProvider.notifier)
             .adjustAccountBalance(destAcc.id, amountRepaid);
+      }
+      try {
+        final refreshed = await repository.getAllTransactions();
+        state = AsyncValue.data(refreshed);
+      } catch (e) {
+        LogService.error(
+          'TransactionsProvider',
+          'Post-repayment refresh failed',
+          e,
+        );
+        ref.invalidateSelf();
       }
     } catch (e, stack) {
       state = AsyncValue.data(previous);
@@ -748,7 +1012,9 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
         final shares = SplitHelper.parseShares(orig.sharedWith);
         if (shares.isNotEmpty) {
           final updatedShares = shares
-              .map((s) => s.copyWith(reimbursedAmount: s.amount, isSettled: true))
+              .map(
+                (s) => s.copyWith(reimbursedAmount: s.amount, isSettled: true),
+              )
               .toList();
           updatedSharedWith = SplitHelper.encodeShares(updatedShares);
         }
@@ -766,12 +1032,14 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     if (totalReimbursed <= 0) return;
 
     final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
-    final destAcc = destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
+    final destAcc =
+        destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
         destAccounts.firstOrNull;
 
     final settlementTx = TransactionEntity(
       id: const Uuid().v4(),
-      title: 'Reimbursement: Cleared All Pending (${pendingSplits.length} expenses)',
+      title:
+          'Reimbursement: Cleared All Pending (${pendingSplits.length} expenses)',
       amount: totalReimbursed,
       type: TransactionType.income,
       category: CategoryConstants.categorySharedReimbursement,
@@ -780,28 +1048,43 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
       accountId: destAcc?.id,
       creditCardId: null, // Bank account deposit must never attach creditCardId
       linkedEntityId: pendingSplits.map((t) => t.id).join(','),
-      notes: notes ?? 'Cleared all ${pendingSplits.length} pending shared expenses payback',
+      notes:
+          notes ??
+          'Cleared all ${pendingSplits.length} pending shared expenses payback',
       createdAt: now,
       updatedAt: now,
     );
 
     final updatedMap = {for (final u in updatedOriginals) u.id: u};
-    final optimistic = previous
-        .map((t) => updatedMap[t.id] ?? t)
-        .toList();
-    state = AsyncValue.data([settlementTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)));
+    final optimistic = previous.map((t) => updatedMap[t.id] ?? t).toList();
+    state = AsyncValue.data(
+      [settlementTx, ...optimistic]..sort((a, b) => b.date.compareTo(a.date)),
+    );
 
     try {
       final repository = ref.read(transactionRepositoryProvider);
-      for (final u in updatedOriginals) {
-        await repository.updateTransaction(u);
-      }
-      await repository.addTransaction(settlementTx);
+      await repository.settleSharedExpensesAtomic(
+        updatedOriginals: updatedOriginals,
+        settlementTransaction: settlementTx,
+      );
 
-      if (destAcc != null) {
+      if (repository is SqliteTransactionRepository) {
+        ref.invalidate(bankAccountListProvider);
+      } else if (destAcc != null) {
         await ref
             .read(bankAccountListProvider.notifier)
             .adjustAccountBalance(destAcc.id, totalReimbursed);
+      }
+      try {
+        final refreshed = await repository.getAllTransactions();
+        state = AsyncValue.data(refreshed);
+      } catch (e) {
+        LogService.error(
+          'TransactionsProvider',
+          'Post-settle-all refresh failed',
+          e,
+        );
+        ref.invalidateSelf();
       }
     } catch (e, stack) {
       state = AsyncValue.data(previous);
@@ -832,29 +1115,45 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     double remainingCustomBudget = totalSettlementValue;
 
     for (final tx in previous) {
-      if (!tx.isShared || tx.isSettled || tx.pendingReimbursement <= 0) continue;
-      if (remainingCustomBudget <= 0) break;
+      if (!tx.isShared || tx.isSettled || tx.pendingReimbursement <= 0) {
+        continue;
+      }
+      if (remainingCustomBudget <= 0) {
+        break;
+      }
 
       // 1. Check if this is a Money Lent / Personal Help loan
       final loan = LoanShareHelper.parseLoan(tx.sharedWith);
       if (loan != null) {
-        if (loan.borrowerName.trim().toLowerCase() == cleanName && loan.pendingAmount > 0) {
-          final pending = loan.pendingAmount > 0 ? loan.pendingAmount : tx.pendingReimbursement;
+        if (loan.borrowerName.trim().toLowerCase() == cleanName &&
+            loan.pendingAmount > 0) {
+          final pending = loan.pendingAmount > 0
+              ? loan.pendingAmount
+              : tx.pendingReimbursement;
           final alloc = min(remainingCustomBudget, pending);
           if (alloc > 0) {
             matchingExpenses.add(tx);
             totalCollected += alloc;
             remainingCustomBudget -= alloc;
 
-            final newRepaid = (loan.repaidAmount + alloc).clamp(0.0, double.infinity);
-            final isRepaid = newRepaid >= loan.totalExpected && loan.totalExpected > 0;
+            final newRepaid = (loan.repaidAmount + alloc).clamp(
+              0.0,
+              double.infinity,
+            );
+            final isRepaid =
+                newRepaid >= loan.totalExpected && loan.totalExpected > 0;
 
             final updatedLoan = loan.copyWith(
               repaidAmount: newRepaid,
               isRepaid: isRepaid,
             );
-            final newReimbursed = (tx.reimbursedAmount + alloc).clamp(0.0, tx.friendsShare);
-            final isTxSettled = isRepaid || (newReimbursed >= tx.friendsShare && tx.friendsShare > 0);
+            final newReimbursed = (tx.reimbursedAmount + alloc).clamp(
+              0.0,
+              tx.friendsShare,
+            );
+            final isTxSettled =
+                isRepaid ||
+                (newReimbursed >= tx.friendsShare && tx.friendsShare > 0);
 
             final updatedTx = tx.copyWith(
               reimbursedAmount: newReimbursed,
@@ -874,7 +1173,9 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
         bool hasPersonShare = false;
         double personAlloc = 0.0;
         final updatedShares = shares.map((s) {
-          if (s.personName.trim().toLowerCase() == cleanName && s.pendingAmount > 0 && remainingCustomBudget > 0) {
+          if (s.personName.trim().toLowerCase() == cleanName &&
+              s.pendingAmount > 0 &&
+              remainingCustomBudget > 0) {
             hasPersonShare = true;
             final alloc = min(remainingCustomBudget, s.pendingAmount);
             personAlloc += alloc;
@@ -892,8 +1193,12 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           matchingExpenses.add(tx);
           totalCollected += personAlloc;
 
-          final newReimbursed = (tx.reimbursedAmount + personAlloc).clamp(0.0, tx.friendsShare);
-          final fullySettled = updatedShares.every((s) => s.isSettled) ||
+          final newReimbursed = (tx.reimbursedAmount + personAlloc).clamp(
+            0.0,
+            tx.friendsShare,
+          );
+          final fullySettled =
+              updatedShares.every((s) => s.isSettled) ||
               (newReimbursed >= tx.friendsShare && tx.friendsShare > 0);
 
           final updatedTx = tx.copyWith(
@@ -916,7 +1221,10 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           totalCollected += alloc;
           remainingCustomBudget -= alloc;
 
-          final newReimbursed = (tx.reimbursedAmount + alloc).clamp(0.0, tx.friendsShare);
+          final newReimbursed = (tx.reimbursedAmount + alloc).clamp(
+            0.0,
+            tx.friendsShare,
+          );
           final updatedTx = tx.copyWith(
             reimbursedAmount: newReimbursed,
             isSettled: newReimbursed >= tx.friendsShare && tx.friendsShare > 0,
@@ -928,14 +1236,23 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     }
 
     if (totalCollected <= 0 || updatedOriginals.isEmpty) return;
-    final finalAmount = customAmount ?? (totalCollected - (offsetExpenseAmount ?? 0.0)).clamp(0.0, double.infinity);
+    final finalAmount =
+        customAmount ??
+        (totalCollected - (offsetExpenseAmount ?? 0.0)).clamp(
+          0.0,
+          double.infinity,
+        );
 
     final destAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
-    final destAcc = destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
+    final destAcc =
+        destAccounts.where((a) => a.id == destinationAccountId).firstOrNull ??
         destAccounts.firstOrNull;
 
-    final bool isAllLoans = matchingExpenses.isNotEmpty &&
-        matchingExpenses.every((t) => LoanShareHelper.parseLoan(t.sharedWith) != null);
+    final bool isAllLoans =
+        matchingExpenses.isNotEmpty &&
+        matchingExpenses.every(
+          (t) => LoanShareHelper.parseLoan(t.sharedWith) != null,
+        );
 
     final settlementTx = TransactionEntity(
       id: const Uuid().v4(),
@@ -944,16 +1261,20 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
           : 'Reimbursement: $personName (${matchingExpenses.length} expenses)',
       amount: finalAmount,
       type: TransactionType.income,
-      category: isAllLoans ? CategoryConstants.categoryLoanRepayment : CategoryConstants.categorySharedReimbursement,
+      category: isAllLoans
+          ? CategoryConstants.categoryLoanRepayment
+          : CategoryConstants.categorySharedReimbursement,
       date: now,
       paymentSource: destAcc?.accountName ?? 'Cash',
       accountId: destAcc?.id,
       creditCardId: null, // Critical Fix: Bank account deposit must never attach creditCardId
       linkedEntityId: matchingExpenses.map((t) => t.id).join(','),
       sharedWith: personName,
-      notes: notes ?? (isAllLoans
-          ? 'Repayment received from $personName for loan'
-          : 'Reimbursement collected from $personName across ${matchingExpenses.length} shared bills'),
+      notes:
+          notes ??
+          (isAllLoans
+              ? 'Repayment received from $personName for loan'
+              : 'Reimbursement collected from $personName across ${matchingExpenses.length} shared bills'),
       createdAt: now,
       updatedAt: now,
     );
@@ -976,32 +1297,38 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
     }
 
     final updatedMap = {for (final u in updatedOriginals) u.id: u};
-    final optimistic = previous
-        .map((t) => updatedMap[t.id] ?? t)
-        .toList();
+    final optimistic = previous.map((t) => updatedMap[t.id] ?? t).toList();
 
-    final newTransactions = [
-      settlementTx,
-      ?offsetTx,
-      ...optimistic,
-    ]..sort((a, b) => b.date.compareTo(a.date));
+    final newTransactions = [settlementTx, ?offsetTx, ...optimistic]
+      ..sort((a, b) => b.date.compareTo(a.date));
 
     state = AsyncValue.data(newTransactions);
 
     try {
       final repository = ref.read(transactionRepositoryProvider);
-      for (final u in updatedOriginals) {
-        await repository.updateTransaction(u);
-      }
-      await repository.addTransaction(settlementTx);
-      if (offsetTx != null) {
-        await repository.addTransaction(offsetTx);
-      }
+      await repository.settleSharedExpensesAtomic(
+        updatedOriginals: updatedOriginals,
+        settlementTransaction: settlementTx,
+        additionalTransactions: offsetTx != null ? [offsetTx] : null,
+      );
 
-      if (destAcc != null && finalAmount > 0) {
+      if (repository is SqliteTransactionRepository) {
+        ref.invalidate(bankAccountListProvider);
+      } else if (destAcc != null && finalAmount > 0) {
         await ref
             .read(bankAccountListProvider.notifier)
             .adjustAccountBalance(destAcc.id, finalAmount);
+      }
+      try {
+        final refreshed = await repository.getAllTransactions();
+        state = AsyncValue.data(refreshed);
+      } catch (e) {
+        LogService.error(
+          'TransactionsProvider',
+          'Post-settle-person refresh failed',
+          e,
+        );
+        ref.invalidateSelf();
       }
     } catch (e, stack) {
       state = AsyncValue.data(previous);
@@ -1013,8 +1340,8 @@ class TransactionListNotifier extends AsyncNotifier<List<TransactionEntity>> {
 
 final transactionListNotifierProvider =
     AsyncNotifierProvider<TransactionListNotifier, List<TransactionEntity>>(
-  TransactionListNotifier.new,
-);
+      TransactionListNotifier.new,
+    );
 
 /// Provider for transactions filtered by currently selected month
 final monthlyTransactionsProvider = Provider<List<TransactionEntity>>((ref) {
@@ -1029,7 +1356,9 @@ final monthlyTransactionsProvider = Provider<List<TransactionEntity>>((ref) {
 });
 
 /// Provider for current month financial summary
-final monthlyFinancialSummaryProvider = Provider<MonthlyFinancialSummary>((ref) {
+final monthlyFinancialSummaryProvider = Provider<MonthlyFinancialSummary>((
+  ref,
+) {
   final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
 
   if (monthlyTransactions.isEmpty) {
@@ -1037,7 +1366,9 @@ final monthlyFinancialSummaryProvider = Provider<MonthlyFinancialSummary>((ref) 
   }
 
   final income = FinancialCalculator.calculateTotalIncome(monthlyTransactions);
-  final expense = FinancialCalculator.calculateTotalExpense(monthlyTransactions);
+  final expense = FinancialCalculator.calculateTotalExpense(
+    monthlyTransactions,
+  );
   final net = FinancialCalculator.calculateNetBalance(monthlyTransactions);
   final savingsRate = FinancialCalculator.calculateSavingsRate(income, expense);
 
@@ -1069,19 +1400,27 @@ final recentTransactionsProvider = Provider<List<TransactionEntity>>((ref) {
 });
 
 /// Provider for category spending breakdown of current month
-final monthlyCategoryBreakdownProvider = Provider<List<CategorySpendingSummary>>((ref) {
-  final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
-  return FinancialCalculator.calculateCategoryBreakdown(monthlyTransactions);
-});
+final monthlyCategoryBreakdownProvider =
+    Provider<List<CategorySpendingSummary>>((ref) {
+      final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
+      return FinancialCalculator.calculateCategoryBreakdown(
+        monthlyTransactions,
+      );
+    });
 
 /// Provider for month-over-month spending comparison
-final monthlySpendingComparisonProvider = Provider<MonthlySpendingComparison>((ref) {
+final monthlySpendingComparisonProvider = Provider<MonthlySpendingComparison>((
+  ref,
+) {
   final transactionsAsync = ref.watch(transactionListNotifierProvider);
   final selectedMonth = ref.watch(selectedMonthProvider);
 
   return transactionsAsync.maybeWhen(
     data: (transactions) =>
-        FinancialCalculator.calculateMonthOverMonthComparison(transactions, selectedMonth),
+        FinancialCalculator.calculateMonthOverMonthComparison(
+          transactions,
+          selectedMonth,
+        ),
     orElse: () => MonthlySpendingComparison.empty,
   );
 });
@@ -1122,7 +1461,9 @@ final allSharedExpensesProvider = Provider<List<TransactionEntity>>((ref) {
 });
 
 /// Provider for all pending shared expenses grouped by person
-final pendingByPersonSummaryProvider = Provider<List<PersonPendingSummary>>((ref) {
+final pendingByPersonSummaryProvider = Provider<List<PersonPendingSummary>>((
+  ref,
+) {
   final pendingTransactions = ref.watch(pendingSharedExpensesProvider);
   return SplitHelper.groupPendingByPerson(pendingTransactions);
 });
@@ -1131,7 +1472,8 @@ final pendingByPersonSummaryProvider = Provider<List<PersonPendingSummary>>((ref
 final loggingStreakProvider = Provider<int>((ref) {
   final transactionsAsync = ref.watch(transactionListNotifierProvider);
   return transactionsAsync.maybeWhen(
-    data: (transactions) => FinancialCalculator.calculateLoggingStreak(transactions),
+    data: (transactions) =>
+        FinancialCalculator.calculateLoggingStreak(transactions),
     orElse: () => 0,
   );
 });
@@ -1177,45 +1519,52 @@ class FilteredAndGroupedTransactions {
 /// Memoized provider caching transaction filtering and grouping logic
 /// to prevent frame drops and redundant recomputations on rebuilds.
 final filteredAndGroupedTransactionsProvider =
-    Provider.family<FilteredAndGroupedTransactions, TransactionFilterParams>((ref, params) {
-  final allTransactionsAsync = ref.watch(transactionListNotifierProvider);
-  final allTransactions = allTransactionsAsync.valueOrNull ?? [];
-  final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
+    Provider.family<FilteredAndGroupedTransactions, TransactionFilterParams>((
+      ref,
+      params,
+    ) {
+      final allTransactionsAsync = ref.watch(transactionListNotifierProvider);
+      final allTransactions = allTransactionsAsync.valueOrNull ?? [];
+      final monthlyTransactions = ref.watch(monthlyTransactionsProvider);
 
-  final searchQuery = params.searchQuery.trim();
-  final isGlobalSearch = searchQuery.length >= 2;
-  final baseTransactions = isGlobalSearch ? allTransactions : monthlyTransactions;
+      final searchQuery = params.searchQuery.trim();
+      final isGlobalSearch = searchQuery.length >= 2;
+      final baseTransactions = isGlobalSearch
+          ? allTransactions
+          : monthlyTransactions;
 
-  TransactionType? filterType;
-  if (params.filterIndex == 1) filterType = TransactionType.expense;
-  if (params.filterIndex == 2) filterType = TransactionType.income;
+      TransactionType? filterType;
+      if (params.filterIndex == 1) filterType = TransactionType.expense;
+      if (params.filterIndex == 2) filterType = TransactionType.income;
 
-  var filtered = FinancialCalculator.filterByType(
-    baseTransactions,
-    filterType,
-  );
+      var filtered = FinancialCalculator.filterByType(
+        baseTransactions,
+        filterType,
+      );
 
-  if (searchQuery.isNotEmpty) {
-    filtered = FinancialCalculator.searchTransactions(
-      filtered,
-      searchQuery,
-    );
-  }
+      if (searchQuery.isNotEmpty) {
+        filtered = FinancialCalculator.searchTransactions(
+          filtered,
+          searchQuery,
+        );
+      }
 
-  final grouped = FinancialCalculator.groupTransactionsByDate(filtered);
+      final grouped = FinancialCalculator.groupTransactionsByDate(filtered);
 
-  return FilteredAndGroupedTransactions(
-    transactions: filtered,
-    grouped: grouped,
-  );
-});
+      return FilteredAndGroupedTransactions(
+        transactions: filtered,
+        grouped: grouped,
+      );
+    });
 
 /// Centralized engine for applying ledger account and credit card balance impacts
 /// ensuring consistent balance synchronization across all presentation flows.
 class LedgerBalanceSynchronizer {
   static Future<void> _apply({
-    required Future<void> Function(String accountId, double amount) adjustAccountBalance,
-    required Future<void> Function(String cardId, double amount) adjustUsedAmount,
+    required Future<void> Function(String accountId, double amount)
+    adjustAccountBalance,
+    required Future<void> Function(String cardId, double amount)
+    adjustUsedAmount,
     required TransactionEntity tx,
     bool isRevert = false,
   }) async {
@@ -1256,10 +1605,12 @@ class LedgerBalanceSynchronizer {
     bool isRevert = false,
   }) async {
     await _apply(
-      adjustAccountBalance: (id, amount) =>
-          ref.read(bankAccountListProvider.notifier).adjustAccountBalance(id, amount),
-      adjustUsedAmount: (id, amount) =>
-          ref.read(creditCardListProvider.notifier).adjustUsedAmount(id, amount),
+      adjustAccountBalance: (id, amount) => ref
+          .read(bankAccountListProvider.notifier)
+          .adjustAccountBalance(id, amount),
+      adjustUsedAmount: (id, amount) => ref
+          .read(creditCardListProvider.notifier)
+          .adjustUsedAmount(id, amount),
       tx: tx,
       isRevert: isRevert,
     );

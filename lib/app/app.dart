@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../core/presentation/widgets/app_lock_gate.dart';
 import '../features/settings/presentation/state/backup_provider.dart';
 import 'theme/app_theme.dart';
@@ -34,9 +35,7 @@ class EmptyPocketApp extends ConsumerWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: const AppLockGate(
-        child: MainNavigationScaffold(),
-      ),
+      home: const AppLockGate(child: MainNavigationScaffold()),
     );
   }
 }

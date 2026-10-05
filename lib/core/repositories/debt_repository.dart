@@ -1,14 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart';
+
 import '../database/app_database.dart';
 import '../domain/entities/debt_entity.dart';
 import 'transaction_repository.dart';
 
 abstract class DebtRepository {
   Future<List<DebtEntity>> getAllDebts();
-  Future<void> saveDebt(DebtEntity debt);
-  Future<void> deleteDebt(String id);
-  Future<void> addPayment(DebtPaymentEntity payment);
-  Future<void> deletePayment(String id);
+  Future<void> saveDebt(DebtEntity debt, {DatabaseExecutor? executor});
+  Future<void> deleteDebt(String id, {DatabaseExecutor? executor});
+  Future<void> addPayment(
+    DebtPaymentEntity payment, {
+    DatabaseExecutor? executor,
+  });
+  Future<void> deletePayment(String id, {DatabaseExecutor? executor});
   Future<List<DebtPaymentEntity>> getPaymentsForDebt(String debtId);
 }
 
@@ -23,23 +28,26 @@ class SqliteDebtRepository implements DebtRepository {
   }
 
   @override
-  Future<void> saveDebt(DebtEntity debt) async {
-    await _db.insertDebt(debt);
+  Future<void> saveDebt(DebtEntity debt, {DatabaseExecutor? executor}) async {
+    await _db.insertDebt(debt, executor: executor);
   }
 
   @override
-  Future<void> deleteDebt(String id) async {
-    await _db.deleteDebt(id);
+  Future<void> deleteDebt(String id, {DatabaseExecutor? executor}) async {
+    await _db.deleteDebt(id, executor: executor);
   }
 
   @override
-  Future<void> addPayment(DebtPaymentEntity payment) async {
-    await _db.insertDebtPayment(payment);
+  Future<void> addPayment(
+    DebtPaymentEntity payment, {
+    DatabaseExecutor? executor,
+  }) async {
+    await _db.insertDebtPayment(payment, executor: executor);
   }
 
   @override
-  Future<void> deletePayment(String id) async {
-    await _db.deleteDebtPayment(id);
+  Future<void> deletePayment(String id, {DatabaseExecutor? executor}) async {
+    await _db.deleteDebtPayment(id, executor: executor);
   }
 
   @override
@@ -66,24 +74,27 @@ class InMemoryDebtRepository implements DebtRepository {
   }
 
   @override
-  Future<void> saveDebt(DebtEntity debt) async {
+  Future<void> saveDebt(DebtEntity debt, {DatabaseExecutor? executor}) async {
     _debts.removeWhere((d) => d.id == debt.id);
     _debts.add(debt);
   }
 
   @override
-  Future<void> deleteDebt(String id) async {
+  Future<void> deleteDebt(String id, {DatabaseExecutor? executor}) async {
     _debts.removeWhere((d) => d.id == id);
     _payments.removeWhere((p) => p.debtId == id);
   }
 
   @override
-  Future<void> addPayment(DebtPaymentEntity payment) async {
+  Future<void> addPayment(
+    DebtPaymentEntity payment, {
+    DatabaseExecutor? executor,
+  }) async {
     _payments.add(payment);
   }
 
   @override
-  Future<void> deletePayment(String id) async {
+  Future<void> deletePayment(String id, {DatabaseExecutor? executor}) async {
     _payments.removeWhere((p) => p.id == id);
   }
 

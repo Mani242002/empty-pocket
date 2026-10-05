@@ -48,7 +48,10 @@ void main() {
       expect(restored.currentBalance, 75000.0);
       expect(restored.isDefault, isTrue);
 
-      final updated = account.copyWith(currentBalance: 82000.0, usedFor: AccountPurposeTags.emergencyFund);
+      final updated = account.copyWith(
+        currentBalance: 82000.0,
+        usedFor: AccountPurposeTags.emergencyFund,
+      );
       expect(updated.currentBalance, 82000.0);
       expect(updated.usedFor, 'Emergency Fund');
     });
@@ -101,31 +104,34 @@ void main() {
       expect(remaining.first.id, 'a1');
     });
 
-    test('BankAccountRepository adjustBalance modifies balance atomically', () async {
-      final acc = BankAccountEntity(
-        id: 'atomic_acc',
-        accountName: 'Checking',
-        bankName: 'ICICI',
-        accountType: AccountType.current,
-        usedFor: AccountPurposeTags.dailySpending,
-        initialBalance: 1000.0,
-        currentBalance: 1000.0,
-        createdAt: now,
-        updatedAt: now,
-      );
+    test(
+      'BankAccountRepository adjustBalance modifies balance atomically',
+      () async {
+        final acc = BankAccountEntity(
+          id: 'atomic_acc',
+          accountName: 'Checking',
+          bankName: 'ICICI',
+          accountType: AccountType.current,
+          usedFor: AccountPurposeTags.dailySpending,
+          initialBalance: 1000.0,
+          currentBalance: 1000.0,
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      await repo.saveAccount(acc);
+        await repo.saveAccount(acc);
 
-      // Debit 250 (delta = -250)
-      await repo.adjustBalance('atomic_acc', -250.0);
-      var fetched = await repo.getAccountById('atomic_acc');
-      expect(fetched?.currentBalance, 750.0);
+        // Debit 250 (delta = -250)
+        await repo.adjustBalance('atomic_acc', -250.0);
+        var fetched = await repo.getAccountById('atomic_acc');
+        expect(fetched?.currentBalance, 750.0);
 
-      // Credit 500 (delta = +500)
-      await repo.adjustBalance('atomic_acc', 500.0);
-      fetched = await repo.getAccountById('atomic_acc');
-      expect(fetched?.currentBalance, 1250.0);
-    });
+        // Credit 500 (delta = +500)
+        await repo.adjustBalance('atomic_acc', 500.0);
+        fetched = await repo.getAccountById('atomic_acc');
+        expect(fetched?.currentBalance, 1250.0);
+      },
+    );
   });
 
   group('Credit Cards Domain & Repository Tests', () {
@@ -136,53 +142,56 @@ void main() {
       repo = InMemoryCreditCardRepository();
     });
 
-    test('CreditCardEntity serialization, utilization and billing cycle dates', () {
-      final card = CreditCardEntity(
-        id: 'card-1',
-        cardName: 'Millennia',
-        bankName: 'HDFC Bank',
-        cardNetwork: CardNetwork.visa,
-        creditLimit: 200000.0,
-        usedAmount: 40000.0,
-        statementDateDay: 15,
-        gracePeriodDays: 20,
-        cardTheme: 'obsidian',
-        createdAt: now,
-        updatedAt: now,
-      );
+    test(
+      'CreditCardEntity serialization, utilization and billing cycle dates',
+      () {
+        final card = CreditCardEntity(
+          id: 'card-1',
+          cardName: 'Millennia',
+          bankName: 'HDFC Bank',
+          cardNetwork: CardNetwork.visa,
+          creditLimit: 200000.0,
+          usedAmount: 40000.0,
+          statementDateDay: 15,
+          gracePeriodDays: 20,
+          cardTheme: 'obsidian',
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      expect(card.availableLimit, 160000.0);
-      expect(card.utilizationRatio, 20.0);
-      expect(card.utilizationHealth, CreditUtilizationHealth.optimal);
+        expect(card.availableLimit, 160000.0);
+        expect(card.utilizationRatio, 20.0);
+        expect(card.utilizationHealth, CreditUtilizationHealth.optimal);
 
-      // On Sept 1: previous statement (Aug 15) is due in 3 days (Sept 4)
-      final baseDate1 = DateTime(2026, 9, 1);
-      final nextDue1 = card.getNextDueDate(baseDate1);
-      expect(nextDue1, DateTime(2026, 9, 4));
+        // On Sept 1: previous statement (Aug 15) is due in 3 days (Sept 4)
+        final baseDate1 = DateTime(2026, 9, 1);
+        final nextDue1 = card.getNextDueDate(baseDate1);
+        expect(nextDue1, DateTime(2026, 9, 4));
 
-      // On Sept 5: previous bill (Sept 4) has passed.
-      // Next statement is Sept 15, and its bill is due on Oct 5
-      final baseDate2 = DateTime(2026, 9, 5);
-      final nextStatement2 = card.getNextStatementDate(baseDate2);
-      expect(nextStatement2, DateTime(2026, 9, 15));
-      final nextDue2 = card.getNextDueDate(baseDate2);
-      expect(nextDue2, DateTime(2026, 10, 5));
-      expect(nextDue2.isAfter(nextStatement2), isTrue);
+        // On Sept 5: previous bill (Sept 4) has passed.
+        // Next statement is Sept 15, and its bill is due on Oct 5
+        final baseDate2 = DateTime(2026, 9, 5);
+        final nextStatement2 = card.getNextStatementDate(baseDate2);
+        expect(nextStatement2, DateTime(2026, 9, 15));
+        final nextDue2 = card.getNextDueDate(baseDate2);
+        expect(nextDue2, DateTime(2026, 10, 5));
+        expect(nextDue2.isAfter(nextStatement2), isTrue);
 
-      final map = card.toMap();
-      expect(map['id'], 'card-1');
-      expect(map['card_name'], 'Millennia');
-      expect(map['credit_limit'], 200000.0);
-      expect(map['used_amount'], 40000.0);
-      expect(map['statement_date_day'], 15);
-      expect(map['grace_period_days'], 20);
+        final map = card.toMap();
+        expect(map['id'], 'card-1');
+        expect(map['card_name'], 'Millennia');
+        expect(map['credit_limit'], 200000.0);
+        expect(map['used_amount'], 40000.0);
+        expect(map['statement_date_day'], 15);
+        expect(map['grace_period_days'], 20);
 
-      final restored = CreditCardEntity.fromMap(map);
-      expect(restored.id, 'card-1');
-      expect(restored.cardName, 'Millennia');
-      expect(restored.creditLimit, 200000.0);
-      expect(restored.usedAmount, 40000.0);
-    });
+        final restored = CreditCardEntity.fromMap(map);
+        expect(restored.id, 'card-1');
+        expect(restored.cardName, 'Millennia');
+        expect(restored.creditLimit, 200000.0);
+        expect(restored.usedAmount, 40000.0);
+      },
+    );
 
     test('CreditCard utilization health thresholds', () {
       final safeCard = CreditCardEntity(
@@ -199,7 +208,9 @@ void main() {
       );
       expect(safeCard.utilizationHealth, CreditUtilizationHealth.optimal);
 
-      final moderateCard = safeCard.copyWith(usedAmount: 45000.0); // 45% > 30% && <= 50%
+      final moderateCard = safeCard.copyWith(
+        usedAmount: 45000.0,
+      ); // 45% > 30% && <= 50%
       expect(moderateCard.utilizationHealth, CreditUtilizationHealth.moderate);
 
       final highRiskCard = safeCard.copyWith(usedAmount: 85000.0); // 85% > 50%
@@ -235,78 +246,86 @@ void main() {
       expect(remaining.isEmpty, isTrue);
     });
 
-    test('CreditCardRepository adjustUsedAmount modifies usedAmount atomically', () async {
-      final card = CreditCardEntity(
-        id: 'atomic_card',
-        cardName: 'Sapphire',
-        bankName: 'Chase',
-        cardNetwork: CardNetwork.visa,
-        creditLimit: 50000.0,
-        usedAmount: 10000.0,
-        statementDateDay: 10,
-        gracePeriodDays: 20,
-        createdAt: now,
-        updatedAt: now,
-      );
+    test(
+      'CreditCardRepository adjustUsedAmount modifies usedAmount atomically',
+      () async {
+        final card = CreditCardEntity(
+          id: 'atomic_card',
+          cardName: 'Sapphire',
+          bankName: 'Chase',
+          cardNetwork: CardNetwork.visa,
+          creditLimit: 50000.0,
+          usedAmount: 10000.0,
+          statementDateDay: 10,
+          gracePeriodDays: 20,
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      await repo.saveCard(card);
+        await repo.saveCard(card);
 
-      // Spend 1500 (delta = +1500)
-      await repo.adjustUsedAmount('atomic_card', 1500.0);
-      var fetched = await repo.getCardById('atomic_card');
-      expect(fetched?.usedAmount, 11500.0);
+        // Spend 1500 (delta = +1500)
+        await repo.adjustUsedAmount('atomic_card', 1500.0);
+        var fetched = await repo.getCardById('atomic_card');
+        expect(fetched?.usedAmount, 11500.0);
 
-      // Payment of 5000 (delta = -5000)
-      await repo.adjustUsedAmount('atomic_card', -5000.0);
-      fetched = await repo.getCardById('atomic_card');
-      expect(fetched?.usedAmount, 6500.0);
-    });
+        // Payment of 5000 (delta = -5000)
+        await repo.adjustUsedAmount('atomic_card', -5000.0);
+        fetched = await repo.getCardById('atomic_card');
+        expect(fetched?.usedAmount, 6500.0);
+      },
+    );
   });
 
   group('FinancialCalculator Accounts & Cards Aggregation Tests', () {
     final now = DateTime.now();
 
-    test('calculateCombinedLiquidCash sums active accounts and ignores archived', () {
-      final accounts = [
-        BankAccountEntity(
-          id: 'a1',
-          accountName: 'Salary Account',
-          bankName: 'HDFC',
-          accountType: AccountType.salary,
-          usedFor: AccountPurposeTags.dailySpending,
-          initialBalance: 50000.0,
-          currentBalance: 65000.0,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        BankAccountEntity(
-          id: 'a2',
-          accountName: 'Emergency Savings',
-          bankName: 'SBI',
-          accountType: AccountType.savings,
-          usedFor: AccountPurposeTags.emergencyFund,
-          initialBalance: 200000.0,
-          currentBalance: 215000.0,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        BankAccountEntity(
-          id: 'a3',
-          accountName: 'Old Closed Account',
-          bankName: 'Axis',
-          accountType: AccountType.savings,
-          usedFor: AccountPurposeTags.miscellaneous,
-          initialBalance: 0.0,
-          currentBalance: 5000.0,
-          isArchived: true,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ];
+    test(
+      'calculateCombinedLiquidCash sums active accounts and ignores archived',
+      () {
+        final accounts = [
+          BankAccountEntity(
+            id: 'a1',
+            accountName: 'Salary Account',
+            bankName: 'HDFC',
+            accountType: AccountType.salary,
+            usedFor: AccountPurposeTags.dailySpending,
+            initialBalance: 50000.0,
+            currentBalance: 65000.0,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          BankAccountEntity(
+            id: 'a2',
+            accountName: 'Emergency Savings',
+            bankName: 'SBI',
+            accountType: AccountType.savings,
+            usedFor: AccountPurposeTags.emergencyFund,
+            initialBalance: 200000.0,
+            currentBalance: 215000.0,
+            createdAt: now,
+            updatedAt: now,
+          ),
+          BankAccountEntity(
+            id: 'a3',
+            accountName: 'Old Closed Account',
+            bankName: 'Axis',
+            accountType: AccountType.savings,
+            usedFor: AccountPurposeTags.miscellaneous,
+            initialBalance: 0.0,
+            currentBalance: 5000.0,
+            isArchived: true,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ];
 
-      final liquidCash = FinancialCalculator.calculateCombinedLiquidCash(accounts);
-      expect(liquidCash, 280000.0); // 65,000 + 215,000
-    });
+        final liquidCash = FinancialCalculator.calculateCombinedLiquidCash(
+          accounts,
+        );
+        expect(liquidCash, 280000.0); // 65,000 + 215,000
+      },
+    );
 
     test('calculateCombinedCreditSummary aggregates total limits, dues, and ratios correctly', () {
       final cards = [
@@ -349,62 +368,65 @@ void main() {
   });
 
   group('FullDatabaseBackup Schema Version 8 Tests', () {
-    test('Export and restore full backup with Bank Accounts and Credit Cards', () {
-      final backupService = BackupService();
-      final now = DateTime.now();
+    test(
+      'Export and restore full backup with Bank Accounts and Credit Cards',
+      () {
+        final backupService = BackupService();
+        final now = DateTime.now();
 
-      final account = BankAccountEntity(
-        id: 'acc-backup-1',
-        accountName: 'Main Hub',
-        bankName: 'HDFC',
-        accountType: AccountType.savings,
-        usedFor: AccountPurposeTags.dailySpending,
-        initialBalance: 50000.0,
-        currentBalance: 50000.0,
-        isDefault: true,
-        createdAt: now,
-        updatedAt: now,
-      );
+        final account = BankAccountEntity(
+          id: 'acc-backup-1',
+          accountName: 'Main Hub',
+          bankName: 'HDFC',
+          accountType: AccountType.savings,
+          usedFor: AccountPurposeTags.dailySpending,
+          initialBalance: 50000.0,
+          currentBalance: 50000.0,
+          isDefault: true,
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      final card = CreditCardEntity(
-        id: 'card-backup-1',
-        cardName: 'Tata Neu Infinity',
-        bankName: 'HDFC',
-        cardNetwork: CardNetwork.rupay,
-        creditLimit: 300000.0,
-        usedAmount: 12500.0,
-        statementDateDay: 20,
-        gracePeriodDays: 20,
-        createdAt: now,
-        updatedAt: now,
-      );
+        final card = CreditCardEntity(
+          id: 'card-backup-1',
+          cardName: 'Tata Neu Infinity',
+          bankName: 'HDFC',
+          cardNetwork: CardNetwork.rupay,
+          creditLimit: 300000.0,
+          usedAmount: 12500.0,
+          statementDateDay: 20,
+          gracePeriodDays: 20,
+          createdAt: now,
+          updatedAt: now,
+        );
 
-      final jsonStr = backupService.exportFullDatabaseJson(
-        transactions: [],
-        budgets: [],
-        savingsGoals: [],
-        savingsContributions: [],
-        debts: [],
-        debtPayments: [],
-        investments: [],
-        recurringExpenses: [],
-        bankAccounts: [account],
-        creditCards: [card],
-      );
+        final jsonStr = backupService.exportFullDatabaseJson(
+          transactions: [],
+          budgets: [],
+          savingsGoals: [],
+          savingsContributions: [],
+          debts: [],
+          debtPayments: [],
+          investments: [],
+          recurringExpenses: [],
+          bankAccounts: [account],
+          creditCards: [card],
+        );
 
-      expect(jsonStr, contains('"schemaVersion": 12'));
-      expect(jsonStr, contains('"bankAccountsCount": 1'));
-      expect(jsonStr, contains('"creditCardsCount": 1'));
-      expect(jsonStr, contains('Main Hub'));
-      expect(jsonStr, contains('Tata Neu Infinity'));
+        expect(jsonStr, contains('"schemaVersion": 12'));
+        expect(jsonStr, contains('"bankAccountsCount": 1'));
+        expect(jsonStr, contains('"creditCardsCount": 1'));
+        expect(jsonStr, contains('Main Hub'));
+        expect(jsonStr, contains('Tata Neu Infinity'));
 
-      final parsed = backupService.parseBackupJson(jsonStr);
-      expect(parsed.metadata.schemaVersion, 12);
-      expect(parsed.bankAccounts.length, 1);
-      expect(parsed.bankAccounts.first.accountName, 'Main Hub');
-      expect(parsed.creditCards.length, 1);
-      expect(parsed.creditCards.first.cardName, 'Tata Neu Infinity');
-    });
+        final parsed = backupService.parseBackupJson(jsonStr);
+        expect(parsed.metadata.schemaVersion, 12);
+        expect(parsed.bankAccounts.length, 1);
+        expect(parsed.bankAccounts.first.accountName, 'Main Hub');
+        expect(parsed.creditCards.length, 1);
+        expect(parsed.creditCards.first.cardName, 'Tata Neu Infinity');
+      },
+    );
 
     test('Credit card initialUsedAmount is preserved during computed balance reconciliation', () async {
       final now = DateTime.now();

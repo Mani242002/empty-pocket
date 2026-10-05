@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/savings_goal_entity.dart';
@@ -10,10 +11,8 @@ import '../../../savings/presentation/state/savings_goals_provider.dart';
 class DashboardSavingsCard extends ConsumerWidget {
   final OverallSavingsSummary? explicitSavingsSummary;
 
-  const DashboardSavingsCard({
-    super.key,
-    OverallSavingsSummary? savingsSummary,
-  }) : explicitSavingsSummary = savingsSummary;
+  const DashboardSavingsCard({super.key, OverallSavingsSummary? savingsSummary})
+    : explicitSavingsSummary = savingsSummary;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,7 +37,11 @@ class DashboardSavingsCard extends ConsumerWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        Icon(Icons.savings_rounded, color: financialColors.savings, size: 20),
+                        Icon(
+                          Icons.savings_rounded,
+                          color: financialColors.savings,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
@@ -56,9 +59,14 @@ class DashboardSavingsCard extends ConsumerWidget {
                   const SizedBox(width: 8),
                   if (savingsSummary.totalTarget > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: financialColors.savings.withAlpha(isDark ? 40 : 25),
+                        color: financialColors.savings.withAlpha(
+                          isDark ? 40 : 25,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -86,12 +94,17 @@ class DashboardSavingsCard extends ConsumerWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: LinearProgressIndicator(
-                    value: (savingsSummary.overallPercentage / 100).clamp(0.0, 1.0),
+                    value: (savingsSummary.overallPercentage / 100).clamp(
+                      0.0,
+                      1.0,
+                    ),
                     minHeight: 8,
                     backgroundColor: isDark
                         ? AppColors.darkSurfaceVariant
                         : AppColors.lightSurfaceVariant,
-                    valueColor: AlwaysStoppedAnimation<Color>(financialColors.savings),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      financialColors.savings,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -133,7 +146,9 @@ class DashboardSavingsCard extends ConsumerWidget {
                     backgroundColor: isDark
                         ? AppColors.darkSurfaceVariant
                         : AppColors.lightSurfaceVariant,
-                    valueColor: AlwaysStoppedAnimation<Color>(financialColors.savings),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      financialColors.savings,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),

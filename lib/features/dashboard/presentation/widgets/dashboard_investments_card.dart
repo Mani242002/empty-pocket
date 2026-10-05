@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/investment_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
@@ -38,7 +39,11 @@ class DashboardInvestmentsCard extends ConsumerWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        Icon(Icons.trending_up_rounded, color: financialColors.income, size: 20),
+                        Icon(
+                          Icons.trending_up_rounded,
+                          color: financialColors.income,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -62,7 +67,9 @@ class DashboardInvestmentsCard extends ConsumerWidget {
                       child: const Text('Manage'),
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const InvestmentsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const InvestmentsScreen(),
+                          ),
                         );
                       },
                     )
@@ -85,7 +92,9 @@ class DashboardInvestmentsCard extends ConsumerWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        CurrencyFormatter.format(portfolioSummary.totalCurrentValue),
+                        CurrencyFormatter.format(
+                          portfolioSummary.totalCurrentValue,
+                        ),
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
                           color: financialColors.income,
@@ -97,10 +106,16 @@ class DashboardInvestmentsCard extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: (portfolioSummary.isProfit ? financialColors.income : financialColors.expense)
-                              .withAlpha(isDark ? 35 : 20),
+                          color:
+                              (portfolioSummary.isProfit
+                                      ? financialColors.income
+                                      : financialColors.expense)
+                                  .withAlpha(isDark ? 35 : 20),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -108,7 +123,9 @@ class DashboardInvestmentsCard extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
-                            color: portfolioSummary.isProfit ? financialColors.income : financialColors.expense,
+                            color: portfolioSummary.isProfit
+                                ? financialColors.income
+                                : financialColors.expense,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

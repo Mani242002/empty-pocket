@@ -3,23 +3,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/budget_entity.dart';
 import '../../../../core/domain/entities/category_constants.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 import '../state/budgets_provider.dart';
 
 class SetBudgetSheet extends ConsumerStatefulWidget {
   final BudgetEntity? initialBudget;
   final DateTime? targetMonth;
 
-  const SetBudgetSheet({
-    super.key,
-    this.initialBudget,
-    this.targetMonth,
-  });
+  const SetBudgetSheet({super.key, this.initialBudget, this.targetMonth});
 
   static Future<void> show(
     BuildContext context, {
@@ -30,10 +28,8 @@ class SetBudgetSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => SetBudgetSheet(
-        initialBudget: budget,
-        targetMonth: targetMonth,
-      ),
+      builder: (ctx) =>
+          SetBudgetSheet(initialBudget: budget, targetMonth: targetMonth),
     );
   }
 
@@ -57,12 +53,13 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
     _amountController = TextEditingController(
       text: budget != null
           ? (budget.limitAmount == budget.limitAmount.roundToDouble()
-              ? budget.limitAmount.toInt().toString()
-              : budget.limitAmount.toString())
+                ? budget.limitAmount.toInt().toString()
+                : budget.limitAmount.toString())
           : '',
     );
 
-    _selectedCategory = budget?.category ?? CategoryConstants.expenseCategories.first.name;
+    _selectedCategory =
+        budget?.category ?? CategoryConstants.expenseCategories.first.name;
     _targetMonth = widget.targetMonth ?? budget?.month ?? DateTime.now();
     _selectedAccountId = budget?.accountId;
   }
@@ -134,7 +131,9 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Budget Limit'),
-        content: Text('Remove the monthly budget limit for $_selectedCategory?'),
+        content: Text(
+          'Remove the monthly budget limit for $_selectedCategory?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -185,7 +184,10 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
     final isDark = theme.brightness == Brightness.dark;
     final categories = CategoryConstants.expenseCategories;
     final monthLabel = DateFormat('MMMM yyyy').format(_targetMonth);
-    final currencySymbol = CurrencyFormatter.activeCurrency.symbol;
+    final currency =
+        ref.watch(currencyProvider).valueOrNull ??
+        CurrencyFormatter.activeCurrency;
+    final currencySymbol = currency.symbol;
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -202,281 +204,335 @@ class _SetBudgetSheetState extends ConsumerState<SetBudgetSheet> {
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Form(
               key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: financialColors.cardBorder,
-                      borderRadius: BorderRadius.circular(2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: financialColors.cardBorder,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isEditMode
+                                  ? 'Edit Category Budget'
+                                  : 'Set Category Budget',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'For $monthLabel',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: financialColors.textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_isEditMode)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: AppColors.expense,
+                          ),
+                          onPressed: _deleteBudget,
+                          tooltip: 'Delete Budget',
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Budget Limit Field
+                  Text(
+                    'MONTHLY SPENDING LIMIT',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _amountController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}'),
+                      ),
+                    ],
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: financialColors.investment,
+                    ),
+                    decoration: InputDecoration(
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(left: 16, right: 8),
+                        child: Text(
+                          currencySymbol,
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: financialColors.investment,
+                          ),
+                        ),
+                      ),
+                      prefixIconConstraints: const BoxConstraints(
+                        minWidth: 0,
+                        minHeight: 0,
+                      ),
+                      hintText: '5,000',
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter budget limit';
+                      }
+                      if (double.tryParse(value) == null) {
+                        return 'Invalid amount';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Quick Limit Adders
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [2000, 5000, 10000, 15000, 25000, 50000].map((
+                        amount,
+                      ) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ActionChip(
+                            label: Text('$currencySymbol$amount'),
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                            onPressed: () {
+                              _amountController.text = amount.toString();
+                              _amountController.selection =
+                                  TextSelection.collapsed(
+                                    offset: _amountController.text.length,
+                                  );
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Category Selector
+                  Text(
+                    'SELECT CATEGORY',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: financialColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 94,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: categories.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        final item = categories[index];
+                        final isSelected = _selectedCategory == item.name;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedCategory = item.name;
+                            });
+                          },
+                          child: Container(
+                            width: 80,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? item.color.withAlpha(isDark ? 60 : 35)
+                                  : (isDark
+                                        ? AppColors.darkSurfaceVariant
+                                        : AppColors.lightSurfaceVariant),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected
+                                    ? item.color
+                                    : financialColors.cardBorder,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  item.icon,
+                                  color: isSelected
+                                      ? item.color
+                                      : financialColors.textMuted,
+                                  size: 24,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  item.name,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? (isDark
+                                              ? AppColors.darkTextPrimary
+                                              : AppColors.lightTextPrimary)
+                                        : financialColors.textMuted,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // Linked Account (Optional)
+                  Builder(
+                    builder: (context) {
+                      final bankAccounts = ref.watch(
+                        activeBankAccountsProvider,
+                      );
+                      if (bankAccounts.isEmpty) return const SizedBox.shrink();
+
+                      final isAccountValid = bankAccounts.any(
+                        (a) => a.id == _selectedAccountId,
+                      );
+                      final effectiveAccountId = isAccountValid
+                          ? _selectedAccountId
+                          : null;
+
+                      return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const SizedBox(height: 20),
                           Text(
-                            _isEditMode ? 'Edit Category Budget' : 'Set Category Budget',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'For $monthLabel',
-                            style: theme.textTheme.bodySmall?.copyWith(
+                            'LINKED ACCOUNT (OPTIONAL)',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.1,
                               color: financialColors.textMuted,
-                              fontWeight: FontWeight.w600,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String?>(
+                            key: ValueKey('budget_account_$effectiveAccountId'),
+                            initialValue: effectiveAccountId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              prefixIcon: Icon(
+                                Icons.account_balance_rounded,
+                                size: 20,
+                              ),
+                            ),
+                            items: [
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text(
+                                  'None (All Accounts / General)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              ...bankAccounts.map((acc) {
+                                return DropdownMenuItem<String?>(
+                                  value: acc.id,
+                                  child: Text(
+                                    '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }),
+                            ],
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedAccountId = val;
+                              });
+                            },
                           ),
                         ],
-                      ),
-                    ),
-                    if (_isEditMode)
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
-                        onPressed: _deleteBudget,
-                        tooltip: 'Delete Budget',
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Budget Limit Field
-                Text(
-                  'MONTHLY SPENDING LIMIT',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                  ],
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: financialColors.investment,
-                  ),
-                  decoration: InputDecoration(
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 8),
-                      child: Text(
-                        currencySymbol,
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: financialColors.investment,
-                        ),
-                      ),
-                    ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                    hintText: '5,000',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter budget limit';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return 'Invalid amount';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // Quick Limit Adders
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [2000, 5000, 10000, 15000, 25000, 50000].map((amount) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ActionChip(
-                          label: Text('$currencySymbol$amount'),
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                          ),
-                          onPressed: () {
-                            _amountController.text = amount.toString();
-                            _amountController.selection =
-                                TextSelection.collapsed(offset: _amountController.text.length);
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Category Selector
-                Text(
-                  'SELECT CATEGORY',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: financialColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 94,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: categories.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 10),
-                    itemBuilder: (context, index) {
-                      final item = categories[index];
-                      final isSelected = _selectedCategory == item.name;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory = item.name;
-                          });
-                        },
-                        child: Container(
-                          width: 80,
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? item.color.withAlpha(isDark ? 60 : 35)
-                                : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isSelected ? item.color : financialColors.cardBorder,
-                              width: isSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(item.icon, color: isSelected ? item.color : financialColors.textMuted, size: 24),
-                              const SizedBox(height: 6),
-                              Text(
-                                item.name,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                  color: isSelected
-                                      ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
-                                      : financialColors.textMuted,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
                       );
                     },
                   ),
-                ),
-                // Linked Account (Optional)
-                Builder(
-                  builder: (context) {
-                    final bankAccounts = ref.watch(activeBankAccountsProvider);
-                    if (bankAccounts.isEmpty) return const SizedBox.shrink();
+                  const SizedBox(height: 28),
 
-                    final isAccountValid = bankAccounts.any((a) => a.id == _selectedAccountId);
-                    final effectiveAccountId = isAccountValid ? _selectedAccountId : null;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 20),
-                        Text(
-                          'LINKED ACCOUNT (OPTIONAL)',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.1,
-                            color: financialColors.textMuted,
-                          ),
+                  // Save Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: financialColors.investment,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      onPressed: _saveBudget,
+                      child: Text(
+                        _isEditMode ? 'Update Budget' : 'Save Budget Limit',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String?>(
-                          key: ValueKey('budget_account_$effectiveAccountId'),
-                          initialValue: effectiveAccountId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.account_balance_rounded, size: 20),
-                          ),
-                          items: [
-                            const DropdownMenuItem<String?>(
-                              value: null,
-                              child: Text(
-                                'None (All Accounts / General)',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                            ...bankAccounts.map((acc) {
-                              return DropdownMenuItem<String?>(
-                                value: acc.id,
-                                child: Text(
-                                  '${acc.accountName} [${acc.usedFor}] (${CurrencyFormatter.format(acc.currentBalance)})',
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            }),
-                          ],
-                          onChanged: (val) {
-                            setState(() {
-                              _selectedAccountId = val;
-                            });
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 28),
-
-                // Save Button
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: financialColors.investment,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    onPressed: _saveBudget,
-                    child: Text(
-                      _isEditMode ? 'Update Budget' : 'Save Budget Limit',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

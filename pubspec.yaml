@@ -56,7 +56,8 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
-
+  sqflite_common_ffi: 2.3.3
+  sqlite3: 2.4.6
 dependency_overrides:
   path_provider_foundation: 2.4.0
 

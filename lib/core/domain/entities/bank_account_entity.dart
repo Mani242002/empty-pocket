@@ -109,21 +109,31 @@ abstract class AccountPurposeTags {
 
     // 1. Insurance Premiums -> (Investments & Insurance or Investments)
     if (catLower.contains('insurance')) {
-      final match = accounts.where((a) =>
-          a.usedFor == investmentsAndInsurance ||
-          a.usedFor.toLowerCase().contains('insurance') ||
-          a.usedFor == investments ||
-          a.usedFor.toLowerCase().contains('investment')).firstOrNull;
+      final match = accounts
+          .where(
+            (a) =>
+                a.usedFor == investmentsAndInsurance ||
+                a.usedFor.toLowerCase().contains('insurance') ||
+                a.usedFor == investments ||
+                a.usedFor.toLowerCase().contains('investment'),
+          )
+          .firstOrNull;
       if (match != null) return match;
     }
 
     // 2. Investments & SIP -> (Investments or Investments & Insurance)
-    if (catLower.contains('investment') || catLower.contains('sip') || catLower.contains('mutual fund')) {
-      final match = accounts.where((a) =>
-          a.usedFor == investments ||
-          a.usedFor == investmentsAndInsurance ||
-          a.usedFor.toLowerCase().contains('investment') ||
-          a.usedFor.toLowerCase().contains('insurance')).firstOrNull;
+    if (catLower.contains('investment') ||
+        catLower.contains('sip') ||
+        catLower.contains('mutual fund')) {
+      final match = accounts
+          .where(
+            (a) =>
+                a.usedFor == investments ||
+                a.usedFor == investmentsAndInsurance ||
+                a.usedFor.toLowerCase().contains('investment') ||
+                a.usedFor.toLowerCase().contains('insurance'),
+          )
+          .firstOrNull;
       if (match != null) return match;
     }
 
@@ -133,40 +143,66 @@ abstract class AccountPurposeTags {
         catLower.contains('subscription') ||
         catLower.contains('emi') ||
         catLower.contains('rent')) {
-      final match = accounts.where((a) =>
-          a.usedFor == billsAndEmis ||
-          a.usedFor == salaryHub ||
-          a.usedFor.toLowerCase().contains('bill') ||
-          a.usedFor.toLowerCase().contains('salary')).firstOrNull;
+      final match = accounts
+          .where(
+            (a) =>
+                a.usedFor == billsAndEmis ||
+                a.usedFor == salaryHub ||
+                a.usedFor.toLowerCase().contains('bill') ||
+                a.usedFor.toLowerCase().contains('salary'),
+          )
+          .firstOrNull;
       if (match != null) return match;
     }
 
     // 4. Salary -> ICICI (Salary & Income Hub)
     if (catLower.contains('salary')) {
-      final match = accounts.where((a) =>
-          a.usedFor == salaryHub ||
-          a.usedFor.toLowerCase().contains('salary')).firstOrNull;
+      final match = accounts
+          .where(
+            (a) =>
+                a.usedFor == salaryHub ||
+                a.usedFor.toLowerCase().contains('salary'),
+          )
+          .firstOrNull;
       if (match != null) return match;
     }
 
     // 5. Emergency Fund
     if (catLower.contains('emergency')) {
-      final match = accounts.where((a) =>
-          a.usedFor == emergencyFund ||
-          a.usedFor.toLowerCase().contains('emergency')).firstOrNull;
+      final match = accounts
+          .where(
+            (a) =>
+                a.usedFor == emergencyFund ||
+                a.usedFor.toLowerCase().contains('emergency'),
+          )
+          .firstOrNull;
       if (match != null) return match;
     }
 
     // 6. Daily Spending categories (Food, Groceries, Shopping, Transport, Personal Care, Entertainment, etc.) -> Kotak (Daily Spending)
     const dailyKeywords = [
-      'food', 'dining', 'grocer', 'shopping', 'transport', 'entertainment',
-      'personal', 'medical', 'health', 'cafe', 'fuel', 'lifestyle'
+      'food',
+      'dining',
+      'grocer',
+      'shopping',
+      'transport',
+      'entertainment',
+      'personal',
+      'medical',
+      'health',
+      'cafe',
+      'fuel',
+      'lifestyle',
     ];
     if (dailyKeywords.any((kw) => catLower.contains(kw))) {
-      final match = accounts.where((a) =>
-          a.usedFor == dailySpending ||
-          a.usedFor.toLowerCase().contains('daily') ||
-          a.usedFor.toLowerCase().contains('spend')).firstOrNull;
+      final match = accounts
+          .where(
+            (a) =>
+                a.usedFor == dailySpending ||
+                a.usedFor.toLowerCase().contains('daily') ||
+                a.usedFor.toLowerCase().contains('spend'),
+          )
+          .firstOrNull;
       if (match != null) return match;
     }
 
@@ -229,7 +265,9 @@ class BankAccountEntity {
       usedFor: usedFor ?? this.usedFor,
       initialBalance: initialBalance ?? this.initialBalance,
       currentBalance: currentBalance ?? this.currentBalance,
-      colorHex: identical(colorHex, _sentinel) ? this.colorHex : (colorHex as String?),
+      colorHex: identical(colorHex, _sentinel)
+          ? this.colorHex
+          : (colorHex as String?),
       isDefault: isDefault ?? this.isDefault,
       isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
@@ -259,7 +297,9 @@ class BankAccountEntity {
       id: map['id'] as String,
       accountName: map['account_name'] as String,
       bankName: map['bank_name'] as String? ?? 'Bank Account',
-      accountType: AccountType.fromString(map['account_type'] as String? ?? 'savings'),
+      accountType: AccountType.fromString(
+        map['account_type'] as String? ?? 'savings',
+      ),
       usedFor: map['used_for'] as String? ?? 'Daily Spending',
       initialBalance: (map['initial_balance'] as num?)?.toDouble() ?? 0.0,
       currentBalance: (map['current_balance'] as num?)?.toDouble() ?? 0.0,
@@ -287,13 +327,13 @@ class BankAccountEntity {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        accountName,
-        bankName,
-        accountType,
-        usedFor,
-        currentBalance,
-        isDefault,
-        isArchived,
-      );
+    id,
+    accountName,
+    bankName,
+    accountType,
+    usedFor,
+    currentBalance,
+    isDefault,
+    isArchived,
+  );
 }

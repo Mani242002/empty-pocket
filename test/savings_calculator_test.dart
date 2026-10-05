@@ -5,7 +5,11 @@ import 'package:empty_pocket/core/domain/entities/savings_goal_entity.dart';
 void main() {
   group('Savings Calculator Tests', () {
     final now = DateTime.now();
-    final targetDate = DateTime(now.year + 1, now.month, now.day); // 12 months ahead
+    final targetDate = DateTime(
+      now.year + 1,
+      now.month,
+      now.day,
+    ); // 12 months ahead
 
     test('calculateGoalProgress computes metrics for ongoing goal', () {
       final goal = SavingsGoalEntity(
@@ -88,14 +92,16 @@ void main() {
 
     test('calculateRecommendedEmergencyFund multiplies monthly expense', () {
       const averageMonthlyExpense = 35000.0;
-      final recommended6Mo = FinancialCalculator.calculateRecommendedEmergencyFund(
-        averageMonthlyExpense,
-        months: 6,
-      );
-      final recommended3Mo = FinancialCalculator.calculateRecommendedEmergencyFund(
-        averageMonthlyExpense,
-        months: 3,
-      );
+      final recommended6Mo =
+          FinancialCalculator.calculateRecommendedEmergencyFund(
+            averageMonthlyExpense,
+            months: 6,
+          );
+      final recommended3Mo =
+          FinancialCalculator.calculateRecommendedEmergencyFund(
+            averageMonthlyExpense,
+            months: 3,
+          );
 
       expect(recommended6Mo, 210000.0);
       expect(recommended3Mo, 105000.0);

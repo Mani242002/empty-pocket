@@ -44,7 +44,13 @@ void main() {
     });
 
     test('Updating time preserves existing date of transaction', () {
-      final currentDateTime = DateTime(2026, 9, 19, 15, 30); // Yesterday 3:30 PM
+      final currentDateTime = DateTime(
+        2026,
+        9,
+        19,
+        15,
+        30,
+      ); // Yesterday 3:30 PM
       const targetHour = 20; // 8:00 PM
       const targetMinute = 0;
 
@@ -64,41 +70,47 @@ void main() {
       expect(updatedDateTime.minute, 0);
     });
 
-    test('Restoring "Original" timestamp in Edit Mode restores full date and time', () {
-      final originalTimestamp = DateTime(2026, 9, 15, 10, 15);
-      final originalTx = TransactionEntity(
-        id: 'tx_1',
-        title: 'Dinner with friends',
-        amount: 1450.0,
-        type: TransactionType.expense,
-        category: 'Food & Dining',
-        date: originalTimestamp,
-        paymentSource: 'Bank Account',
-        createdAt: originalTimestamp,
-        updatedAt: originalTimestamp,
-      );
+    test(
+      'Restoring "Original" timestamp in Edit Mode restores full date and time',
+      () {
+        final originalTimestamp = DateTime(2026, 9, 15, 10, 15);
+        final originalTx = TransactionEntity(
+          id: 'tx_1',
+          title: 'Dinner with friends',
+          amount: 1450.0,
+          type: TransactionType.expense,
+          category: 'Food & Dining',
+          date: originalTimestamp,
+          paymentSource: 'Bank Account',
+          createdAt: originalTimestamp,
+          updatedAt: originalTimestamp,
+        );
 
-      // Suppose user altered date/time in the sheet
-      var selectedDate = DateTime(2026, 9, 18, 18, 45);
+        // Suppose user altered date/time in the sheet
+        var selectedDate = DateTime(2026, 9, 18, 18, 45);
 
-      // Tapping "Original" chip
-      selectedDate = originalTx.date;
+        // Tapping "Original" chip
+        selectedDate = originalTx.date;
 
-      expect(selectedDate, equals(originalTimestamp));
-      expect(selectedDate.year, 2026);
-      expect(selectedDate.month, 9);
-      expect(selectedDate.day, 15);
-      expect(selectedDate.hour, 10);
-      expect(selectedDate.minute, 15);
-    });
+        expect(selectedDate, equals(originalTimestamp));
+        expect(selectedDate.year, 2026);
+        expect(selectedDate.month, 9);
+        expect(selectedDate.day, 15);
+        expect(selectedDate.hour, 10);
+        expect(selectedDate.minute, 15);
+      },
+    );
   });
 
   group('Offline Scheduled Notifications Tests', () {
-    test('NotificationService singleton initializes safely without crashing', () async {
-      final service = NotificationService.instance;
-      expect(service, isNotNull);
-      await service.initialize();
-    });
+    test(
+      'NotificationService singleton initializes safely without crashing',
+      () async {
+        final service = NotificationService.instance;
+        expect(service, isNotNull);
+        await service.initialize();
+      },
+    );
 
     test('scheduleTestDelayedNotification handles fallback gracefully in test environment', () async {
       final service = NotificationService.instance;
@@ -111,7 +123,9 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final notifier = container.read(dailyStreakReminderNotifierProvider.notifier);
+      final notifier = container.read(
+        dailyStreakReminderNotifierProvider.notifier,
+      );
       await notifier.setEnabled(false);
       expect(container.read(dailyStreakReminderNotifierProvider), isFalse);
 
@@ -151,16 +165,18 @@ void main() {
       expect(report.markdownContent, contains('Audit Report'));
     });
 
-    testWidgets('AiReportDetailScreen renders markdown table on 320dp width without overflow', (tester) async {
-      tester.view.physicalSize = const Size(320, 600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'AiReportDetailScreen renders markdown table on 320dp width without overflow',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      final report = AiReportItem(
-        id: 'rep_table_test',
-        title: 'Budget Allocation Breakdown',
-        type: AiReportType.budgetOptimization,
-        markdownContent: '''
+        final report = AiReportItem(
+          id: 'rep_table_test',
+          title: 'Budget Allocation Breakdown',
+          type: AiReportType.budgetOptimization,
+          markdownContent: '''
 # Monthly Budget Review
 
 | Category | Monthly Budget | Actual Spent | Variance Remaining | Health Status |
@@ -169,59 +185,57 @@ void main() {
 | Transportation | \$8,000 | \$5,200 | +\$2,800 (Under) | Healthy |
 | Entertainment | \$4,000 | \$3,900 | +\$100 (On track) | Normal |
 ''',
-        modelUsed: 'gemini-1.5-flash',
-        modelDisplayName: 'Gemini 1.5 Flash',
-        providerUsed: AiProviderType.gemini,
-        timestamp: DateTime(2026, 9, 20, 10, 0),
-      );
+          modelUsed: 'gemini-1.5-flash',
+          modelDisplayName: 'Gemini 1.5 Flash',
+          providerUsed: AiProviderType.gemini,
+          timestamp: DateTime(2026, 9, 20, 10, 0),
+        );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            home: AiReportDetailScreen(report: report),
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(home: AiReportDetailScreen(report: report)),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-      expect(find.text('Budget Allocation Breakdown'), findsOneWidget);
-    });
+        expect(tester.takeException(), isNull);
+        expect(find.text('Budget Allocation Breakdown'), findsOneWidget);
+      },
+    );
 
-    testWidgets('AddEditTransactionSheet decoupled Date & Time row renders without overflow on 320dp width', (tester) async {
-      tester.view.physicalSize = const Size(320, 700);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'AddEditTransactionSheet decoupled Date & Time row renders without overflow on 320dp width',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 700);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      final inMemoryTxRepo = InMemoryTransactionRepository();
-      final inMemoryBankRepo = InMemoryBankAccountRepository();
-      final inMemoryCardRepo = InMemoryCreditCardRepository();
+        final inMemoryTxRepo = InMemoryTransactionRepository();
+        final inMemoryBankRepo = InMemoryBankAccountRepository();
+        final inMemoryCardRepo = InMemoryCreditCardRepository();
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            transactionRepositoryProvider.overrideWithValue(inMemoryTxRepo),
-            bankAccountRepositoryProvider.overrideWithValue(inMemoryBankRepo),
-            creditCardRepositoryProvider.overrideWithValue(inMemoryCardRepo),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.lightTheme,
-            home: const Scaffold(
-              body: AddEditTransactionSheet(),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              transactionRepositoryProvider.overrideWithValue(inMemoryTxRepo),
+              bankAccountRepositoryProvider.overrideWithValue(inMemoryBankRepo),
+              creditCardRepositoryProvider.overrideWithValue(inMemoryCardRepo),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.lightTheme,
+              home: const Scaffold(body: AddEditTransactionSheet()),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-      expect(find.text('Date'), findsOneWidget);
-      expect(find.text('Time'), findsOneWidget);
-      expect(find.text('Today'), findsOneWidget);
-      expect(find.text('Yesterday'), findsOneWidget);
-      expect(find.text('Now'), findsOneWidget);
-    });
+        expect(tester.takeException(), isNull);
+        expect(find.text('Date'), findsOneWidget);
+        expect(find.text('Time'), findsOneWidget);
+        expect(find.text('Today'), findsOneWidget);
+        expect(find.text('Yesterday'), findsOneWidget);
+        expect(find.text('Now'), findsOneWidget);
+      },
+    );
   });
 }
-
-

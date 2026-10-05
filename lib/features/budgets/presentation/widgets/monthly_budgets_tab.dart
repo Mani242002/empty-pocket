@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/budget_entity.dart';
@@ -11,12 +12,14 @@ import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../screens/set_budget_sheet.dart';
 import '../state/budgets_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class MonthlyBudgetsTab extends ConsumerWidget {
   const MonthlyBudgetsTab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -65,7 +68,10 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 6,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
@@ -112,7 +118,9 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                     : [const Color(0xFFEEF2FF), const Color(0xFFFFFFFF)],
               ),
               border: Border.all(
-                color: isDark ? AppColors.investment.withAlpha(60) : AppColors.investment.withAlpha(40),
+                color: isDark
+                    ? AppColors.investment.withAlpha(60)
+                    : AppColors.investment.withAlpha(40),
                 width: 1.5,
               ),
             ),
@@ -152,11 +160,15 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              CurrencyFormatter.format(overallSummary.totalRemaining),
+                              CurrencyFormatter.format(
+                                overallSummary.totalRemaining,
+                              ),
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.5,
-                                color: overallSummary.health == BudgetHealth.exceeded
+                                color:
+                                    overallSummary.health ==
+                                        BudgetHealth.exceeded
                                     ? financialColors.expense
                                     : null,
                               ),
@@ -190,7 +202,10 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: LinearProgressIndicator(
-                    value: (overallSummary.overallPercentage / 100).clamp(0.0, 1.0),
+                    value: (overallSummary.overallPercentage / 100).clamp(
+                      0.0,
+                      1.0,
+                    ),
                     minHeight: 10,
                     backgroundColor: isDark
                         ? AppColors.darkSurfaceVariant
@@ -240,17 +255,17 @@ class MonthlyBudgetsTab extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'Category Budgets (${categoryStatuses.length})',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
               ),
               if (categoryStatuses.isNotEmpty)
                 TextButton.icon(
-                  onPressed: () => SetBudgetSheet.show(
-                    context,
-                    targetMonth: selectedMonth,
-                  ),
+                  onPressed: () =>
+                      SetBudgetSheet.show(context, targetMonth: selectedMonth),
                   icon: const Icon(Icons.add, size: 16),
                   label: const Text('Add'),
                 ),
@@ -270,7 +285,9 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                     height: 64,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: financialColors.investment.withAlpha(isDark ? 40 : 25),
+                      color: financialColors.investment.withAlpha(
+                        isDark ? 40 : 25,
+                      ),
                     ),
                     child: Icon(
                       Icons.pie_chart_rounded,
@@ -281,7 +298,9 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(
                     'No Budgets in $monthTitle',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -294,7 +313,9 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
                   FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: financialColors.investment),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: financialColors.investment,
+                    ),
                     onPressed: () => SetBudgetSheet.show(
                       context,
                       targetMonth: selectedMonth,
@@ -317,7 +338,11 @@ class MonthlyBudgetsTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildCategoryBudgetCard(BuildContext context, WidgetRef ref, CategoryBudgetStatus status) {
+  Widget _buildCategoryBudgetCard(
+    BuildContext context,
+    WidgetRef ref,
+    CategoryBudgetStatus status,
+  ) {
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -342,14 +367,18 @@ class MonthlyBudgetsTab extends ConsumerWidget {
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Delete Budget?'),
-            content: Text('Remove monthly budget limit for "${status.category}"?'),
+            content: Text(
+              'Remove monthly budget limit for "${status.category}"?',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.expense,
+                ),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Delete'),
               ),
@@ -358,7 +387,9 @@ class MonthlyBudgetsTab extends ConsumerWidget {
         );
       },
       onDismissed: (_) {
-        ref.read(budgetListNotifierProvider.notifier).deleteBudget(status.budget.id);
+        ref
+            .read(budgetListNotifierProvider.notifier)
+            .deleteBudget(status.budget.id);
       },
       background: Container(
         alignment: Alignment.centerRight,
@@ -374,7 +405,10 @@ class MonthlyBudgetsTab extends ConsumerWidget {
             SizedBox(width: 8),
             Text(
               'Remove',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -405,7 +439,11 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                         color: categoryItem.color.withAlpha(isDark ? 45 : 30),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(categoryItem.icon, color: categoryItem.color, size: 20),
+                      child: Icon(
+                        categoryItem.icon,
+                        color: categoryItem.color,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -427,11 +465,18 @@ class MonthlyBudgetsTab extends ConsumerWidget {
                               if (linkedAccount != null) ...[
                                 const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                    vertical: 1.5,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
+                                    color: (isDark
+                                        ? AppColors.darkSurfaceVariant
+                                        : AppColors.lightSurfaceVariant),
                                     borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: financialColors.cardBorder),
+                                    border: Border.all(
+                                      color: financialColors.cardBorder,
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,

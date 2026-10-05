@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../core/calculation/financial_calculator.dart';
 import '../../../../core/domain/entities/recurring_expense_entity.dart';
 import '../../../../core/domain/entities/transaction_entity.dart';
@@ -8,7 +10,8 @@ import '../../../../core/repositories/recurring_repository.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 
-class RecurringListNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> {
+class RecurringListNotifier
+    extends AsyncNotifier<List<RecurringExpenseEntity>> {
   @override
   FutureOr<List<RecurringExpenseEntity>> build() async {
     final repository = ref.watch(recurringRepositoryProvider);
@@ -36,7 +39,10 @@ class RecurringListNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> 
   Future<void> toggleActive(String id) async {
     final currentList = state.valueOrNull ?? [];
     final item = currentList.firstWhere((i) => i.id == id);
-    final updated = item.copyWith(isActive: !item.isActive, updatedAt: DateTime.now());
+    final updated = item.copyWith(
+      isActive: !item.isActive,
+      updatedAt: DateTime.now(),
+    );
     await saveRecurring(updated);
   }
 
@@ -51,31 +57,55 @@ class RecurringListNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> 
     String? resolvedAccountId = accountId ?? item.accountId;
     String? resolvedCreditCardId = creditCardId ?? item.creditCardId;
 
+    final repository = ref.read(recurringRepositoryProvider);
     final bankAccounts = ref.read(bankAccountListProvider).valueOrNull ?? [];
     final creditCards = ref.read(creditCardListProvider).valueOrNull ?? [];
 
     if (resolvedAccountId == null && resolvedCreditCardId == null) {
-      final matchedAccount = bankAccounts.where((a) => a.accountName.toLowerCase() == item.paymentSource.toLowerCase()).firstOrNull;
+      final matchedAccount = bankAccounts
+          .where(
+            (a) =>
+                a.accountName.toLowerCase() == item.paymentSource.toLowerCase(),
+          )
+          .firstOrNull;
       if (matchedAccount != null) {
         resolvedAccountId = matchedAccount.id;
       } else {
-        final matchedCard = creditCards.where((c) => c.cardName.toLowerCase() == item.paymentSource.toLowerCase()).firstOrNull;
+        final matchedCard = creditCards
+            .where(
+              (c) =>
+                  c.cardName.toLowerCase() == item.paymentSource.toLowerCase(),
+            )
+            .firstOrNull;
         if (matchedCard != null) {
           resolvedCreditCardId = matchedCard.id;
         }
       }
     }
 
-    // 1. Deduct bank account balance or adjust credit card used amount if linked
+    final fromAccount = deductBalance && resolvedAccountId != null
+        ? bankAccounts.where((a) => a.id == resolvedAccountId).firstOrNull
+        : null;
+    final creditCard = deductBalance && resolvedCreditCardId != null
+        ? creditCards.where((c) => c.id == resolvedCreditCardId).firstOrNull
+        : null;
+
     if (deductBalance) {
-      if (resolvedAccountId != null) {
-        await ref.read(bankAccountListProvider.notifier).adjustAccountBalance(resolvedAccountId, -item.amount);
-      } else if (resolvedCreditCardId != null) {
-        await ref.read(creditCardListProvider.notifier).adjustUsedAmount(resolvedCreditCardId, item.amount);
+      if (resolvedAccountId != null && fromAccount == null) {
+        throw StateError(
+          'The bank account configured for "${item.title}" no longer exists. Please edit the recurring expense to select an active account.',
+        );
       }
+      if (resolvedCreditCardId != null && creditCard == null) {
+        throw StateError(
+          'The credit card configured for "${item.title}" no longer exists. Please edit the recurring expense to select an active card.',
+        );
+      }
+    } else {
+      if (fromAccount == null) resolvedAccountId = null;
+      if (creditCard == null) resolvedCreditCardId = null;
     }
 
-    // 2. Record transaction in offline ledger
     final tx = TransactionEntity(
       id: const Uuid().v4(),
       title: item.title,
@@ -91,32 +121,60 @@ class RecurringListNotifier extends AsyncNotifier<List<RecurringExpenseEntity>> 
       createdAt: now,
       updatedAt: now,
     );
-    await ref.read(transactionListNotifierProvider.notifier).addTransaction(tx);
 
-    // 3. Advance next due date to next cycle
-    final nextDue = FinancialCalculator.calculateNextDueDate(item.nextDueDate, item.frequency);
-    final updatedItem = item.copyWith(
-      nextDueDate: nextDue,
-      updatedAt: now,
+    final nextDue = FinancialCalculator.calculateNextDueDate(
+      item.nextDueDate,
+      item.frequency,
     );
-    await saveRecurring(updatedItem);
+
+    await repository.payRecurringExpenseAtomic(
+      recurringExpense: item,
+      nextDueDate: nextDue,
+      fromAccount: fromAccount,
+      creditCard: creditCard,
+      transaction: tx,
+    );
+
+    if (repository is! SqliteRecurringRepository) {
+      if (fromAccount != null) {
+        await ref
+            .read(bankAccountListProvider.notifier)
+            .adjustAccountBalance(fromAccount.id, -item.amount);
+      } else if (creditCard != null) {
+        await ref
+            .read(creditCardListProvider.notifier)
+            .adjustUsedAmount(creditCard.id, item.amount);
+      }
+      await ref
+          .read(transactionListNotifierProvider.notifier)
+          .addTransaction(tx);
+    }
+
+    state = AsyncValue.data(await repository.getAllRecurringExpenses());
+    ref.invalidate(bankAccountListProvider);
+    ref.invalidate(creditCardListProvider);
+    ref.invalidate(transactionListNotifierProvider);
   }
 }
 
 final recurringListNotifierProvider =
     AsyncNotifierProvider<RecurringListNotifier, List<RecurringExpenseEntity>>(
-  RecurringListNotifier.new,
-);
+      RecurringListNotifier.new,
+    );
 
 /// Upcoming recurring payments within 30 days
-final upcomingRecurringExpensesProvider = Provider<List<RecurringExpenseEntity>>((ref) {
-  final allAsync = ref.watch(recurringListNotifierProvider);
+final upcomingRecurringExpensesProvider =
+    Provider<List<RecurringExpenseEntity>>((ref) {
+      final allAsync = ref.watch(recurringListNotifierProvider);
 
-  return allAsync.maybeWhen(
-    data: (list) => FinancialCalculator.getUpcomingRecurringExpenses(list, daysAhead: 30),
-    orElse: () => [],
-  );
-});
+      return allAsync.maybeWhen(
+        data: (list) => FinancialCalculator.getUpcomingRecurringExpenses(
+          list,
+          daysAhead: 30,
+        ),
+        orElse: () => [],
+      );
+    });
 
 /// Total monthly commitment for active recurring expenses
 final monthlyRecurringTotalProvider = Provider<double>((ref) {
@@ -142,7 +200,9 @@ final monthlyRecurringTotalProvider = Provider<double>((ref) {
 });
 
 /// Active recurring bills that are due today or overdue
-final recurringBillsDueTodayProvider = Provider<List<RecurringExpenseEntity>>((ref) {
+final recurringBillsDueTodayProvider = Provider<List<RecurringExpenseEntity>>((
+  ref,
+) {
   final recurringAsync = ref.watch(recurringListNotifierProvider);
   final now = DateTime.now();
   final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);

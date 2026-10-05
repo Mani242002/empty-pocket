@@ -46,7 +46,11 @@ void main() {
     test('SplitHelper encodeShares and parseShares round-trip', () {
       final shares = [
         SplitPersonShare(personName: 'Raji', amount: 150.0),
-        SplitPersonShare(personName: 'Susmitha', amount: 200.0, reimbursedAmount: 50.0),
+        SplitPersonShare(
+          personName: 'Susmitha',
+          amount: 200.0,
+          reimbursedAmount: 50.0,
+        ),
       ];
 
       final encoded = SplitHelper.encodeShares(shares);
@@ -63,12 +67,15 @@ void main() {
       expect(parsed[1].pendingAmount, 150.0);
     });
 
-    test('SplitHelper parseShares returns empty on plain text or invalid JSON', () {
-      expect(SplitHelper.parseShares(null), isEmpty);
-      expect(SplitHelper.parseShares(''), isEmpty);
-      expect(SplitHelper.parseShares('Raji, Susmitha, Riya'), isEmpty);
-      expect(SplitHelper.parseShares('{not an array}'), isEmpty);
-    });
+    test(
+      'SplitHelper parseShares returns empty on plain text or invalid JSON',
+      () {
+        expect(SplitHelper.parseShares(null), isEmpty);
+        expect(SplitHelper.parseShares(''), isEmpty);
+        expect(SplitHelper.parseShares('Raji, Susmitha, Riya'), isEmpty);
+        expect(SplitHelper.parseShares('{not an array}'), isEmpty);
+      },
+    );
 
     test('SplitHelper formatDisplay returns clean names with amounts', () {
       final shares = [
@@ -135,13 +142,22 @@ void main() {
         reimbursedAmount: 100.0,
         isSettled: true,
         sharedWith: SplitHelper.encodeShares([
-          SplitPersonShare(personName: 'Raji', amount: 100.0, reimbursedAmount: 100.0, isSettled: true),
+          SplitPersonShare(
+            personName: 'Raji',
+            amount: 100.0,
+            reimbursedAmount: 100.0,
+            isSettled: true,
+          ),
         ]),
         createdAt: now,
         updatedAt: now,
       );
 
-      final summaries = SplitHelper.groupPendingByPerson([tx1, tx2, tx3Settled]);
+      final summaries = SplitHelper.groupPendingByPerson([
+        tx1,
+        tx2,
+        tx3Settled,
+      ]);
       expect(summaries.length, 2);
 
       final raji = summaries.firstWhere((s) => s.personName == 'Raji');
@@ -156,7 +172,8 @@ void main() {
 
     test('SplitHelper handles Money Lent loans without exposing raw JSON', () {
       final now = DateTime.now();
-      const loanJson = '{"type":"loan","borrower":"Deeksith","principal":15000.0,"expected_interest":500.0,"is_repaid":false}';
+      const loanJson =
+          '{"type":"loan","borrower":"Deeksith","principal":15000.0,"expected_interest":500.0,"is_repaid":false}';
 
       final loanTx = TransactionEntity(
         id: 'loan1',
@@ -238,11 +255,19 @@ void main() {
         overrides: [
           transactionRepositoryProvider.overrideWithValue(txRepo),
           bankAccountRepositoryProvider.overrideWithValue(bankRepo),
-          creditCardRepositoryProvider.overrideWithValue(InMemoryCreditCardRepository()),
-          savingsGoalRepositoryProvider.overrideWithValue(InMemorySavingsGoalRepository()),
+          creditCardRepositoryProvider.overrideWithValue(
+            InMemoryCreditCardRepository(),
+          ),
+          savingsGoalRepositoryProvider.overrideWithValue(
+            InMemorySavingsGoalRepository(),
+          ),
           debtRepositoryProvider.overrideWithValue(InMemoryDebtRepository()),
-          investmentRepositoryProvider.overrideWithValue(InMemoryInvestmentRepository()),
-          recurringRepositoryProvider.overrideWithValue(InMemoryRecurringRepository()),
+          investmentRepositoryProvider.overrideWithValue(
+            InMemoryInvestmentRepository(),
+          ),
+          recurringRepositoryProvider.overrideWithValue(
+            InMemoryRecurringRepository(),
+          ),
         ],
       );
     });
@@ -301,11 +326,13 @@ void main() {
       await container.read(bankAccountListProvider.future);
 
       // Total owed by Raji across tx1 and tx2 is 400.0
-      await container.read(transactionListNotifierProvider.notifier).settlePersonReimbursements(
-        personName: 'Raji',
-        destinationAccountId: 'acc1',
-        notes: 'Raji settled via PhonePe',
-      );
+      await container
+          .read(transactionListNotifierProvider.notifier)
+          .settlePersonReimbursements(
+            personName: 'Raji',
+            destinationAccountId: 'acc1',
+            notes: 'Raji settled via PhonePe',
+          );
 
       // 1. Check Bank Account balance increased by 400.0 (1000 + 400 = 1400)
       final accounts = await bankRepo.getAllAccounts();
@@ -328,7 +355,9 @@ void main() {
 
       // 3. Check settlement income transaction was recorded
       final allTxs = await txRepo.getAllTransactions();
-      final settlementTx = allTxs.firstWhere((t) => t.category == 'Shared Expense Reimbursement');
+      final settlementTx = allTxs.firstWhere(
+        (t) => t.category == 'Shared Expense Reimbursement',
+      );
       expect(settlementTx.amount, 400.0);
       expect(settlementTx.type, TransactionType.income);
       expect(settlementTx.accountId, 'acc1');
@@ -385,10 +414,12 @@ void main() {
       await container.read(bankAccountListProvider.future);
 
       // Pending total across tx1 (300) and tx2 (200) = 500.0
-      await container.read(transactionListNotifierProvider.notifier).settleAllPendingSharedExpenses(
-        destinationAccountId: 'acc1',
-        notes: 'Roommates cleared all pending balances',
-      );
+      await container
+          .read(transactionListNotifierProvider.notifier)
+          .settleAllPendingSharedExpenses(
+            destinationAccountId: 'acc1',
+            notes: 'Roommates cleared all pending balances',
+          );
 
       // 1. Check Bank Account balance increased by 500.0 (1000 + 500 = 1500)
       final accounts = await bankRepo.getAllAccounts();
@@ -407,7 +438,9 @@ void main() {
 
       // 3. Single bulk income transaction was generated
       final allTxs = await txRepo.getAllTransactions();
-      final settlementTx = allTxs.firstWhere((t) => t.category == 'Shared Expense Reimbursement');
+      final settlementTx = allTxs.firstWhere(
+        (t) => t.category == 'Shared Expense Reimbursement',
+      );
       expect(settlementTx.amount, 500.0);
       expect(settlementTx.title, contains('All'));
     });
@@ -439,14 +472,16 @@ void main() {
 
       // Raji owes 300, but user owed Raji 250 for previous outing.
       // Net cash received: 50. Offset expense: 250 (Food & Dining).
-      await container.read(transactionListNotifierProvider.notifier).settlePersonReimbursements(
-        personName: 'Raji',
-        destinationAccountId: 'acc1',
-        customAmount: 50.0,
-        offsetExpenseAmount: 250.0,
-        offsetExpenseCategory: 'Food & Dining',
-        notes: 'Net settlement after offset',
-      );
+      await container
+          .read(transactionListNotifierProvider.notifier)
+          .settlePersonReimbursements(
+            personName: 'Raji',
+            destinationAccountId: 'acc1',
+            customAmount: 50.0,
+            offsetExpenseAmount: 250.0,
+            offsetExpenseCategory: 'Food & Dining',
+            notes: 'Net settlement after offset',
+          );
 
       // 1. Bank account balance increased by ONLY net received 50.0 (1000 + 50 = 1050)
       final accounts = await bankRepo.getAllAccounts();
@@ -466,11 +501,16 @@ void main() {
 
       // 4. Offset expense transaction was generated for 250.0 under Food & Dining
       final offsetExpense = allUpdated.firstWhere(
-        (t) => t.type == TransactionType.expense && t.amount == 250.0 && t.title.contains('Offset'),
+        (t) =>
+            t.type == TransactionType.expense &&
+            t.amount == 250.0 &&
+            t.title.contains('Offset'),
       );
       expect(offsetExpense.category, 'Food & Dining');
-      expect(offsetExpense.accountId, isNull); // no phantom double-deduction from bank
+      expect(
+        offsetExpense.accountId,
+        isNull,
+      ); // no phantom double-deduction from bank
     });
   });
 }
-

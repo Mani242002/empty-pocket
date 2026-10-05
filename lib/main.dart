@@ -1,7 +1,9 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'app/app.dart';
 import 'core/services/log_service.dart';
 import 'core/services/notification_service.dart';
@@ -13,11 +15,7 @@ void main() async {
 
   // Pre-load user currency preference before initial render
   try {
-    final prefs = await SharedPreferences.getInstance();
-    final savedCode = prefs.getString('app_currency_code');
-    if (savedCode != null) {
-      CurrencyFormatter.setCurrencyByCode(savedCode);
-    }
+    await CurrencyFormatter.init();
   } catch (e) {
     LogService.debug('Main', 'Failed to pre-load currency preference: $e');
   }
@@ -37,7 +35,12 @@ void main() async {
 
   // Catch synchronous Flutter framework errors
   FlutterError.onError = (FlutterErrorDetails details) {
-    LogService.error('FlutterError', details.exceptionAsString(), details.exception, details.stack);
+    LogService.error(
+      'FlutterError',
+      details.exceptionAsString(),
+      details.exception,
+      details.stack,
+    );
   };
 
   // Catch unhandled asynchronous Dart and platform errors
@@ -64,7 +67,9 @@ void main() async {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFF10B981).withAlpha(30),
-                    border: Border.all(color: const Color(0xFF10B981).withAlpha(80)),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withAlpha(80),
+                    ),
                   ),
                   child: const Icon(
                     Icons.shield_outlined,
@@ -99,11 +104,7 @@ void main() async {
     );
   };
 
-  runApp(
-    const ProviderScope(
-      child: EmptyPocketApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: EmptyPocketApp()));
 }
 
 /// Dedicated entrypoint for the Android 24/7 Floating Bubble / System Alert Window
@@ -117,7 +118,10 @@ void overlayMain() async {
       CurrencyFormatter.setCurrencyByCode(savedCode);
     }
   } catch (e) {
-    LogService.debug('MainOverlay', 'Failed to pre-load currency preference: $e');
+    LogService.debug(
+      'MainOverlay',
+      'Failed to pre-load currency preference: $e',
+    );
   }
   runApp(const FloatingBubbleOverlayApp());
 }

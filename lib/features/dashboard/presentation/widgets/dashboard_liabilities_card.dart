@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/debt_entity.dart';
@@ -23,7 +24,8 @@ class DashboardLiabilitiesCard extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final OverallLiabilitiesSummary liabilitiesSummary =
-        explicitLiabilitiesSummary ?? ref.watch(overallLiabilitiesSummaryProvider);
+        explicitLiabilitiesSummary ??
+        ref.watch(overallLiabilitiesSummaryProvider);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -39,7 +41,11 @@ class DashboardLiabilitiesCard extends ConsumerWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        Icon(Icons.account_balance_rounded, color: financialColors.expense, size: 20),
+                        Icon(
+                          Icons.account_balance_rounded,
+                          color: financialColors.expense,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
@@ -64,7 +70,9 @@ class DashboardLiabilitiesCard extends ConsumerWidget {
                       child: const Text('Manage'),
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const DebtsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const DebtsScreen(),
+                          ),
                         );
                       },
                     )
@@ -86,13 +94,17 @@ class DashboardLiabilitiesCard extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                   child: LinearProgressIndicator(
                     value: liabilitiesSummary.totalOriginalPrincipal > 0
-                        ? (liabilitiesSummary.totalPaidOff / liabilitiesSummary.totalOriginalPrincipal).clamp(0.0, 1.0)
+                        ? (liabilitiesSummary.totalPaidOff /
+                                  liabilitiesSummary.totalOriginalPrincipal)
+                              .clamp(0.0, 1.0)
                         : 0.0,
                     minHeight: 8,
                     backgroundColor: isDark
                         ? AppColors.darkSurfaceVariant
                         : AppColors.lightSurfaceVariant,
-                    valueColor: AlwaysStoppedAnimation<Color>(financialColors.income),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      financialColors.income,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -131,7 +143,9 @@ class DashboardLiabilitiesCard extends ConsumerWidget {
                     backgroundColor: isDark
                         ? AppColors.darkSurfaceVariant
                         : AppColors.lightSurfaceVariant,
-                    valueColor: AlwaysStoppedAnimation<Color>(financialColors.income),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      financialColors.income,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),

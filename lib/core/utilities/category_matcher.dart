@@ -31,7 +31,7 @@ class CategoryMatcher {
       'friend loan',
       'personal loan given',
       'lent cash',
-      ],
+    ],
     CategoryConstants.categorySharedReimbursement: [
       'shared expense reimbursement',
       'split settlement',
@@ -179,13 +179,7 @@ class CategoryMatcher {
       'rto',
       'tax',
     ],
-    'Salary': [
-      'paycheck',
-      'payroll',
-      'stipend',
-      'salary',
-      'wages',
-    ],
+    'Salary': ['paycheck', 'payroll', 'stipend', 'salary', 'wages'],
     'Freelance': [
       'project payment',
       'client payment',

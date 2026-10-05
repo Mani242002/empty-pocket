@@ -8,48 +8,111 @@ import 'package:empty_pocket/core/utilities/math_expression_parser.dart';
 void main() {
   group('CategoryMatcher Tests', () {
     test('Detects Food & Dining from food keywords', () {
-      expect(CategoryMatcher.detectCategory('Swiggy Order #1234'), 'Food & Dining');
-      expect(CategoryMatcher.detectCategory('Dinner at Starbucks cafe'), 'Food & Dining');
-      expect(CategoryMatcher.detectCategory('McDonalds burger'), 'Food & Dining');
-      expect(CategoryMatcher.detectCategory('Morning Coffee & Snack'), 'Food & Dining');
+      expect(
+        CategoryMatcher.detectCategory('Swiggy Order #1234'),
+        'Food & Dining',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Dinner at Starbucks cafe'),
+        'Food & Dining',
+      );
+      expect(
+        CategoryMatcher.detectCategory('McDonalds burger'),
+        'Food & Dining',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Morning Coffee & Snack'),
+        'Food & Dining',
+      );
     });
 
     test('Detects Transportation from travel keywords', () {
-      expect(CategoryMatcher.detectCategory('Uber trip to airport'), 'Transportation');
+      expect(
+        CategoryMatcher.detectCategory('Uber trip to airport'),
+        'Transportation',
+      );
       expect(CategoryMatcher.detectCategory('Ola auto ride'), 'Transportation');
-      expect(CategoryMatcher.detectCategory('HP Petrol pump fuel'), 'Transportation');
-      expect(CategoryMatcher.detectCategory('Metro card recharge'), 'Transportation');
+      expect(
+        CategoryMatcher.detectCategory('HP Petrol pump fuel'),
+        'Transportation',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Metro card recharge'),
+        'Transportation',
+      );
     });
 
     test('Detects Groceries from grocery keywords', () {
-      expect(CategoryMatcher.detectCategory('Blinkit fast delivery'), 'Groceries');
-      expect(CategoryMatcher.detectCategory('Zepto fresh veggies'), 'Groceries');
-      expect(CategoryMatcher.detectCategory('Supermarket ration & milk'), 'Groceries');
+      expect(
+        CategoryMatcher.detectCategory('Blinkit fast delivery'),
+        'Groceries',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Zepto fresh veggies'),
+        'Groceries',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Supermarket ration & milk'),
+        'Groceries',
+      );
     });
 
     test('Detects Shopping and Entertainment', () {
-      expect(CategoryMatcher.detectCategory('Amazon retail shopping'), 'Shopping');
-      expect(CategoryMatcher.detectCategory('BookMyShow movie ticket'), 'Entertainment');
-      expect(CategoryMatcher.detectCategory('PVR Cinema ticket'), 'Entertainment');
+      expect(
+        CategoryMatcher.detectCategory('Amazon retail shopping'),
+        'Shopping',
+      );
+      expect(
+        CategoryMatcher.detectCategory('BookMyShow movie ticket'),
+        'Entertainment',
+      );
+      expect(
+        CategoryMatcher.detectCategory('PVR Cinema ticket'),
+        'Entertainment',
+      );
     });
 
     test('Detects Bills & Utilities and Medical', () {
-      expect(CategoryMatcher.detectCategory('Airtel wifi broadband bill'), 'Bills & Utilities');
-      expect(CategoryMatcher.detectCategory('Electricity bescom bill'), 'Bills & Utilities');
-      expect(CategoryMatcher.detectCategory('Apollo pharmacy medicine'), 'Health & Medical');
+      expect(
+        CategoryMatcher.detectCategory('Airtel wifi broadband bill'),
+        'Bills & Utilities',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Electricity bescom bill'),
+        'Bills & Utilities',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Apollo pharmacy medicine'),
+        'Health & Medical',
+      );
     });
 
     test('Detects Money Lent and Loan Repayment Received', () {
-      expect(CategoryMatcher.detectCategory('Money lent to friend Ramesh'), 'Money Lent / Helping Friend');
-      expect(CategoryMatcher.detectCategory('Personal loan given for emergency'), 'Money Lent / Helping Friend');
-      expect(CategoryMatcher.detectCategory('Loan repayment received from Ramesh'), 'Loan Repayment Received');
-      expect(CategoryMatcher.detectCategory('Friend repaid the money'), 'Loan Repayment Received');
+      expect(
+        CategoryMatcher.detectCategory('Money lent to friend Ramesh'),
+        'Money Lent / Helping Friend',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Personal loan given for emergency'),
+        'Money Lent / Helping Friend',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Loan repayment received from Ramesh'),
+        'Loan Repayment Received',
+      );
+      expect(
+        CategoryMatcher.detectCategory('Friend repaid the money'),
+        'Loan Repayment Received',
+      );
     });
 
     test('Returns null for unrecognized or empty keywords', () {
       expect(CategoryMatcher.detectCategory(''), isNull);
       expect(CategoryMatcher.detectCategory('   '), isNull);
-      expect(CategoryMatcher.detectCategory('Random unique phrase 999'), isNull);
+      expect(
+        CategoryMatcher.detectCategory('Random unique phrase 999'),
+        isNull,
+      );
     });
   });
 
@@ -66,34 +129,52 @@ void main() {
       expect(MathExpressionParser.tryEvaluate('100 + 200 + 300 - 50'), 550.0);
     });
 
-    test('Evaluates multiplication and division with correct operator precedence', () {
-      expect(MathExpressionParser.tryEvaluate('50 + 20 * 2'), 90.0);
-      expect(MathExpressionParser.tryEvaluate('100 - 40 / 2'), 80.0);
-      expect(MathExpressionParser.tryEvaluate('1200 / 3'), 400.0);
-      expect(MathExpressionParser.tryEvaluate('25 * 4 + 10'), 110.0);
-      expect(MathExpressionParser.tryEvaluate('25 x 4'), 100.0); // 'x' as multiply
-      expect(MathExpressionParser.tryEvaluate('25 X 4'), 100.0); // 'X' as multiply
-    });
+    test(
+      'Evaluates multiplication and division with correct operator precedence',
+      () {
+        expect(MathExpressionParser.tryEvaluate('50 + 20 * 2'), 90.0);
+        expect(MathExpressionParser.tryEvaluate('100 - 40 / 2'), 80.0);
+        expect(MathExpressionParser.tryEvaluate('1200 / 3'), 400.0);
+        expect(MathExpressionParser.tryEvaluate('25 * 4 + 10'), 110.0);
+        expect(
+          MathExpressionParser.tryEvaluate('25 x 4'),
+          100.0,
+        ); // 'x' as multiply
+        expect(
+          MathExpressionParser.tryEvaluate('25 X 4'),
+          100.0,
+        ); // 'X' as multiply
+      },
+    );
 
     test('Safely handles division by zero and invalid inputs', () {
       expect(MathExpressionParser.tryEvaluate('100 / 0'), isNull);
       expect(MathExpressionParser.tryEvaluate('abc + 20'), isNull);
       expect(MathExpressionParser.tryEvaluate('++'), isNull);
       expect(MathExpressionParser.tryEvaluate(''), isNull);
-      expect(MathExpressionParser.tryEvaluate('-500'), isNull); // negative amounts rejected
+      expect(
+        MathExpressionParser.tryEvaluate('-500'),
+        isNull,
+      ); // negative amounts rejected
     });
 
-    test('Properly ignores and parses formatted currency commas in expressions', () {
-      expect(MathExpressionParser.tryEvaluate('1,500 + 250'), 1750.0);
-      expect(MathExpressionParser.tryEvaluate('10,000 * 2'), 20000.0);
-      expect(MathExpressionParser.tryEvaluate('1,25,000 - 25,000'), 100000.0);
-    });
+    test(
+      'Properly ignores and parses formatted currency commas in expressions',
+      () {
+        expect(MathExpressionParser.tryEvaluate('1,500 + 250'), 1750.0);
+        expect(MathExpressionParser.tryEvaluate('10,000 * 2'), 20000.0);
+        expect(MathExpressionParser.tryEvaluate('1,25,000 - 25,000'), 100000.0);
+      },
+    );
 
     test('Evaluates parenthesized expressions with correct precedence', () {
       expect(MathExpressionParser.tryEvaluate('(150 + 50) * 2'), 400.0);
       expect(MathExpressionParser.tryEvaluate('(1200 - 200) / 5'), 200.0);
       expect(MathExpressionParser.tryEvaluate('((10 + 20) * 3) / 2'), 45.0);
-      expect(MathExpressionParser.tryEvaluate('100 + (50 * 2) - (30 / 3)'), 190.0);
+      expect(
+        MathExpressionParser.tryEvaluate('100 + (50 * 2) - (30 / 3)'),
+        190.0,
+      );
       expect(MathExpressionParser.tryEvaluate('((500 + 500))'), 1000.0);
     });
 
@@ -108,21 +189,37 @@ void main() {
       expect(MathExpressionParser.tryEvaluate('150 + 50)'), isNull); // unopened
       expect(MathExpressionParser.tryEvaluate(')('), isNull);
       expect(MathExpressionParser.tryEvaluate('()'), isNull); // empty
-      expect(MathExpressionParser.tryEvaluate('100 / (10 - 10)'), isNull); // div by zero
-      expect(MathExpressionParser.tryEvaluate('(100 - 200)'), isNull); // negative result
+      expect(
+        MathExpressionParser.tryEvaluate('100 / (10 - 10)'),
+        isNull,
+      ); // div by zero
+      expect(
+        MathExpressionParser.tryEvaluate('(100 - 200)'),
+        isNull,
+      ); // negative result
       expect(MathExpressionParser.tryEvaluate('*(50)'), isNull);
       expect(MathExpressionParser.tryEvaluate('(50)*'), isNull);
     });
 
-    test('Handles spaces and formatted commas inside parenthesized expressions', () {
-      expect(MathExpressionParser.tryEvaluate('( 1,000 + 500 ) * 2'), 3000.0);
-      expect(MathExpressionParser.tryEvaluate(' ( 2,500 - 500 ) / 2 '), 1000.0);
-    });
+    test(
+      'Handles spaces and formatted commas inside parenthesized expressions',
+      () {
+        expect(MathExpressionParser.tryEvaluate('( 1,000 + 500 ) * 2'), 3000.0);
+        expect(
+          MathExpressionParser.tryEvaluate(' ( 2,500 - 500 ) / 2 '),
+          1000.0,
+        );
+      },
+    );
   });
 
   group('FinancialCalculator Daily Safe to Spend Tests', () {
     test('Calculates safe to spend limit for remaining days in month', () {
-      final testDate = DateTime(2026, 3, 15); // 31 days in March, 17 days remaining (15..31)
+      final testDate = DateTime(
+        2026,
+        3,
+        15,
+      ); // 31 days in March, 17 days remaining (15..31)
       final safeSpend = FinancialCalculator.calculateDailySafeToSpend(
         31000,
         14000,
@@ -187,7 +284,10 @@ void main() {
       ];
 
       final totalExpense = FinancialCalculator.calculateTotalExpense(txs);
-      expect(totalExpense, 500.0); // Only the actual expense is counted, NOT the bill payoff transfer!
+      expect(
+        totalExpense,
+        500.0,
+      ); // Only the actual expense is counted, NOT the bill payoff transfer!
     });
   });
 }

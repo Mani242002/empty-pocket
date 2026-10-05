@@ -1,7 +1,9 @@
 import 'dart:ui' as ui;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'log_service.dart';
 
 /// Service managing the 24/7 Floating Bubble System Alert Window
@@ -57,7 +59,9 @@ class OverlayService {
     }
 
     try {
-      final pixelRatio = ui.PlatformDispatcher.instance.views.firstOrNull?.devicePixelRatio ?? 3.0;
+      final pixelRatio =
+          ui.PlatformDispatcher.instance.views.firstOrNull?.devicePixelRatio ??
+          3.0;
       final initialPhysicalPixels = (bubbleWindowSize * pixelRatio).round();
 
       // Launch StickyOverlayService as the sole overlay service with exact bubble dimensions.
@@ -71,7 +75,10 @@ class OverlayService {
         'overlayContent': 'Tap floating bubble to log expenses',
       });
 
-      LogService.info(_tag, 'Floating bubble overlay opened via StickyOverlayService ($bubbleWindowSize dp / $initialPhysicalPixels px).');
+      LogService.info(
+        _tag,
+        'Floating bubble overlay opened via StickyOverlayService ($bubbleWindowSize dp / $initialPhysicalPixels px).',
+      );
     } catch (e, stack) {
       LogService.error(_tag, 'showFloatingBubble error', e, stack);
     }
@@ -108,6 +115,7 @@ class OverlayService {
       int height = expandedHeight;
       try {
         final prefs = await SharedPreferences.getInstance();
+        await prefs.reload();
         final devWidth = prefs.getDouble('device_screen_width_dp');
         final devHeight = prefs.getDouble('device_screen_height_dp');
         if (devWidth != null && devWidth > 0 && devWidth < expandedWidth) {
@@ -118,11 +126,7 @@ class OverlayService {
         }
       } catch (_) {}
 
-      await FlutterOverlayWindow.resizeOverlay(
-        width,
-        height,
-        false,
-      );
+      await FlutterOverlayWindow.resizeOverlay(width, height, false);
     } catch (e, stack) {
       LogService.error(_tag, 'expandOverlay error', e, stack);
     } finally {
@@ -152,7 +156,11 @@ class OverlayService {
             await FlutterOverlayWindow.moveOverlay(OverlayPosition(x, y));
           }
         } catch (e) {
-          LogService.warning(_tag, 'Failed to restore overlay position from prefs', e);
+          LogService.warning(
+            _tag,
+            'Failed to restore overlay position from prefs',
+            e,
+          );
         }
       }
 
@@ -175,7 +183,11 @@ class OverlayService {
         const overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
         await overlayChannel.invokeMethod('stopStickyOverlay');
       } catch (nativeEx) {
-        LogService.warning(_tag, 'Could not stop StickyOverlayService via method channel', nativeEx);
+        LogService.warning(
+          _tag,
+          'Could not stop StickyOverlayService via method channel',
+          nativeEx,
+        );
       }
       await FlutterOverlayWindow.closeOverlay();
       LogService.info(_tag, 'Overlay closed.');

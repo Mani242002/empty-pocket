@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/utilities/math_expression_parser.dart';
@@ -71,15 +72,20 @@ class AmountCalculatorField extends StatelessWidget {
                 ),
               ),
             ),
-            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 0,
+              minHeight: 0,
+            ),
             hintText: '0.00',
           ),
-          validator: validator ??
+          validator:
+              validator ??
               (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter amount';
                 }
-                if (double.tryParse(value) == null && MathExpressionParser.tryEvaluate(value) == null) {
+                if (double.tryParse(value) == null &&
+                    MathExpressionParser.tryEvaluate(value) == null) {
                   return 'Invalid number';
                 }
                 return null;
@@ -101,16 +107,21 @@ class AmountCalculatorField extends StatelessWidget {
                   labelStyle: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
                   ),
                   onPressed: () {
-                    final current = MathExpressionParser.tryEvaluate(controller.text) ??
+                    final current =
+                        MathExpressionParser.tryEvaluate(controller.text) ??
                         (double.tryParse(controller.text) ?? 0.0);
                     final next = current + quickAdd;
                     controller.text = next == next.roundToDouble()
                         ? next.toInt().toString()
                         : next.toStringAsFixed(2);
-                    controller.selection = TextSelection.collapsed(offset: controller.text.length);
+                    controller.selection = TextSelection.collapsed(
+                      offset: controller.text.length,
+                    );
                     onChanged?.call(controller.text);
                   },
                 ),

@@ -1,5 +1,7 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
+
 import '../domain/entities/bank_account_entity.dart';
 import '../domain/entities/budget_entity.dart';
 import '../domain/entities/category_constants.dart';
@@ -96,7 +98,11 @@ abstract class FinancialCalculator {
   }
 
   /// Safely divides numerator by denominator, returning [fallback] (default 0.0) if denominator is zero, NaN, or infinite.
-  static double safeDivide(double numerator, double denominator, [double fallback = 0.0]) {
+  static double safeDivide(
+    double numerator,
+    double denominator, [
+    double fallback = 0.0,
+  ]) {
     if (denominator == 0.0 || denominator.isNaN || denominator.isInfinite) {
       return fallback;
     }
@@ -129,7 +135,9 @@ abstract class FinancialCalculator {
     }
 
     final diff = roundMoney(currentExpense - prevExpense);
-    final pctChange = roundMoney(((currentExpense - prevExpense).abs() / prevExpense) * 100);
+    final pctChange = roundMoney(
+      ((currentExpense - prevExpense).abs() / prevExpense) * 100,
+    );
     final isLower = currentExpense < prevExpense;
 
     return MonthlySpendingComparison(
@@ -156,11 +164,14 @@ abstract class FinancialCalculator {
     bool excludeReimbursements = true,
   }) {
     final total = transactions
-        .where((t) =>
-            t.type == TransactionType.income &&
-            (!excludeReimbursements ||
-                (t.category != CategoryConstants.categorySharedReimbursement &&
-                    t.category != CategoryConstants.categoryLoanRepayment)))
+        .where(
+          (t) =>
+              t.type == TransactionType.income &&
+              (!excludeReimbursements ||
+                  (t.category !=
+                          CategoryConstants.categorySharedReimbursement &&
+                      t.category != CategoryConstants.categoryLoanRepayment)),
+        )
         .fold(0.0, (sum, t) => sum + t.amount);
     return roundMoney(total);
   }
@@ -177,11 +188,12 @@ abstract class FinancialCalculator {
     final total = transactions
         .where((t) => t.type == TransactionType.expense)
         .fold(0.0, (sum, t) {
-      if (netPersonalOnly && t.category == CategoryConstants.categoryMoneyLent) {
-        return sum;
-      }
-      return sum + (netPersonalOnly ? t.netPersonalAmount : t.amount);
-    });
+          if (netPersonalOnly &&
+              t.category == CategoryConstants.categoryMoneyLent) {
+            return sum;
+          }
+          return sum + (netPersonalOnly ? t.netPersonalAmount : t.amount);
+        });
     return roundMoney(total);
   }
 
@@ -191,7 +203,9 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate total pending reimbursements yet to be collected across all active shared expenses
-  static double calculatePendingReimbursements(List<TransactionEntity> transactions) {
+  static double calculatePendingReimbursements(
+    List<TransactionEntity> transactions,
+  ) {
     final total = transactions
         .where((t) => t.isShared && !t.isSettled)
         .fold(0.0, (sum, t) => sum + t.pendingReimbursement);
@@ -200,16 +214,22 @@ abstract class FinancialCalculator {
 
   /// Calculate credit card funds earmarked in bank accounts from roommate reimbursements.
   /// These are reimbursement funds collected for expenses originally paid via credit card.
-  static double calculateCreditCardEarmarkedReserve(List<TransactionEntity> transactions) {
+  static double calculateCreditCardEarmarkedReserve(
+    List<TransactionEntity> transactions,
+  ) {
     final total = transactions
-        .where((t) => t.isShared && t.creditCardId != null && t.reimbursedAmount > 0)
+        .where(
+          (t) => t.isShared && t.creditCardId != null && t.reimbursedAmount > 0,
+        )
         .fold(0.0, (sum, t) => sum + t.reimbursedAmount);
     return roundMoney(total);
   }
 
   /// Calculate net balance (Total Income - Total Expense)
   static double calculateNetBalance(List<TransactionEntity> transactions) {
-    return roundMoney(calculateTotalIncome(transactions) - calculateTotalExpense(transactions));
+    return roundMoney(
+      calculateTotalIncome(transactions) - calculateTotalExpense(transactions),
+    );
   }
 
   /// Calculate daily safe-to-spend limit based on remaining monthly budget and days left in the month
@@ -242,8 +262,7 @@ abstract class FinancialCalculator {
   ) {
     return transactions.where((t) {
       return t.date.year == month.year && t.date.month == month.month;
-    }).toList()
-      ..sort((a, b) => b.date.compareTo(a.date)); // newest first
+    }).toList()..sort((a, b) => b.date.compareTo(a.date)); // newest first
   }
 
   /// Filter transactions by TransactionType (null returns all)
@@ -270,7 +289,11 @@ abstract class FinancialCalculator {
       final matchesSource = t.paymentSource.toLowerCase().contains(cleanQuery);
       final matchesAmount = t.amount.toString().contains(cleanQuery);
 
-      return matchesTitle || matchesCategory || matchesNotes || matchesSource || matchesAmount;
+      return matchesTitle ||
+          matchesCategory ||
+          matchesNotes ||
+          matchesSource ||
+          matchesAmount;
     }).toList();
   }
 
@@ -304,7 +327,9 @@ abstract class FinancialCalculator {
   static List<CategorySpendingSummary> calculateCategoryBreakdown(
     List<TransactionEntity> transactions,
   ) {
-    final expenses = transactions.where((t) => t.type == TransactionType.expense).toList();
+    final expenses = transactions
+        .where((t) => t.type == TransactionType.expense)
+        .toList();
     final totalExpense = expenses.fold(
       0.0,
       (sum, t) => sum + (t.isShared ? t.netPersonalAmount : t.amount),
@@ -323,7 +348,9 @@ abstract class FinancialCalculator {
         0.0,
         (sum, t) => sum + (t.isShared ? t.netPersonalAmount : t.amount),
       );
-      final percentage = totalExpense > 0 ? (catAmount / totalExpense) * 100 : 0.0;
+      final percentage = totalExpense > 0
+          ? (catAmount / totalExpense) * 100
+          : 0.0;
       summary.add(
         CategorySpendingSummary(
           category: category,
@@ -392,7 +419,9 @@ abstract class FinancialCalculator {
     return budgets
         .map((b) => calculateCategoryBudgetStatus(b, monthlyTransactions))
         .toList()
-      ..sort((a, b) => b.spentPercentage.compareTo(a.spentPercentage)); // highest utilization first
+      ..sort(
+        (a, b) => b.spentPercentage.compareTo(a.spentPercentage),
+      ); // highest utilization first
   }
 
   /// Calculate overall aggregated budget summary for the active month
@@ -413,13 +442,21 @@ abstract class FinancialCalculator {
       );
     }
 
-    final statuses = calculateAllCategoryBudgetStatuses(budgets, monthlyTransactions);
+    final statuses = calculateAllCategoryBudgetStatuses(
+      budgets,
+      monthlyTransactions,
+    );
 
     final totalLimit = statuses.fold(0.0, (sum, s) => sum + s.limitAmount);
     final totalSpent = statuses.fold(0.0, (sum, s) => sum + s.spentAmount);
     final totalRemaining = max(0.0, totalLimit - totalSpent);
-    final totalOverspent = statuses.fold(0.0, (sum, s) => sum + s.overspentAmount);
-    final overallPercentage = totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0.0;
+    final totalOverspent = statuses.fold(
+      0.0,
+      (sum, s) => sum + s.overspentAmount,
+    );
+    final overallPercentage = totalLimit > 0
+        ? (totalSpent / totalLimit) * 100
+        : 0.0;
 
     BudgetHealth health;
     if (overallPercentage >= 100.0 || totalOverspent > 0) {
@@ -444,7 +481,10 @@ abstract class FinancialCalculator {
   // --- Milestone 3: Recurring Expense Calculations ---
 
   /// Calculate next due date based on frequency with robust month-end clamping
-  static DateTime calculateNextDueDate(DateTime fromDate, RecurringFrequency frequency) {
+  static DateTime calculateNextDueDate(
+    DateTime fromDate,
+    RecurringFrequency frequency,
+  ) {
     switch (frequency) {
       case RecurringFrequency.daily:
         return fromDate.add(const Duration(days: 1));
@@ -452,14 +492,36 @@ abstract class FinancialCalculator {
         return fromDate.add(const Duration(days: 7));
       case RecurringFrequency.monthly:
         final nextMonth = DateTime(fromDate.year, fromDate.month + 1, 1);
-        final lastDayOfNextMonth = DateTime(nextMonth.year, nextMonth.month + 1, 0).day;
+        final lastDayOfNextMonth = DateTime(
+          nextMonth.year,
+          nextMonth.month + 1,
+          0,
+        ).day;
         final day = fromDate.day.clamp(1, lastDayOfNextMonth);
-        return DateTime(nextMonth.year, nextMonth.month, day, fromDate.hour, fromDate.minute, fromDate.second);
+        return DateTime(
+          nextMonth.year,
+          nextMonth.month,
+          day,
+          fromDate.hour,
+          fromDate.minute,
+          fromDate.second,
+        );
       case RecurringFrequency.yearly:
         final nextYear = fromDate.year + 1;
-        final lastDayOfTargetMonth = DateTime(nextYear, fromDate.month + 1, 0).day;
+        final lastDayOfTargetMonth = DateTime(
+          nextYear,
+          fromDate.month + 1,
+          0,
+        ).day;
         final day = fromDate.day.clamp(1, lastDayOfTargetMonth);
-        return DateTime(nextYear, fromDate.month, day, fromDate.hour, fromDate.minute, fromDate.second);
+        return DateTime(
+          nextYear,
+          fromDate.month,
+          day,
+          fromDate.hour,
+          fromDate.minute,
+          fromDate.second,
+        );
     }
   }
 
@@ -471,7 +533,9 @@ abstract class FinancialCalculator {
   }) {
     final active = expenses.where((e) => e.isActive).toList();
     final filtered = active.where((e) {
-      final days = fromDate != null ? e.daysUntilDueFrom(fromDate) : e.daysUntilDue;
+      final days = fromDate != null
+          ? e.daysUntilDueFrom(fromDate)
+          : e.daysUntilDue;
       return days >= -1 && days <= daysAhead;
     }).toList();
 
@@ -490,10 +554,14 @@ abstract class FinancialCalculator {
     final isCompleted = current >= target;
 
     final now = DateTime.now();
-    int monthsRemaining = ((goal.targetDate.year - now.year) * 12) + (goal.targetDate.month - now.month);
+    int monthsRemaining =
+        ((goal.targetDate.year - now.year) * 12) +
+        (goal.targetDate.month - now.month);
     if (monthsRemaining <= 0) monthsRemaining = 1;
 
-    final recommendedMonthly = isCompleted ? 0.0 : (remaining / monthsRemaining);
+    final recommendedMonthly = isCompleted
+        ? 0.0
+        : (remaining / monthsRemaining);
 
     return GoalProgressMetrics(
       goal: goal,
@@ -506,17 +574,34 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate overall savings summary across all goals
-  static OverallSavingsSummary calculateOverallSavingsSummary(List<SavingsGoalEntity> goals) {
+  static OverallSavingsSummary calculateOverallSavingsSummary(
+    List<SavingsGoalEntity> goals,
+  ) {
     if (goals.isEmpty) return OverallSavingsSummary.empty;
 
     final totalTarget = goals.fold(0.0, (sum, g) => sum + g.targetAmount);
     final totalSaved = goals.fold(0.0, (sum, g) => sum + g.currentAmount);
     final totalRemaining = max(0.0, totalTarget - totalSaved);
-    final overallPercentage = totalTarget > 0 ? min(100.0, (totalSaved / totalTarget) * 100) : 0.0;
+    final overallPercentage = totalTarget > 0
+        ? min(100.0, (totalSaved / totalTarget) * 100)
+        : 0.0;
 
-    final activeCount = goals.where((g) => g.status == GoalStatus.active && g.currentAmount < g.targetAmount).length;
-    final completedCount = goals.where((g) => g.status == GoalStatus.completed || g.currentAmount >= g.targetAmount).length;
-    final emergencySaved = goals.where((g) => g.isEmergencyFund).fold(0.0, (sum, g) => sum + g.currentAmount);
+    final activeCount = goals
+        .where(
+          (g) =>
+              g.status == GoalStatus.active && g.currentAmount < g.targetAmount,
+        )
+        .length;
+    final completedCount = goals
+        .where(
+          (g) =>
+              g.status == GoalStatus.completed ||
+              g.currentAmount >= g.targetAmount,
+        )
+        .length;
+    final emergencySaved = goals
+        .where((g) => g.isEmergencyFund)
+        .fold(0.0, (sum, g) => sum + g.currentAmount);
 
     return OverallSavingsSummary(
       totalTarget: totalTarget,
@@ -530,7 +615,10 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate recommended emergency fund amount based on monthly expenses
-  static double calculateRecommendedEmergencyFund(double averageMonthlyExpense, {int months = 6}) {
+  static double calculateRecommendedEmergencyFund(
+    double averageMonthlyExpense, {
+    int months = 6,
+  }) {
     return max(0.0, averageMonthlyExpense * months);
   }
 
@@ -570,7 +658,9 @@ abstract class FinancialCalculator {
     final principal = debt.principalAmount;
     final remaining = debt.remainingAmount;
     final paid = max(0.0, principal - remaining);
-    final paidPercentage = principal > 0 ? min(100.0, (paid / principal) * 100) : 0.0;
+    final paidPercentage = principal > 0
+        ? min(100.0, (paid / principal) * 100)
+        : 0.0;
     final isPaidOff = remaining <= 0 || debt.status == DebtStatus.paidOff;
 
     final monthsRemaining = (debt.monthlyEmi > 0 && !isPaidOff)
@@ -587,31 +677,49 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate overall liabilities summary across all debts
-  static OverallLiabilitiesSummary calculateOverallLiabilitiesSummary(List<DebtEntity> debts) {
+  static OverallLiabilitiesSummary calculateOverallLiabilitiesSummary(
+    List<DebtEntity> debts,
+  ) {
     if (debts.isEmpty) return OverallLiabilitiesSummary.empty;
 
     // Separate actual liabilities from peer receivables (peerLent)
-    final activeLiabilities = debts.where((d) =>
-      d.status == DebtStatus.active &&
-      d.remainingAmount > 0 &&
-      d.type != DebtType.peerLent,
-    ).toList();
+    final activeLiabilities = debts
+        .where(
+          (d) =>
+              d.status == DebtStatus.active &&
+              d.remainingAmount > 0 &&
+              d.type != DebtType.peerLent,
+        )
+        .toList();
 
-    final activeReceivables = debts.where((d) =>
-      d.status == DebtStatus.active &&
-      d.remainingAmount > 0 &&
-      d.type == DebtType.peerLent,
-    ).toList();
+    final activeReceivables = debts
+        .where(
+          (d) =>
+              d.status == DebtStatus.active &&
+              d.remainingAmount > 0 &&
+              d.type == DebtType.peerLent,
+        )
+        .toList();
 
-    final paidOffDebts = debts.where((d) =>
-      d.status == DebtStatus.paidOff ||
-      d.remainingAmount <= 0,
-    ).toList();
+    final paidOffDebts = debts
+        .where((d) => d.status == DebtStatus.paidOff || d.remainingAmount <= 0)
+        .toList();
 
-    final totalOutstanding = activeLiabilities.fold(0.0, (sum, d) => sum + d.remainingAmount);
-    final totalReceivables = activeReceivables.fold(0.0, (sum, d) => sum + d.remainingAmount);
-    final totalMonthlyEmi = activeLiabilities.fold(0.0, (sum, d) => sum + d.monthlyEmi);
-    final totalOriginalPrincipal = debts.where((d) => d.type != DebtType.peerLent).fold(0.0, (sum, d) => sum + d.principalAmount);
+    final totalOutstanding = activeLiabilities.fold(
+      0.0,
+      (sum, d) => sum + d.remainingAmount,
+    );
+    final totalReceivables = activeReceivables.fold(
+      0.0,
+      (sum, d) => sum + d.remainingAmount,
+    );
+    final totalMonthlyEmi = activeLiabilities.fold(
+      0.0,
+      (sum, d) => sum + d.monthlyEmi,
+    );
+    final totalOriginalPrincipal = debts
+        .where((d) => d.type != DebtType.peerLent)
+        .fold(0.0, (sum, d) => sum + d.principalAmount);
     final totalPaidOff = max(0.0, totalOriginalPrincipal - totalOutstanding);
 
     return OverallLiabilitiesSummary(
@@ -626,7 +734,10 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate Debt-to-Income (DTI) ratio percentage: (Total Monthly EMI / Monthly Income) * 100
-  static double calculateDebtToIncomeRatio(double totalMonthlyEmi, double monthlyIncome) {
+  static double calculateDebtToIncomeRatio(
+    double totalMonthlyEmi,
+    double monthlyIncome,
+  ) {
     if (monthlyIncome <= 0 || totalMonthlyEmi <= 0) return 0.0;
     return roundMoney((totalMonthlyEmi / monthlyIncome) * 100);
   }
@@ -634,7 +745,9 @@ abstract class FinancialCalculator {
   // --- Milestone 6: Investments & Asset Allocation Calculations ---
 
   /// Calculate metrics for a single investment holding
-  static InvestmentMetrics calculateInvestmentMetrics(InvestmentEntity investment) {
+  static InvestmentMetrics calculateInvestmentMetrics(
+    InvestmentEntity investment,
+  ) {
     final invested = investment.investedAmount;
     final current = investment.currentValue;
     final pnl = current - invested;
@@ -650,10 +763,15 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate asset allocation distribution across all asset classes
-  static List<AssetAllocationItem> calculateAssetAllocation(List<InvestmentEntity> investments) {
+  static List<AssetAllocationItem> calculateAssetAllocation(
+    List<InvestmentEntity> investments,
+  ) {
     if (investments.isEmpty) return [];
 
-    final totalPortfolioValue = investments.fold(0.0, (sum, i) => sum + i.currentValue);
+    final totalPortfolioValue = investments.fold(
+      0.0,
+      (sum, i) => sum + i.currentValue,
+    );
 
     final Map<AssetClass, List<InvestmentEntity>> grouped = {};
     for (final inv in investments) {
@@ -664,7 +782,9 @@ abstract class FinancialCalculator {
     grouped.forEach((assetClass, items) {
       final classInvested = items.fold(0.0, (sum, i) => sum + i.investedAmount);
       final classCurrent = items.fold(0.0, (sum, i) => sum + i.currentValue);
-      final percentage = totalPortfolioValue > 0 ? (classCurrent / totalPortfolioValue) * 100 : 0.0;
+      final percentage = totalPortfolioValue > 0
+          ? (classCurrent / totalPortfolioValue) * 100
+          : 0.0;
 
       allocations.add(
         AssetAllocationItem(
@@ -682,13 +802,23 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate aggregated portfolio summary
-  static OverallPortfolioSummary calculateOverallPortfolioSummary(List<InvestmentEntity> investments) {
+  static OverallPortfolioSummary calculateOverallPortfolioSummary(
+    List<InvestmentEntity> investments,
+  ) {
     if (investments.isEmpty) return OverallPortfolioSummary.empty;
 
-    final totalInvested = investments.fold(0.0, (sum, i) => sum + i.investedAmount);
-    final totalCurrentValue = investments.fold(0.0, (sum, i) => sum + i.currentValue);
+    final totalInvested = investments.fold(
+      0.0,
+      (sum, i) => sum + i.investedAmount,
+    );
+    final totalCurrentValue = investments.fold(
+      0.0,
+      (sum, i) => sum + i.currentValue,
+    );
     final totalProfitLoss = totalCurrentValue - totalInvested;
-    final overallReturn = totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0.0;
+    final overallReturn = totalInvested > 0
+        ? (totalProfitLoss / totalInvested) * 100
+        : 0.0;
     final isProfit = totalCurrentValue >= totalInvested;
     final allocations = calculateAssetAllocation(investments);
 
@@ -715,11 +845,17 @@ abstract class FinancialCalculator {
   }) {
     final effectiveCash = cashBalance > 0 ? cashBalance : 0.0;
     final validReceivables = receivablesAmount > 0 ? receivablesAmount : 0.0;
-    final totalAssets = effectiveCash + savingsGoalsAmount + investmentsAmount + validReceivables;
+    final totalAssets =
+        effectiveCash +
+        savingsGoalsAmount +
+        investmentsAmount +
+        validReceivables;
     final overdraftLiability = cashBalance < 0 ? cashBalance.abs() : 0.0;
     final effectiveLiabilities = totalLiabilities + overdraftLiability;
     final netWorth = totalAssets - effectiveLiabilities;
-    final debtRatio = totalAssets > 0 ? (effectiveLiabilities / totalAssets) * 100 : (effectiveLiabilities > 0 ? 100.0 : 0.0);
+    final debtRatio = totalAssets > 0
+        ? (effectiveLiabilities / totalAssets) * 100
+        : (effectiveLiabilities > 0 ? 100.0 : 0.0);
 
     return NetWorthComposition(
       cashBalance: cashBalance,
@@ -757,32 +893,41 @@ abstract class FinancialCalculator {
     // 1. Emergency Buffer Pillar (0 - 25 pts)
     int emergencyScore = 10;
     String emergencyStatus = 'Underfunded';
-    String emergencyTip = 'Build at least 3-6 months of expenses in an emergency fund.';
+    String emergencyTip =
+        'Build at least 3-6 months of expenses in an emergency fund.';
 
     if (monthlyExpense <= 0) {
       emergencyScore = 15;
       emergencyStatus = 'No expenses logged';
-      emergencyTip = 'Log your monthly expenses to calculate your safety runway.';
+      emergencyTip =
+          'Log your monthly expenses to calculate your safety runway.';
     } else {
-      final totalLiquid = emergencyFundSaved + (cashBalance > 0 ? cashBalance : 0.0);
+      final totalLiquid =
+          emergencyFundSaved + (cashBalance > 0 ? cashBalance : 0.0);
       final monthsCovered = totalLiquid / monthlyExpense;
 
       if (monthsCovered >= 6.0) {
         emergencyScore = 25;
-        emergencyStatus = 'Fully funded (${monthsCovered.toStringAsFixed(1)} months)';
-        emergencyTip = 'Excellent! You have a 6+ month emergency safety shield.';
+        emergencyStatus =
+            'Fully funded (${monthsCovered.toStringAsFixed(1)} months)';
+        emergencyTip =
+            'Excellent! You have a 6+ month emergency safety shield.';
       } else if (monthsCovered >= 3.0) {
         emergencyScore = 20;
-        emergencyStatus = 'Healthy (${monthsCovered.toStringAsFixed(1)} months)';
-        emergencyTip = 'Good buffer. Consider expanding to 6 months for complete safety.';
+        emergencyStatus =
+            'Healthy (${monthsCovered.toStringAsFixed(1)} months)';
+        emergencyTip =
+            'Good buffer. Consider expanding to 6 months for complete safety.';
       } else if (monthsCovered >= 1.0) {
         emergencyScore = 12;
         emergencyStatus = 'Basic (${monthsCovered.toStringAsFixed(1)} months)';
-        emergencyTip = 'Increase liquid reserves to reach the minimum 3-month target.';
+        emergencyTip =
+            'Increase liquid reserves to reach the minimum 3-month target.';
       } else {
         emergencyScore = 5;
         emergencyStatus = 'Critical (< 1 month)';
-        emergencyTip = 'Prioritize allocating funds to an Emergency Fund immediately.';
+        emergencyTip =
+            'Prioritize allocating funds to an Emergency Fund immediately.';
       }
     }
 
@@ -810,15 +955,18 @@ abstract class FinancialCalculator {
       if (savingsRate >= 35.0) {
         savingsScore = 25;
         savingsStatus = 'High (${savingsRate.toStringAsFixed(1)}%)';
-        savingsTip = 'Superb cash retention! Direct surplus into compound investments.';
+        savingsTip =
+            'Superb cash retention! Direct surplus into compound investments.';
       } else if (savingsRate >= 20.0) {
         savingsScore = 20;
         savingsStatus = 'Healthy (${savingsRate.toStringAsFixed(1)}%)';
-        savingsTip = 'Healthy savings rate meeting standard financial guidelines.';
+        savingsTip =
+            'Healthy savings rate meeting standard financial guidelines.';
       } else if (savingsRate >= 10.0) {
         savingsScore = 12;
         savingsStatus = 'Moderate (${savingsRate.toStringAsFixed(1)}%)';
-        savingsTip = 'Try to cut non-essential expenses to push savings above 20%.';
+        savingsTip =
+            'Try to cut non-essential expenses to push savings above 20%.';
       } else {
         savingsScore = 5;
         savingsStatus = 'Low (${savingsRate.toStringAsFixed(1)}%)';
@@ -854,7 +1002,8 @@ abstract class FinancialCalculator {
       } else if (dti <= 50.0) {
         debtScore = 10;
         debtStatus = 'High Burden (${dti.toStringAsFixed(1)}% DTI)';
-        debtTip = 'EMIs consume over a third of income. Consider loan prepayments.';
+        debtTip =
+            'EMIs consume over a third of income. Consider loan prepayments.';
       } else {
         debtScore = 4;
         debtStatus = 'Critical Burden (${dti.toStringAsFixed(1)}% DTI)';
@@ -874,24 +1023,32 @@ abstract class FinancialCalculator {
     // 4. Asset Diversification Pillar (0 - 25 pts)
     int diversificationScore = 8;
     String diversificationStatus = 'Cash Only';
-    String diversificationTip = 'Start investing in mutual funds, stocks, gold, or FDs.';
+    String diversificationTip =
+        'Start investing in mutual funds, stocks, gold, or FDs.';
 
     if (investmentsAmount > 0 && distinctAssetClassesCount >= 3) {
       diversificationScore = 25;
-      diversificationStatus = 'Well-Diversified ($distinctAssetClassesCount Asset Classes)';
-      diversificationTip = 'Excellent asset allocation across varied risk profiles.';
+      diversificationStatus =
+          'Well-Diversified ($distinctAssetClassesCount Asset Classes)';
+      diversificationTip =
+          'Excellent asset allocation across varied risk profiles.';
     } else if (investmentsAmount > 0 && distinctAssetClassesCount == 2) {
       diversificationScore = 20;
-      diversificationStatus = 'Moderate Spread ($distinctAssetClassesCount Asset Classes)';
-      diversificationTip = 'Consider adding a non-correlated asset like Gold or Fixed Deposits.';
+      diversificationStatus =
+          'Moderate Spread ($distinctAssetClassesCount Asset Classes)';
+      diversificationTip =
+          'Consider adding a non-correlated asset like Gold or Fixed Deposits.';
     } else if (investmentsAmount > 0) {
       diversificationScore = 14;
-      diversificationStatus = 'Basic Spread ($distinctAssetClassesCount Asset Class)';
-      diversificationTip = 'Spread your portfolio across multiple asset categories.';
+      diversificationStatus =
+          'Basic Spread ($distinctAssetClassesCount Asset Class)';
+      diversificationTip =
+          'Spread your portfolio across multiple asset categories.';
     } else if (savingsGoalsAmount > 0) {
       diversificationScore = 10;
       diversificationStatus = 'Savings Only';
-      diversificationTip = 'Move surplus savings above your emergency fund into investments.';
+      diversificationTip =
+          'Move surplus savings above your emergency fund into investments.';
     }
 
     final diversificationPillar = HealthPillarScore(
@@ -904,7 +1061,9 @@ abstract class FinancialCalculator {
     );
 
     // Overall Score & Grade
-    final overallScore = (emergencyScore + savingsScore + debtScore + diversificationScore).clamp(0, 100);
+    final overallScore =
+        (emergencyScore + savingsScore + debtScore + diversificationScore)
+            .clamp(0, 100);
 
     HealthGrade grade;
     if (overallScore >= 85) {
@@ -919,8 +1078,12 @@ abstract class FinancialCalculator {
 
     // Generate prioritized actionable tips
     final List<String> actionableTips = [];
-    final pillars = [emergencyPillar, savingsRatePillar, debtPillar, diversificationPillar]
-      ..sort((a, b) => a.score.compareTo(b.score));
+    final pillars = [
+      emergencyPillar,
+      savingsRatePillar,
+      debtPillar,
+      diversificationPillar,
+    ]..sort((a, b) => a.score.compareTo(b.score));
 
     for (final p in pillars) {
       if (p.score < 22) {
@@ -929,7 +1092,9 @@ abstract class FinancialCalculator {
     }
 
     if (actionableTips.isEmpty) {
-      actionableTips.add('Your financial health is in top shape! Maintain your disciplined habits.');
+      actionableTips.add(
+        'Your financial health is in top shape! Maintain your disciplined habits.',
+      );
     }
 
     return FinancialHealthSummary(
@@ -1010,8 +1175,12 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate payment source breakdown across all expense transactions
-  static List<PaymentSourceBreakdown> calculatePaymentSourceBreakdown(List<TransactionEntity> transactions) {
-    final expenses = transactions.where((t) => t.type == TransactionType.expense).toList();
+  static List<PaymentSourceBreakdown> calculatePaymentSourceBreakdown(
+    List<TransactionEntity> transactions,
+  ) {
+    final expenses = transactions
+        .where((t) => t.type == TransactionType.expense)
+        .toList();
     if (expenses.isEmpty) return [];
 
     final totalExpense = expenses.fold(0.0, (sum, t) => sum + t.amount);
@@ -1046,7 +1215,13 @@ abstract class FinancialCalculator {
     List<BankAccountEntity> bankAccounts,
     List<CreditCardEntity> creditCards,
   ) {
-    final outflows = transactions.where((t) => t.type == TransactionType.expense || (t.type == TransactionType.transfer && t.accountId != null)).toList();
+    final outflows = transactions
+        .where(
+          (t) =>
+              t.type == TransactionType.expense ||
+              (t.type == TransactionType.transfer && t.accountId != null),
+        )
+        .toList();
     if (outflows.isEmpty) return [];
 
     final totalOutflow = outflows.fold(0.0, (sum, t) => sum + t.amount);
@@ -1067,12 +1242,22 @@ abstract class FinancialCalculator {
       String name = items.first.paymentSource;
       String purpose = 'General Outflow';
 
-      final acc = bankAccounts.where((a) => a.id == key || a.accountName.toLowerCase() == key.toLowerCase()).firstOrNull;
+      final acc = bankAccounts
+          .where(
+            (a) =>
+                a.id == key || a.accountName.toLowerCase() == key.toLowerCase(),
+          )
+          .firstOrNull;
       if (acc != null) {
         name = acc.accountName;
         purpose = acc.usedFor;
       } else {
-        final card = creditCards.where((c) => c.id == key || c.cardName.toLowerCase() == key.toLowerCase()).firstOrNull;
+        final card = creditCards
+            .where(
+              (c) =>
+                  c.id == key || c.cardName.toLowerCase() == key.toLowerCase(),
+            )
+            .firstOrNull;
         if (card != null) {
           name = card.cardName;
           purpose = 'Credit Card (${card.bankName})';
@@ -1096,8 +1281,12 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate true personal spend vs shared reimbursements
-  static SharedExpenseImpact calculateSharedExpenseImpact(List<TransactionEntity> transactions) {
-    final expenses = transactions.where((t) => t.type == TransactionType.expense).toList();
+  static SharedExpenseImpact calculateSharedExpenseImpact(
+    List<TransactionEntity> transactions,
+  ) {
+    final expenses = transactions
+        .where((t) => t.type == TransactionType.expense)
+        .toList();
     final gross = expenses.fold(0.0, (sum, t) => sum + t.amount);
 
     double truePersonal = 0.0;
@@ -1110,7 +1299,10 @@ abstract class FinancialCalculator {
         truePersonal += myShare;
         settledReimbursements += tx.reimbursedAmount;
         if (!tx.isSettled) {
-          final pending = max(0.0, tx.amount - (tx.myShareAmount ?? 0.0) - tx.reimbursedAmount);
+          final pending = max(
+            0.0,
+            tx.amount - (tx.myShareAmount ?? 0.0) - tx.reimbursedAmount,
+          );
           pendingReimbursements += pending;
         }
       } else {
@@ -1127,9 +1319,13 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate wealth building & savings rate (investments + goals vs pure expenses)
-  static WealthBuildingSummary calculateWealthBuildingSummary(List<TransactionEntity> transactions) {
+  static WealthBuildingSummary calculateWealthBuildingSummary(
+    List<TransactionEntity> transactions,
+  ) {
     final totalInflow = calculateTotalIncome(transactions);
-    final expenses = transactions.where((t) => t.type == TransactionType.expense).toList();
+    final expenses = transactions
+        .where((t) => t.type == TransactionType.expense)
+        .toList();
 
     double investmentOutflow = 0.0;
     double savingsTransfer = 0.0;
@@ -1155,8 +1351,11 @@ abstract class FinancialCalculator {
       }
     }
 
-    final totalWealthAllocated = investmentOutflow + savingsTransfer + debtRepayment;
-    final rate = totalInflow > 0 ? (totalWealthAllocated / totalInflow * 100).clamp(0.0, 100.0) : 0.0;
+    final totalWealthAllocated =
+        investmentOutflow + savingsTransfer + debtRepayment;
+    final rate = totalInflow > 0
+        ? (totalWealthAllocated / totalInflow * 100).clamp(0.0, 100.0)
+        : 0.0;
 
     return WealthBuildingSummary(
       totalInflow: roundMoney(totalInflow),
@@ -1173,16 +1372,24 @@ abstract class FinancialCalculator {
     List<TransactionEntity> allTransactions,
     DateTime currentMonth,
   ) {
-    final currentTxs = allTransactions.where((t) =>
-        t.type == TransactionType.expense &&
-        t.date.year == currentMonth.year &&
-        t.date.month == currentMonth.month).toList();
+    final currentTxs = allTransactions
+        .where(
+          (t) =>
+              t.type == TransactionType.expense &&
+              t.date.year == currentMonth.year &&
+              t.date.month == currentMonth.month,
+        )
+        .toList();
 
     final prevMonthDate = DateTime(currentMonth.year, currentMonth.month - 1);
-    final prevTxs = allTransactions.where((t) =>
-        t.type == TransactionType.expense &&
-        t.date.year == prevMonthDate.year &&
-        t.date.month == prevMonthDate.month).toList();
+    final prevTxs = allTransactions
+        .where(
+          (t) =>
+              t.type == TransactionType.expense &&
+              t.date.year == prevMonthDate.year &&
+              t.date.month == prevMonthDate.month,
+        )
+        .toList();
 
     final Map<String, double> currentMap = {};
     for (final t in currentTxs) {
@@ -1201,7 +1408,9 @@ abstract class FinancialCalculator {
       final curr = currentMap[cat] ?? 0.0;
       final prev = prevMap[cat] ?? 0.0;
       final diff = curr - prev;
-      final pct = prev > 0 ? ((curr - prev) / prev * 100) : (curr > 0 ? 100.0 : 0.0);
+      final pct = prev > 0
+          ? ((curr - prev) / prev * 100)
+          : (curr > 0 ? 100.0 : 0.0);
 
       changes.add(
         CategoryMomChange(
@@ -1226,13 +1435,18 @@ abstract class FinancialCalculator {
   }
 
   /// Calculate combined credit cards summary across all non-archived cards
-  static CombinedCreditSummary calculateCombinedCreditSummary(List<CreditCardEntity> cards) {
+  static CombinedCreditSummary calculateCombinedCreditSummary(
+    List<CreditCardEntity> cards,
+  ) {
     final activeCards = cards.where((c) => !c.isArchived).toList();
     if (activeCards.isEmpty) return CombinedCreditSummary.empty;
 
     final totalLimit = activeCards.fold(0.0, (sum, c) => sum + c.creditLimit);
     final totalUsed = activeCards.fold(0.0, (sum, c) => sum + c.currentDues);
-    final totalAvailable = activeCards.fold(0.0, (sum, c) => sum + c.availableLimit);
+    final totalAvailable = activeCards.fold(
+      0.0,
+      (sum, c) => sum + c.availableLimit,
+    );
     final overallRatio = totalLimit > 0 ? (totalUsed / totalLimit) * 100 : 0.0;
 
     CreditUtilizationHealth health;
@@ -1248,9 +1462,13 @@ abstract class FinancialCalculator {
     CreditCardEntity? nextDueCard;
     int? daysUntilNextDue;
 
-    final cardsWithBalance = activeCards.where((c) => c.usedAmount > 0).toList();
+    final cardsWithBalance = activeCards
+        .where((c) => c.usedAmount > 0)
+        .toList();
     if (cardsWithBalance.isNotEmpty) {
-      cardsWithBalance.sort((a, b) => a.daysUntilDue().compareTo(b.daysUntilDue()));
+      cardsWithBalance.sort(
+        (a, b) => a.daysUntilDue().compareTo(b.daysUntilDue()),
+      );
       nextDueCard = cardsWithBalance.first;
       daysUntilNextDue = nextDueCard.daysUntilDue();
     }
@@ -1290,19 +1508,37 @@ abstract class FinancialCalculator {
 
     buffer.writeln('### Executive Financial Summary (Currency: $curCode):');
     buffer.writeln('- Monthly Income: $sym${monthlyIncome.toStringAsFixed(2)}');
-    buffer.writeln('- Monthly Expenses: $sym${monthlyExpense.toStringAsFixed(2)}');
-    buffer.writeln('- Monthly Net Savings: $sym${monthlyNetBalance.toStringAsFixed(2)} (${savingsRate.toStringAsFixed(1)}% savings rate)');
-    buffer.writeln('- Liquid Cash / Accounts: $sym${net.cashBalance.toStringAsFixed(2)}');
-    buffer.writeln('- Savings Goals Total: $sym${savingsSummary.totalSaved.toStringAsFixed(2)} across ${savingsSummary.activeGoalsCount} active goals (Emergency Fund: $sym${savingsSummary.emergencyFundSaved.toStringAsFixed(2)})');
-    buffer.writeln('- Investments Portfolio: $sym${portfolioSummary.totalCurrentValue.toStringAsFixed(2)} (Invested: $sym${portfolioSummary.totalInvested.toStringAsFixed(2)}, Returns: $sym${portfolioSummary.totalProfitLoss.toStringAsFixed(2)} / ${portfolioSummary.overallReturnPercentage.toStringAsFixed(1)}%)');
-    buffer.writeln('- Outstanding Liabilities / Debts: $sym${liabilitiesSummary.totalOutstanding.toStringAsFixed(2)} (Total Monthly EMI: $sym${liabilitiesSummary.totalMonthlyEmi.toStringAsFixed(2)})');
-    buffer.writeln('- Consolidated Net Worth: $sym${net.netWorth.toStringAsFixed(2)}');
-    buffer.writeln('- Financial Health Score: ${healthSummary.overallScore}/100 (${healthSummary.grade.displayName})');
+    buffer.writeln(
+      '- Monthly Expenses: $sym${monthlyExpense.toStringAsFixed(2)}',
+    );
+    buffer.writeln(
+      '- Monthly Net Savings: $sym${monthlyNetBalance.toStringAsFixed(2)} (${savingsRate.toStringAsFixed(1)}% savings rate)',
+    );
+    buffer.writeln(
+      '- Liquid Cash / Accounts: $sym${net.cashBalance.toStringAsFixed(2)}',
+    );
+    buffer.writeln(
+      '- Savings Goals Total: $sym${savingsSummary.totalSaved.toStringAsFixed(2)} across ${savingsSummary.activeGoalsCount} active goals (Emergency Fund: $sym${savingsSummary.emergencyFundSaved.toStringAsFixed(2)})',
+    );
+    buffer.writeln(
+      '- Investments Portfolio: $sym${portfolioSummary.totalCurrentValue.toStringAsFixed(2)} (Invested: $sym${portfolioSummary.totalInvested.toStringAsFixed(2)}, Returns: $sym${portfolioSummary.totalProfitLoss.toStringAsFixed(2)} / ${portfolioSummary.overallReturnPercentage.toStringAsFixed(1)}%)',
+    );
+    buffer.writeln(
+      '- Outstanding Liabilities / Debts: $sym${liabilitiesSummary.totalOutstanding.toStringAsFixed(2)} (Total Monthly EMI: $sym${liabilitiesSummary.totalMonthlyEmi.toStringAsFixed(2)})',
+    );
+    buffer.writeln(
+      '- Consolidated Net Worth: $sym${net.netWorth.toStringAsFixed(2)}',
+    );
+    buffer.writeln(
+      '- Financial Health Score: ${healthSummary.overallScore}/100 (${healthSummary.grade.displayName})',
+    );
 
     if (topExpenseCategories != null && topExpenseCategories.isNotEmpty) {
       buffer.writeln('\n### Top Expense Categories (This Month):');
       for (final cat in topExpenseCategories.take(5)) {
-        buffer.writeln('- ${cat.category}: $sym${cat.amount.toStringAsFixed(2)} (${cat.percentage.toStringAsFixed(1)}% of total)');
+        buffer.writeln(
+          '- ${cat.category}: $sym${cat.amount.toStringAsFixed(2)} (${cat.percentage.toStringAsFixed(1)}% of total)',
+        );
       }
     }
 
@@ -1311,7 +1547,9 @@ abstract class FinancialCalculator {
       if (active.isNotEmpty) {
         buffer.writeln('\n### Bank & Cash Accounts:');
         for (final acc in active) {
-          buffer.writeln('- ${acc.accountName} (${acc.bankName}, ${acc.accountType.displayName}) [Used for: ${acc.usedFor}]: $sym${acc.currentBalance.toStringAsFixed(2)}');
+          buffer.writeln(
+            '- ${acc.accountName} (${acc.bankName}, ${acc.accountType.displayName}) [Used for: ${acc.usedFor}]: $sym${acc.currentBalance.toStringAsFixed(2)}',
+          );
         }
       }
     }
@@ -1321,8 +1559,12 @@ abstract class FinancialCalculator {
       if (activeCards.isNotEmpty) {
         buffer.writeln('\n### Credit Cards & Utilization:');
         for (final card in activeCards) {
-          final util = card.creditLimit > 0 ? (card.usedAmount / card.creditLimit) * 100 : 0.0;
-          buffer.writeln('- ${card.cardName} (${card.bankName}): Used $sym${card.usedAmount.toStringAsFixed(2)} / $sym${card.creditLimit.toStringAsFixed(2)} (${util.toStringAsFixed(1)}% util, due in ${card.daysUntilDue()} days)');
+          final util = card.creditLimit > 0
+              ? (card.usedAmount / card.creditLimit) * 100
+              : 0.0;
+          buffer.writeln(
+            '- ${card.cardName} (${card.bankName}): Used $sym${card.usedAmount.toStringAsFixed(2)} / $sym${card.creditLimit.toStringAsFixed(2)} (${util.toStringAsFixed(1)}% util, due in ${card.daysUntilDue()} days)',
+          );
         }
       }
     }
@@ -1332,7 +1574,9 @@ abstract class FinancialCalculator {
       if (activeRec.isNotEmpty) {
         buffer.writeln('\n### Recurring Bills & Fixed Expenses:');
         for (final r in activeRec.take(6)) {
-          buffer.writeln('- ${r.title}: $sym${r.amount.toStringAsFixed(2)} / ${r.frequency.displayName} (Next due: ${r.nextDueDate.day}/${r.nextDueDate.month})');
+          buffer.writeln(
+            '- ${r.title}: $sym${r.amount.toStringAsFixed(2)} / ${r.frequency.displayName} (Next due: ${r.nextDueDate.day}/${r.nextDueDate.month})',
+          );
         }
       }
     }
@@ -1361,7 +1605,11 @@ abstract class FinancialCalculator {
 
     if (loggedDays.isEmpty) return 0;
 
-    final yesterdayMidnight = DateTime(todayMidnight.year, todayMidnight.month, todayMidnight.day - 1);
+    final yesterdayMidnight = DateTime(
+      todayMidnight.year,
+      todayMidnight.month,
+      todayMidnight.day - 1,
+    );
 
     // Check if the streak is active (logged today or yesterday)
     DateTime checkDay;

@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'currency_formatter.dart';
 
 /// Structured metadata for a personal financial loan / assistance given to a friend or relative
@@ -27,8 +28,9 @@ class LoanShareData {
   double get totalExpected => principalAmount + expectedInterest;
 
   /// Remaining amount yet to be received back from the borrower
-  double get pendingAmount =>
-      isRepaid ? 0.0 : (totalExpected - repaidAmount).clamp(0.0, double.infinity);
+  double get pendingAmount => isRepaid
+      ? 0.0
+      : (totalExpected - repaidAmount).clamp(0.0, double.infinity);
 
   /// Whether the expected return date has passed without being repaid
   bool get isOverdue {
@@ -46,26 +48,29 @@ class LoanShareData {
   }
 
   Map<String, dynamic> toMap() => {
-        'type': 'loan',
-        'borrower': borrowerName,
-        'principal': principalAmount,
-        if (expectedInterest > 0) 'interest': expectedInterest,
-        if (interestRate != null) 'interestRate': interestRate,
-        if (expectedReturnDate != null)
-          'dueDate': expectedReturnDate!.toIso8601String(),
-        if (repaidAmount > 0) 'repaid': repaidAmount,
-        if (isRepaid) 'settled': true,
-        if (paymentSource != null) 'source': paymentSource,
-      };
+    'type': 'loan',
+    'borrower': borrowerName,
+    'principal': principalAmount,
+    if (expectedInterest > 0) 'interest': expectedInterest,
+    if (interestRate != null) 'interestRate': interestRate,
+    if (expectedReturnDate != null)
+      'dueDate': expectedReturnDate!.toIso8601String(),
+    if (repaidAmount > 0) 'repaid': repaidAmount,
+    if (isRepaid) 'settled': true,
+    if (paymentSource != null) 'source': paymentSource,
+  };
 
   factory LoanShareData.fromMap(Map<String, dynamic> map) {
     DateTime? dueDate;
     if (map['dueDate'] != null) {
       dueDate = DateTime.tryParse(map['dueDate'] as String);
     }
-    final principal = ((map['principal'] ?? map['amount'] ?? 0) as num).toDouble();
+    final principal = ((map['principal'] ?? map['amount'] ?? 0) as num)
+        .toDouble();
     final interest = ((map['interest'] ?? 0) as num).toDouble();
-    final rate = map['interestRate'] != null ? (map['interestRate'] as num).toDouble() : null;
+    final rate = map['interestRate'] != null
+        ? (map['interestRate'] as num).toDouble()
+        : null;
     final repaid = ((map['repaid'] ?? 0) as num).toDouble();
     final settled = map['settled'] == true || map['isSettled'] == true;
 
@@ -117,13 +122,13 @@ class LoanShareData {
 
   @override
   int get hashCode => Object.hash(
-        borrowerName,
-        principalAmount,
-        expectedInterest,
-        expectedReturnDate,
-        repaidAmount,
-        isRepaid,
-      );
+    borrowerName,
+    principalAmount,
+    expectedInterest,
+    expectedReturnDate,
+    repaidAmount,
+    isRepaid,
+  );
 }
 
 /// Helper for encoding, decoding, and formatting money lent metadata

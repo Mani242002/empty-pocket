@@ -1,6 +1,8 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
+
 import '../domain/entities/ai_assistant_entity.dart';
 import '../utilities/currency_formatter.dart';
 import 'log_service.dart';
@@ -8,7 +10,8 @@ import 'log_service.dart';
 class AiService {
   final http.Client _httpClient;
 
-  AiService({http.Client? httpClient}) : _httpClient = httpClient ?? http.Client();
+  AiService({http.Client? httpClient})
+    : _httpClient = httpClient ?? http.Client();
 
   /// Closes the underlying HTTP client and releases network resources
   void close() {
@@ -39,7 +42,8 @@ class AiService {
   }) async {
     final currencySymbol = CurrencyFormatter.currentSymbol;
     final currencyCode = CurrencyFormatter.activeCurrency.code;
-    final systemPrompt = '''
+    final systemPrompt =
+        '''
 You are an expert personal finance strategist and fiduciary advisor for EmptyPocket, a privacy-focused personal finance mobile app.
 Analyze the user's offline financial numbers objectively.
 Return a structured, insightful response with clear sections:
@@ -50,7 +54,8 @@ Return a structured, insightful response with clear sections:
 Keep the tone encouraging, realistic, and practical for personal finance standards (mention $currencySymbol / $currencyCode amounts where relevant).
 ''';
 
-    final userPrompt = '''
+    final userPrompt =
+        '''
 Here is my current offline financial summary:
 $financialSummaryText
 
@@ -79,7 +84,8 @@ Please provide my comprehensive financial audit.
 
     switch (type) {
       case AiReportType.fullAudit:
-        systemPrompt = '''
+        systemPrompt =
+            '''
 You are an expert personal finance fiduciary advisor.
 Analyze the user's offline financial summary and output a comprehensive Markdown report.
 Format with clean Markdown headings, bullet points, bold key figures (with $currencySymbol amounts), and clear actionable insights.
@@ -89,11 +95,13 @@ Include:
 ### ⚠️ Potential Financial Risks
 ### 🎯 30-Day Action Plan
 ''';
-        userPrompt = 'Here is my financial summary:\n$financialContext\n\nPlease generate my Comprehensive Financial Health Audit.';
+        userPrompt =
+            'Here is my financial summary:\n$financialContext\n\nPlease generate my Comprehensive Financial Health Audit.';
         break;
 
       case AiReportType.budgetOptimization:
-        systemPrompt = '''
+        systemPrompt =
+            '''
 You are a budget optimization and cost-cutting specialist.
 Analyze the user's spending categories, budget limits, and income.
 Structure your output with:
@@ -102,11 +110,13 @@ Structure your output with:
 ### ⚖️ Recommended 50/30/20 Budget Rebalancing
 Use clear markdown bullet points and exact $currencySymbol amount recommendations.
 ''';
-        userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease analyze my spending and optimize my monthly budget.';
+        userPrompt =
+            'Here is my financial data:\n$financialContext\n\nPlease analyze my spending and optimize my monthly budget.';
         break;
 
       case AiReportType.debtPayoff:
-        systemPrompt = '''
+        systemPrompt =
+            '''
 You are a debt freedom and loan repayment strategist.
 Analyze the user's active debts, interest rates, EMIs, and monthly net cash flow.
 Structure your output with:
@@ -115,7 +125,8 @@ Structure your output with:
 ### 🗓️ Accelerated Payoff Roadmap
 Provide concrete payoff timeline estimates and interest-saving tips with $currencySymbol amounts.
 ''';
-        userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease evaluate my debt liabilities and create an accelerated payoff strategy.';
+        userPrompt =
+            'Here is my financial data:\n$financialContext\n\nPlease evaluate my debt liabilities and create an accelerated payoff strategy.';
         break;
 
       case AiReportType.investmentReview:
@@ -127,7 +138,8 @@ Structure your output with:
 ### ⚖️ Risk Profile vs. Portfolio Balance
 ### 🚀 Strategic Rebalancing & Wealth Building Recommendations
 ''';
-        userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease review my investment portfolio and asset allocation.';
+        userPrompt =
+            'Here is my financial data:\n$financialContext\n\nPlease review my investment portfolio and asset allocation.';
         break;
 
       case AiReportType.emergencyRunway:
@@ -139,7 +151,8 @@ Structure your output with:
 ### 🎯 Ideal Emergency Fund Target
 ### 🪜 Step-by-step Plan to Build & Maintain Runway
 ''';
-        userPrompt = 'Here is my financial data:\n$financialContext\n\nPlease calculate my emergency safety runway and buffer recommendations.';
+        userPrompt =
+            'Here is my financial data:\n$financialContext\n\nPlease calculate my emergency safety runway and buffer recommendations.';
         break;
 
       case AiReportType.custom:
@@ -147,7 +160,8 @@ Structure your output with:
 You are "PocketAI", an expert personal finance strategist for EmptyPocket.
 Provide a clear, helpful, and insightful Markdown response answering the user's question using their private financial data.
 ''';
-        userPrompt = 'User Question: ${customPromptText ?? "Analyze my financial situation"}\n\nFinancial Data Context:\n$financialContext';
+        userPrompt =
+            'User Question: ${customPromptText ?? "Analyze my financial situation"}\n\nFinancial Data Context:\n$financialContext';
         break;
     }
 
@@ -159,8 +173,13 @@ Provide a clear, helpful, and insightful Markdown response answering the user's 
 
     return AiReportItem(
       id: const Uuid().v4(),
-      title: type == AiReportType.custom && customPromptText != null && customPromptText.isNotEmpty
-          ? (customPromptText.length > 40 ? '${customPromptText.substring(0, 40)}...' : customPromptText)
+      title:
+          type == AiReportType.custom &&
+              customPromptText != null &&
+              customPromptText.isNotEmpty
+          ? (customPromptText.length > 40
+                ? '${customPromptText.substring(0, 40)}...'
+                : customPromptText)
           : type.title,
       type: type,
       markdownContent: markdown.trim(),
@@ -179,7 +198,8 @@ Provide a clear, helpful, and insightful Markdown response answering the user's 
     required String financialContext,
   }) async {
     final currencySymbol = CurrencyFormatter.currentSymbol;
-    final systemPrompt = '''
+    final systemPrompt =
+        '''
 You are "PocketAI", a helpful, friendly, and analytical personal finance assistant inside EmptyPocket.
 You have access to the user's private financial metrics (Income, Expenses, Budgets, Savings Goals, Loans/Liabilities, Investments, Net Worth, Health Score).
 Context:
@@ -210,51 +230,77 @@ Guidelines:
 
     // 1. Remove standard matched XML-style tags: <think>...</think>, <thought>...</thought>, etc.
     cleaned = cleaned.replaceAll(
-      RegExp(r'<(think|thought|reasoning|thinking|reflection)>[\s\S]*?<\/\1>', caseSensitive: false),
+      RegExp(
+        r'<(think|thought|reasoning|thinking|reflection)>[\s\S]*?<\/\1>',
+        caseSensitive: false,
+      ),
       '',
     );
 
     // 2. Remove bracketed thinking tags: [THINK]...[/THINK], [REASONING]...[/REASONING], etc.
     cleaned = cleaned.replaceAll(
-      RegExp(r'\[(think|thought|reasoning|thinking)\][\s\S]*?\[\/\1\]', caseSensitive: false),
+      RegExp(
+        r'\[(think|thought|reasoning|thinking)\][\s\S]*?\[\/\1\]',
+        caseSensitive: false,
+      ),
       '',
     );
 
     // 3. Remove fenced code-block thoughts: ```thought ... ``` or ```thinking ... ```
     cleaned = cleaned.replaceAll(
-      RegExp(r'```(?:thought|thinking|reasoning)[\s\S]*?```', caseSensitive: false),
+      RegExp(
+        r'```(?:thought|thinking|reasoning)[\s\S]*?```',
+        caseSensitive: false,
+      ),
       '',
     );
 
     // 4. Remove leading thinking text if the opening tag was omitted by the tokenizer
     // e.g. "Some thinking process...\n</think>\nActual response"
     cleaned = cleaned.replaceAll(
-      RegExp(r'^[\s\S]*?<\/(think|thought|reasoning|thinking|reflection)>\s*', caseSensitive: false),
+      RegExp(
+        r'^[\s\S]*?<\/(think|thought|reasoning|thinking|reflection)>\s*',
+        caseSensitive: false,
+      ),
       '',
     );
     cleaned = cleaned.replaceAll(
-      RegExp(r'^[\s\S]*?\[\/(think|thought|reasoning|thinking)\]\s*', caseSensitive: false),
+      RegExp(
+        r'^[\s\S]*?\[\/(think|thought|reasoning|thinking)\]\s*',
+        caseSensitive: false,
+      ),
       '',
     );
 
     // 5. Remove trailing thinking text if truncated mid-thought
     cleaned = cleaned.replaceAll(
-      RegExp(r'<(think|thought|reasoning|thinking|reflection)>[\s\S]*$', caseSensitive: false),
+      RegExp(
+        r'<(think|thought|reasoning|thinking|reflection)>[\s\S]*$',
+        caseSensitive: false,
+      ),
       '',
     );
 
     // 6. Remove any stray opening or closing tags
     cleaned = cleaned.replaceAll(
-      RegExp(r'<\/?(think|thought|reasoning|thinking|reflection)>', caseSensitive: false),
+      RegExp(
+        r'<\/?(think|thought|reasoning|thinking|reflection)>',
+        caseSensitive: false,
+      ),
       '',
     );
     cleaned = cleaned.replaceAll(
-      RegExp(r'\[\/?(think|thought|reasoning|thinking)\]', caseSensitive: false),
+      RegExp(
+        r'\[\/?(think|thought|reasoning|thinking)\]',
+        caseSensitive: false,
+      ),
       '',
     );
 
     final trimmed = cleaned.trim();
-    return trimmed.isNotEmpty ? trimmed : (text.trim().isNotEmpty ? text.trim() : '');
+    return trimmed.isNotEmpty
+        ? trimmed
+        : (text.trim().isNotEmpty ? text.trim() : '');
   }
 
   /// Generic LLM dispatch router for all supported AI providers
@@ -267,25 +313,60 @@ Guidelines:
     String rawText;
     switch (config.providerType) {
       case AiProviderType.gemini:
-        rawText = await _callGemini(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        rawText = await _callGemini(
+          config: config,
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          history: history,
+        );
         break;
       case AiProviderType.openAi:
-        rawText = await _callOpenAi(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        rawText = await _callOpenAi(
+          config: config,
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          history: history,
+        );
         break;
       case AiProviderType.anthropic:
-        rawText = await _callAnthropic(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        rawText = await _callAnthropic(
+          config: config,
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          history: history,
+        );
         break;
       case AiProviderType.groq:
-        rawText = await _callGroq(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        rawText = await _callGroq(
+          config: config,
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          history: history,
+        );
         break;
       case AiProviderType.openRouter:
-        rawText = await _callOpenRouter(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        rawText = await _callOpenRouter(
+          config: config,
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          history: history,
+        );
         break;
       case AiProviderType.deepSeek:
-        rawText = await _callDeepSeek(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        rawText = await _callDeepSeek(
+          config: config,
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          history: history,
+        );
         break;
       case AiProviderType.custom:
-        rawText = await _callCustom(config: config, systemPrompt: systemPrompt, userPrompt: userPrompt, history: history);
+        rawText = await _callCustom(
+          config: config,
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          history: history,
+        );
         break;
     }
     return stripThinkingTags(rawText);
@@ -300,7 +381,9 @@ Guidelines:
   }) async {
     final key = config.geminiApiKey.trim();
     if (key.isEmpty) {
-      throw Exception('Google Gemini API Key is missing. Please configure it in AI Settings.');
+      throw Exception(
+        'Google Gemini API Key is missing. Please configure it in AI Settings.',
+      );
     }
 
     // Pass API key via x-goog-api-key header instead of query parameter to prevent logging leaks
@@ -312,13 +395,17 @@ Guidelines:
 
     // Conversation history (Sliding window of most recent messages)
     if (history != null && history.isNotEmpty) {
-      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
-      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      final cleanHistory = history
+          .where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️'))
+          .toList();
+      final recentHistory = cleanHistory.length > 12
+          ? cleanHistory.sublist(cleanHistory.length - 12)
+          : cleanHistory;
       for (final msg in recentHistory) {
         contents.add({
           'role': msg.isUser ? 'user' : 'model',
           'parts': [
-            {'text': msg.text}
+            {'text': msg.text},
           ],
         });
       }
@@ -328,47 +415,47 @@ Guidelines:
     contents.add({
       'role': 'user',
       'parts': [
-        {'text': userPrompt}
+        {'text': userPrompt},
       ],
     });
 
     final bodyPayload = <String, dynamic>{
       'contents': contents,
-      'generationConfig': {
-        'temperature': 0.7,
-        'maxOutputTokens': 8192,
-      },
+      'generationConfig': {'temperature': 0.7, 'maxOutputTokens': 8192},
     };
 
     if (systemPrompt.trim().isNotEmpty) {
       bodyPayload['systemInstruction'] = {
         'parts': [
-          {'text': systemPrompt.trim()}
+          {'text': systemPrompt.trim()},
         ],
       };
     }
 
-    final response = await _httpClient.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': key,
-      },
-      body: jsonEncode(bodyPayload),
-    ).timeout(
-      const Duration(seconds: 60),
-      onTimeout: () => throw Exception(
-        'Request timed out after 60 seconds. Check your network connection and try again.',
-      ),
-    );
+    final response = await _httpClient
+        .post(
+          url,
+          headers: {'Content-Type': 'application/json', 'x-goog-api-key': key},
+          body: jsonEncode(bodyPayload),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception(
+            'Request timed out after 60 seconds. Check your network connection and try again.',
+          ),
+        );
 
     if (response.statusCode != 200) {
       String message;
       try {
         final errorBody = jsonDecode(response.body);
-        message = errorBody['error']?['message'] ?? 'Gemini API call failed (${response.statusCode})';
+        message =
+            errorBody['error']?['message'] ??
+            'Gemini API call failed (${response.statusCode})';
       } on FormatException {
-        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        final preview = response.body.length > 200
+            ? response.body.substring(0, 200)
+            : response.body;
         message = 'Gemini API call failed (${response.statusCode}): $preview';
       }
       throw Exception(message);
@@ -379,7 +466,9 @@ Guidelines:
     if (candidates == null || candidates.isEmpty) {
       final promptFeedback = data['promptFeedback'];
       if (promptFeedback != null && promptFeedback['blockReason'] != null) {
-        throw Exception('Prompt was blocked by Gemini safety filters: ${promptFeedback['blockReason']}');
+        throw Exception(
+          'Prompt was blocked by Gemini safety filters: ${promptFeedback['blockReason']}',
+        );
       }
       throw Exception('No response generated by Gemini model.');
     }
@@ -392,12 +481,18 @@ Guidelines:
 
     final parts = firstCandidate['content']?['parts'] as List?;
     if (parts == null || parts.isEmpty) {
-      throw Exception('Empty content returned by Gemini (finish reason: $finishReason).');
+      throw Exception(
+        'Empty content returned by Gemini (finish reason: $finishReason).',
+      );
     }
 
-    final text = parts.map((p) => (p as Map<String, dynamic>)['text'] as String? ?? '').join('');
+    final text = parts
+        .map((p) => (p as Map<String, dynamic>)['text'] as String? ?? '')
+        .join('');
     if (text.trim().isEmpty) {
-      throw Exception('Gemini returned an empty text response. The content may have been filtered.');
+      throw Exception(
+        'Gemini returned an empty text response. The content may have been filtered.',
+      );
     }
 
     return text;
@@ -412,24 +507,34 @@ Guidelines:
   }) async {
     final key = config.openAiApiKey.trim();
     if (key.isEmpty) {
-      throw Exception('OpenAI API Key is missing. Please configure it in AI Settings.');
+      throw Exception(
+        'OpenAI API Key is missing. Please configure it in AI Settings.',
+      );
     }
 
     final url = Uri.parse('https://api.openai.com/v1/chat/completions');
 
-    final isReasoningModel = config.openAiModel.startsWith('o1') ||
+    final isReasoningModel =
+        config.openAiModel.startsWith('o1') ||
         config.openAiModel.startsWith('o3') ||
         config.openAiModel.startsWith('o4');
 
     final List<Map<String, String>> messages = [];
     if (systemPrompt.trim().isNotEmpty) {
       // Reasoning models (o1, o3, o4) prefer developer role or standard system
-      messages.add({'role': isReasoningModel ? 'developer' : 'system', 'content': systemPrompt.trim()});
+      messages.add({
+        'role': isReasoningModel ? 'developer' : 'system',
+        'content': systemPrompt.trim(),
+      });
     }
 
     if (history != null && history.isNotEmpty) {
-      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
-      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      final cleanHistory = history
+          .where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️'))
+          .toList();
+      final recentHistory = cleanHistory.length > 12
+          ? cleanHistory.sublist(cleanHistory.length - 12)
+          : cleanHistory;
       for (final msg in recentHistory) {
         messages.add({
           'role': msg.isUser ? 'user' : 'assistant',
@@ -452,27 +557,33 @@ Guidelines:
       payload['max_completion_tokens'] = 4096;
     }
 
-    final response = await _httpClient.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $key',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(payload),
-    ).timeout(
-      const Duration(seconds: 60),
-      onTimeout: () => throw Exception(
-        'Request timed out after 60 seconds. Check your network connection and try again.',
-      ),
-    );
+    final response = await _httpClient
+        .post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $key',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception(
+            'Request timed out after 60 seconds. Check your network connection and try again.',
+          ),
+        );
 
     if (response.statusCode != 200) {
       String message;
       try {
         final errorBody = jsonDecode(response.body);
-        message = errorBody['error']?['message'] ?? 'OpenAI API call failed (${response.statusCode})';
+        message =
+            errorBody['error']?['message'] ??
+            'OpenAI API call failed (${response.statusCode})';
       } on FormatException {
-        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        final preview = response.body.length > 200
+            ? response.body.substring(0, 200)
+            : response.body;
         message = 'OpenAI API call failed (${response.statusCode}): $preview';
       }
       throw Exception(message);
@@ -501,7 +612,9 @@ Guidelines:
   }) async {
     final key = config.anthropicApiKey.trim();
     if (key.isEmpty) {
-      throw Exception('Anthropic API Key is missing. Please configure it in AI Settings.');
+      throw Exception(
+        'Anthropic API Key is missing. Please configure it in AI Settings.',
+      );
     }
 
     final url = Uri.parse('https://api.anthropic.com/v1/messages');
@@ -509,8 +622,12 @@ Guidelines:
     final List<Map<String, String>> messages = [];
 
     if (history != null && history.isNotEmpty) {
-      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
-      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      final cleanHistory = history
+          .where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️'))
+          .toList();
+      final recentHistory = cleanHistory.length > 12
+          ? cleanHistory.sublist(cleanHistory.length - 12)
+          : cleanHistory;
 
       // Anthropic requires strictly alternating roles starting with 'user'
       String? lastRole;
@@ -537,29 +654,36 @@ Guidelines:
       payload['system'] = systemPrompt.trim();
     }
 
-    final response = await _httpClient.post(
-      url,
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(payload),
-    ).timeout(
-      const Duration(seconds: 60),
-      onTimeout: () => throw Exception(
-        'Request timed out after 60 seconds. Check your network connection and try again.',
-      ),
-    );
+    final response = await _httpClient
+        .post(
+          url,
+          headers: {
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception(
+            'Request timed out after 60 seconds. Check your network connection and try again.',
+          ),
+        );
 
     if (response.statusCode != 200) {
       String message;
       try {
         final errorBody = jsonDecode(response.body);
-        message = errorBody['error']?['message'] ?? 'Anthropic API call failed (${response.statusCode})';
+        message =
+            errorBody['error']?['message'] ??
+            'Anthropic API call failed (${response.statusCode})';
       } on FormatException {
-        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
-        message = 'Anthropic API call failed (${response.statusCode}): $preview';
+        final preview = response.body.length > 200
+            ? response.body.substring(0, 200)
+            : response.body;
+        message =
+            'Anthropic API call failed (${response.statusCode}): $preview';
       }
       throw Exception(message);
     }
@@ -591,7 +715,9 @@ Guidelines:
   }) async {
     final key = config.groqApiKey.trim();
     if (key.isEmpty) {
-      throw Exception('Groq API Key is missing. Please configure it in AI Settings.');
+      throw Exception(
+        'Groq API Key is missing. Please configure it in AI Settings.',
+      );
     }
 
     final url = Uri.parse('https://api.groq.com/openai/v1/chat/completions');
@@ -601,8 +727,12 @@ Guidelines:
     ];
 
     if (history != null && history.isNotEmpty) {
-      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
-      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      final cleanHistory = history
+          .where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️'))
+          .toList();
+      final recentHistory = cleanHistory.length > 12
+          ? cleanHistory.sublist(cleanHistory.length - 12)
+          : cleanHistory;
       for (final msg in recentHistory) {
         messages.add({
           'role': msg.isUser ? 'user' : 'assistant',
@@ -613,32 +743,38 @@ Guidelines:
 
     messages.add({'role': 'user', 'content': userPrompt});
 
-    final response = await _httpClient.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $key',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'model': config.groqModel,
-        'messages': messages,
-        'temperature': 0.7,
-        'max_tokens': 4096,
-      }),
-    ).timeout(
-      const Duration(seconds: 60),
-      onTimeout: () => throw Exception(
-        'Request timed out after 60 seconds. Check your network connection and try again.',
-      ),
-    );
+    final response = await _httpClient
+        .post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $key',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'model': config.groqModel,
+            'messages': messages,
+            'temperature': 0.7,
+            'max_tokens': 4096,
+          }),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception(
+            'Request timed out after 60 seconds. Check your network connection and try again.',
+          ),
+        );
 
     if (response.statusCode != 200) {
       String message;
       try {
         final errorBody = jsonDecode(response.body);
-        message = errorBody['error']?['message'] ?? 'Groq API call failed (${response.statusCode})';
+        message =
+            errorBody['error']?['message'] ??
+            'Groq API call failed (${response.statusCode})';
       } on FormatException {
-        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        final preview = response.body.length > 200
+            ? response.body.substring(0, 200)
+            : response.body;
         message = 'Groq API call failed (${response.statusCode}): $preview';
       }
       throw Exception(message);
@@ -667,7 +803,9 @@ Guidelines:
   }) async {
     final key = config.openRouterApiKey.trim();
     if (key.isEmpty) {
-      throw Exception('OpenRouter API Key is missing. Please configure it in AI Settings.');
+      throw Exception(
+        'OpenRouter API Key is missing. Please configure it in AI Settings.',
+      );
     }
 
     final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
@@ -677,8 +815,12 @@ Guidelines:
     ];
 
     if (history != null && history.isNotEmpty) {
-      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
-      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      final cleanHistory = history
+          .where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️'))
+          .toList();
+      final recentHistory = cleanHistory.length > 12
+          ? cleanHistory.sublist(cleanHistory.length - 12)
+          : cleanHistory;
       for (final msg in recentHistory) {
         messages.add({
           'role': msg.isUser ? 'user' : 'assistant',
@@ -689,35 +831,42 @@ Guidelines:
 
     messages.add({'role': 'user', 'content': userPrompt});
 
-    final response = await _httpClient.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $key',
-        'HTTP-Referer': 'https://emptypocket.dev',
-        'X-Title': 'EmptyPocket',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'model': config.openRouterModel,
-        'messages': messages,
-        'temperature': 0.7,
-        'max_tokens': 4096,
-      }),
-    ).timeout(
-      const Duration(seconds: 60),
-      onTimeout: () => throw Exception(
-        'Request timed out after 60 seconds. Check your network connection and try again.',
-      ),
-    );
+    final response = await _httpClient
+        .post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $key',
+            'HTTP-Referer': 'https://emptypocket.dev',
+            'X-Title': 'EmptyPocket',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'model': config.openRouterModel,
+            'messages': messages,
+            'temperature': 0.7,
+            'max_tokens': 4096,
+          }),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception(
+            'Request timed out after 60 seconds. Check your network connection and try again.',
+          ),
+        );
 
     if (response.statusCode != 200) {
       String message;
       try {
         final errorBody = jsonDecode(response.body);
-        message = errorBody['error']?['message'] ?? 'OpenRouter API call failed (${response.statusCode})';
+        message =
+            errorBody['error']?['message'] ??
+            'OpenRouter API call failed (${response.statusCode})';
       } on FormatException {
-        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
-        message = 'OpenRouter API call failed (${response.statusCode}): $preview';
+        final preview = response.body.length > 200
+            ? response.body.substring(0, 200)
+            : response.body;
+        message =
+            'OpenRouter API call failed (${response.statusCode}): $preview';
       }
       throw Exception(message);
     }
@@ -745,7 +894,9 @@ Guidelines:
   }) async {
     final key = config.deepSeekApiKey.trim();
     if (key.isEmpty) {
-      throw Exception('DeepSeek API Key is missing. Please configure it in AI Settings.');
+      throw Exception(
+        'DeepSeek API Key is missing. Please configure it in AI Settings.',
+      );
     }
 
     final url = Uri.parse('https://api.deepseek.com/chat/completions');
@@ -755,8 +906,12 @@ Guidelines:
     ];
 
     if (history != null && history.isNotEmpty) {
-      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
-      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      final cleanHistory = history
+          .where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️'))
+          .toList();
+      final recentHistory = cleanHistory.length > 12
+          ? cleanHistory.sublist(cleanHistory.length - 12)
+          : cleanHistory;
       for (final msg in recentHistory) {
         messages.add({
           'role': msg.isUser ? 'user' : 'assistant',
@@ -767,32 +922,38 @@ Guidelines:
 
     messages.add({'role': 'user', 'content': userPrompt});
 
-    final response = await _httpClient.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $key',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'model': config.deepSeekModel,
-        'messages': messages,
-        'temperature': 0.7,
-        'max_tokens': 4096,
-      }),
-    ).timeout(
-      const Duration(seconds: 60),
-      onTimeout: () => throw Exception(
-        'Request timed out after 60 seconds. Check your network connection and try again.',
-      ),
-    );
+    final response = await _httpClient
+        .post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $key',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'model': config.deepSeekModel,
+            'messages': messages,
+            'temperature': 0.7,
+            'max_tokens': 4096,
+          }),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception(
+            'Request timed out after 60 seconds. Check your network connection and try again.',
+          ),
+        );
 
     if (response.statusCode != 200) {
       String message;
       try {
         final errorBody = jsonDecode(response.body);
-        message = errorBody['error']?['message'] ?? 'DeepSeek API call failed (${response.statusCode})';
+        message =
+            errorBody['error']?['message'] ??
+            'DeepSeek API call failed (${response.statusCode})';
       } on FormatException {
-        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        final preview = response.body.length > 200
+            ? response.body.substring(0, 200)
+            : response.body;
         message = 'DeepSeek API call failed (${response.statusCode}): $preview';
       }
       throw Exception(message);
@@ -821,7 +982,9 @@ Guidelines:
   }) async {
     var rawUrl = config.customBaseUrl.trim();
     if (rawUrl.isEmpty) {
-      throw Exception('Custom Endpoint Base URL is missing. Please configure it in AI Settings.');
+      throw Exception(
+        'Custom Endpoint Base URL is missing. Please configure it in AI Settings.',
+      );
     }
 
     // Normalize endpoint URL
@@ -839,8 +1002,12 @@ Guidelines:
     ];
 
     if (history != null && history.isNotEmpty) {
-      final cleanHistory = history.where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️')).toList();
-      final recentHistory = cleanHistory.length > 12 ? cleanHistory.sublist(cleanHistory.length - 12) : cleanHistory;
+      final cleanHistory = history
+          .where((m) => !m.text.startsWith('❌') && !m.text.startsWith('⚠️'))
+          .toList();
+      final recentHistory = cleanHistory.length > 12
+          ? cleanHistory.sublist(cleanHistory.length - 12)
+          : cleanHistory;
       for (final msg in recentHistory) {
         messages.add({
           'role': msg.isUser ? 'user' : 'assistant',
@@ -851,9 +1018,7 @@ Guidelines:
 
     messages.add({'role': 'user', 'content': userPrompt});
 
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-    };
+    final headers = <String, String>{'Content-Type': 'application/json'};
 
     // Optional API key support for local/unauthenticated instances
     final customKey = config.customApiKey.trim();
@@ -861,31 +1026,40 @@ Guidelines:
       headers['Authorization'] = 'Bearer $customKey';
     }
 
-    final modelName = config.customModel.trim().isNotEmpty ? config.customModel.trim() : 'llama-4-scout';
+    final modelName = config.customModel.trim().isNotEmpty
+        ? config.customModel.trim()
+        : 'llama-4-scout';
 
-    final response = await _httpClient.post(
-      url,
-      headers: headers,
-      body: jsonEncode({
-        'model': modelName,
-        'messages': messages,
-        'temperature': 0.7,
-        'max_tokens': 4096,
-      }),
-    ).timeout(
-      const Duration(seconds: 60),
-      onTimeout: () => throw Exception(
-        'Request to custom endpoint timed out after 60 seconds. Check that your local instance (Ollama/LM Studio) is running and reachable.',
-      ),
-    );
+    final response = await _httpClient
+        .post(
+          url,
+          headers: headers,
+          body: jsonEncode({
+            'model': modelName,
+            'messages': messages,
+            'temperature': 0.7,
+            'max_tokens': 4096,
+          }),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception(
+            'Request to custom endpoint timed out after 60 seconds. Check that your local instance (Ollama/LM Studio) is running and reachable.',
+          ),
+        );
 
     if (response.statusCode != 200) {
       String message;
       try {
         final errorBody = jsonDecode(response.body);
-        message = errorBody['error']?['message'] ?? errorBody['message'] ?? 'Custom API call failed (${response.statusCode})';
+        message =
+            errorBody['error']?['message'] ??
+            errorBody['message'] ??
+            'Custom API call failed (${response.statusCode})';
       } on FormatException {
-        final preview = response.body.length > 200 ? response.body.substring(0, 200) : response.body;
+        final preview = response.body.length > 200
+            ? response.body.substring(0, 200)
+            : response.body;
         message = 'Custom API call failed (${response.statusCode}): $preview';
       }
       throw Exception(message);
@@ -907,7 +1081,9 @@ Guidelines:
       return data['response'] as String;
     }
 
-    throw Exception('Custom endpoint returned unexpected JSON response structure: ${response.body.substring(0, 200.clamp(0, response.body.length))}');
+    throw Exception(
+      'Custom endpoint returned unexpected JSON response structure: ${response.body.substring(0, 200.clamp(0, response.body.length))}',
+    );
   }
 
   /// Parses raw LLM text into a structured AiAuditReport
@@ -925,7 +1101,8 @@ Guidelines:
       if (trimmed.isEmpty) continue;
 
       final upper = trimmed.toUpperCase();
-      final isHeading = trimmed.startsWith('#') ||
+      final isHeading =
+          trimmed.startsWith('#') ||
           trimmed.startsWith(RegExp(r'^\d+[\.\)]')) ||
           upper == trimmed;
 
@@ -933,13 +1110,21 @@ Guidelines:
         if (upper.contains('STRENGTH') || upper.contains('WIN')) {
           currentSection = 'strengths';
           continue;
-        } else if (upper.contains('RISK') || upper.contains('WEAKNESS') || upper.contains('CONCERN') || upper.contains('FLAG')) {
+        } else if (upper.contains('RISK') ||
+            upper.contains('WEAKNESS') ||
+            upper.contains('CONCERN') ||
+            upper.contains('FLAG')) {
           currentSection = 'risks';
           continue;
-        } else if (upper.contains('RECOMMENDATION') || upper.contains('ACTION') || upper.contains('NEXT STEP') || upper.contains('PLAN')) {
+        } else if (upper.contains('RECOMMENDATION') ||
+            upper.contains('ACTION') ||
+            upper.contains('NEXT STEP') ||
+            upper.contains('PLAN')) {
           currentSection = 'recommendations';
           continue;
-        } else if (upper.contains('EXECUTIVE') || upper.contains('OVERVIEW') || upper.contains('SUMMARY')) {
+        } else if (upper.contains('EXECUTIVE') ||
+            upper.contains('OVERVIEW') ||
+            upper.contains('SUMMARY')) {
           currentSection = 'overview';
           continue;
         }
@@ -961,12 +1146,23 @@ Guidelines:
     }
 
     return AiAuditReport(
-      overview: overviewLines.isNotEmpty ? overviewLines.join(' ') : text.substring(0, text.length.clamp(0, 300)),
-      strengths: strengths.isNotEmpty ? strengths : ['Disciplined financial logging and tracking active in EmptyPocket.'],
-      risks: risks.isNotEmpty ? risks : ['Review monthly discretionary spending and liability balances.'],
+      overview: overviewLines.isNotEmpty
+          ? overviewLines.join(' ')
+          : text.substring(0, text.length.clamp(0, 300)),
+      strengths: strengths.isNotEmpty
+          ? strengths
+          : [
+              'Disciplined financial logging and tracking active in EmptyPocket.',
+            ],
+      risks: risks.isNotEmpty
+          ? risks
+          : ['Review monthly discretionary spending and liability balances.'],
       recommendations: recommendations.isNotEmpty
           ? recommendations
-          : ['Maintain 3-6 months emergency runway.', 'Automate monthly savings goals and SIP investments.'],
+          : [
+              'Maintain 3-6 months emergency runway.',
+              'Automate monthly savings goals and SIP investments.',
+            ],
       timestamp: DateTime.now(),
     );
   }

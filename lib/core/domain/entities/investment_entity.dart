@@ -137,11 +137,19 @@ class InvestmentEntity {
       investedAmount: investedAmount ?? this.investedAmount,
       currentValue: currentValue ?? this.currentValue,
       units: identical(units, _sentinel) ? this.units : (units as double?),
-      buyPrice: identical(buyPrice, _sentinel) ? this.buyPrice : (buyPrice as double?),
-      currentPrice: identical(currentPrice, _sentinel) ? this.currentPrice : (currentPrice as double?),
-      institution: identical(institution, _sentinel) ? this.institution : (institution as String?),
+      buyPrice: identical(buyPrice, _sentinel)
+          ? this.buyPrice
+          : (buyPrice as double?),
+      currentPrice: identical(currentPrice, _sentinel)
+          ? this.currentPrice
+          : (currentPrice as double?),
+      institution: identical(institution, _sentinel)
+          ? this.institution
+          : (institution as String?),
       notes: identical(notes, _sentinel) ? this.notes : (notes as String?),
-      sourceAccountId: identical(sourceAccountId, _sentinel) ? this.sourceAccountId : (sourceAccountId as String?),
+      sourceAccountId: identical(sourceAccountId, _sentinel)
+          ? this.sourceAccountId
+          : (sourceAccountId as String?),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -194,12 +202,7 @@ class InvestmentEntity {
           currentValue == other.currentValue;
 
   @override
-  int get hashCode => Object.hash(
-        id,
-        name,
-        investedAmount,
-        currentValue,
-      );
+  int get hashCode => Object.hash(id, name, investedAmount, currentValue);
 }
 
 /// Calculated metrics for a single investment holding

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/services/notification_service.dart';
@@ -25,6 +26,7 @@ import '../widgets/dashboard_quick_actions.dart';
 import '../widgets/dashboard_recent_activity.dart';
 import '../widgets/dashboard_savings_card.dart';
 import '../widgets/pending_shared_card.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   final VoidCallback? onViewAllTransactions;
@@ -45,6 +47,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final financialColors = context.financialColors;
@@ -70,7 +73,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             constraints: const BoxConstraints(maxWidth: 720),
             child: RefreshIndicator(
               color: AppColors.primaryEmerald,
-              backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+              backgroundColor: isDark
+                  ? AppColors.darkSurface
+                  : AppColors.lightSurface,
               onRefresh: () async {
                 HapticFeedback.lightImpact();
                 ref.invalidate(transactionListNotifierProvider);
@@ -83,160 +88,164 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ref.invalidate(investmentListNotifierProvider);
               },
               child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-            slivers: [
-              // Top App Bar Header
-              SliverToBoxAdapter(
-                child: DashboardHeaderBar(todayFormatted: today),
-              ),
-
-              // Monthly Spending Comparison Banner
-              SliverToBoxAdapter(
-                child: DashboardMonthlyComparisonBanner(comparison: comparison),
-              ),
-
-              // Main Balance Hero Card
-              SliverToBoxAdapter(
-                child: DashboardBalanceCard(
-                  summary: summary,
-                  healthSummary: healthSummary,
-                  dailySafeToSpend: dailySafeToSpend,
-                  isBalanceVisible: _isBalanceVisible,
-                  onToggleBalanceVisibility: () {
-                    setState(() {
-                      _isBalanceVisible = !_isBalanceVisible;
-                    });
-                  },
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
-              ),
+                slivers: [
+                  // Top App Bar Header
+                  SliverToBoxAdapter(
+                    child: DashboardHeaderBar(todayFormatted: today),
+                  ),
 
-              // Recurring Bills Due Alert Banner
-              if (dueBills.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: financialColors.warning.withAlpha(isDark ? 30 : 20),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: financialColors.warning.withAlpha(isDark ? 80 : 50),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: financialColors.warning.withAlpha(isDark ? 50 : 30),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.calendar_today_rounded,
-                              color: financialColors.warning,
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${dueBills.length} Recurring Bill${dueBills.length > 1 ? 's' : ''} Due Today',
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: financialColors.warning,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  dueBills.map((b) => b.title).join(', '),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.textTheme.bodySmall?.color?.withAlpha(200),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                  // Monthly Spending Comparison Banner
+                  SliverToBoxAdapter(
+                    child: DashboardMonthlyComparisonBanner(
+                      comparison: comparison,
                     ),
                   ),
-                ),
 
-              // Quick Actions
-              const SliverToBoxAdapter(
-                child: DashboardQuickActions(),
-              ),
-
-              // Pending Shared Reimbursements Card
-              const SliverToBoxAdapter(
-                child: DashboardPendingSharedCard(),
-              ),
-
-              // Accounts & Cards Overview Card
-              const SliverToBoxAdapter(
-                child: DashboardAccountsCard(),
-              ),
-
-              // Monthly Budget Status Card
-              const SliverToBoxAdapter(
-                child: DashboardBudgetCard(),
-              ),
-
-              // Savings & Goals Card
-              const SliverToBoxAdapter(
-                child: DashboardSavingsCard(),
-              ),
-
-              // Investments & Portfolio Card
-              const SliverToBoxAdapter(
-                child: DashboardInvestmentsCard(),
-              ),
-
-              // Loans & Liabilities Card
-              const SliverToBoxAdapter(
-                child: DashboardLiabilitiesCard(),
-              ),
-
-              // Recent Transactions Section Header
-              SliverToBoxAdapter(
-                child: DashboardRecentActivityHeader(
-                  hasTransactions: recentTransactions.isNotEmpty,
-                  onViewAllTransactions: widget.onViewAllTransactions,
-                ),
-              ),
-
-              // Recent Transactions List or Empty State
-              if (recentTransactions.isEmpty)
-                const SliverToBoxAdapter(
-                  child: DashboardEmptyTransactionsPrompt(),
-                )
-              else
-                DashboardRecentActivityList(
-                  recentTransactions: recentTransactions,
-                  onTapTransaction: (tx) => TransactionDetailSheet.show(
-                    context,
-                    transaction: tx,
+                  // Main Balance Hero Card
+                  SliverToBoxAdapter(
+                    child: DashboardBalanceCard(
+                      summary: summary,
+                      healthSummary: healthSummary,
+                      dailySafeToSpend: dailySafeToSpend,
+                      isBalanceVisible: _isBalanceVisible,
+                      onToggleBalanceVisibility: () {
+                        setState(() {
+                          _isBalanceVisible = !_isBalanceVisible;
+                        });
+                      },
+                    ),
                   ),
-                  onDeleteTransaction: (id) => ref
-                      .read(transactionListNotifierProvider.notifier)
-                      .deleteTransaction(id),
-                ),
 
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 88),
+                  // Recurring Bills Due Alert Banner
+                  if (dueBills.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: financialColors.warning.withAlpha(
+                              isDark ? 30 : 20,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: financialColors.warning.withAlpha(
+                                isDark ? 80 : 50,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: financialColors.warning.withAlpha(
+                                    isDark ? 50 : 30,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.calendar_today_rounded,
+                                  color: financialColors.warning,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${dueBills.length} Recurring Bill${dueBills.length > 1 ? 's' : ''} Due Today',
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            color: financialColors.warning,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      dueBills.map((b) => b.title).join(', '),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme
+                                                .textTheme
+                                                .bodySmall
+                                                ?.color
+                                                ?.withAlpha(200),
+                                          ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Quick Actions
+                  const SliverToBoxAdapter(child: DashboardQuickActions()),
+
+                  // Pending Shared Reimbursements Card
+                  const SliverToBoxAdapter(child: DashboardPendingSharedCard()),
+
+                  // Accounts & Cards Overview Card
+                  const SliverToBoxAdapter(child: DashboardAccountsCard()),
+
+                  // Monthly Budget Status Card
+                  const SliverToBoxAdapter(child: DashboardBudgetCard()),
+
+                  // Savings & Goals Card
+                  const SliverToBoxAdapter(child: DashboardSavingsCard()),
+
+                  // Investments & Portfolio Card
+                  const SliverToBoxAdapter(child: DashboardInvestmentsCard()),
+
+                  // Loans & Liabilities Card
+                  const SliverToBoxAdapter(child: DashboardLiabilitiesCard()),
+
+                  // Recent Transactions Section Header
+                  SliverToBoxAdapter(
+                    child: DashboardRecentActivityHeader(
+                      hasTransactions: recentTransactions.isNotEmpty,
+                      onViewAllTransactions: widget.onViewAllTransactions,
+                    ),
+                  ),
+
+                  // Recent Transactions List or Empty State
+                  if (recentTransactions.isEmpty)
+                    const SliverToBoxAdapter(
+                      child: DashboardEmptyTransactionsPrompt(),
+                    )
+                  else
+                    DashboardRecentActivityList(
+                      recentTransactions: recentTransactions,
+                      onTapTransaction: (tx) =>
+                          TransactionDetailSheet.show(context, transaction: tx),
+                      onDeleteTransaction: (id) => ref
+                          .read(transactionListNotifierProvider.notifier)
+                          .deleteTransaction(id),
+                    ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 88)),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 }

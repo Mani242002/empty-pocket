@@ -29,10 +29,26 @@ void main() {
       final updatedCard = card.copyWith(usedAmount: -3988.0);
 
       expect(updatedCard.usedAmount, -3988.0);
-      expect(updatedCard.currentDues, 0.0, reason: 'Current dues must remain 0.00 when in excess credit');
-      expect(updatedCard.excessCredit, 3988.0, reason: 'Excess credit must be positive 3988.00');
-      expect(updatedCard.availableLimit, 103988.0, reason: 'Available limit must expand by the excess credit');
-      expect(updatedCard.utilizationRatio, 0.0, reason: 'Utilization ratio must not be negative');
+      expect(
+        updatedCard.currentDues,
+        0.0,
+        reason: 'Current dues must remain 0.00 when in excess credit',
+      );
+      expect(
+        updatedCard.excessCredit,
+        3988.0,
+        reason: 'Excess credit must be positive 3988.00',
+      );
+      expect(
+        updatedCard.availableLimit,
+        103988.0,
+        reason: 'Available limit must expand by the excess credit',
+      );
+      expect(
+        updatedCard.utilizationRatio,
+        0.0,
+        reason: 'Utilization ratio must not be negative',
+      );
       expect(updatedCard.utilizationHealth, CreditUtilizationHealth.optimal);
     });
 
@@ -58,14 +74,18 @@ void main() {
       expect(afterCashback.availableLimit, 103000.0);
 
       // Subsequent purchase of ₹1,000 draws down from excess credit
-      final afterPurchase = afterCashback.copyWith(usedAmount: afterCashback.usedAmount + 1000.0);
+      final afterPurchase = afterCashback.copyWith(
+        usedAmount: afterCashback.usedAmount + 1000.0,
+      );
       expect(afterPurchase.usedAmount, -2000.0);
       expect(afterPurchase.currentDues, 0.0);
       expect(afterPurchase.excessCredit, 2000.0);
       expect(afterPurchase.availableLimit, 102000.0);
 
       // Another purchase of ₹3,000 completely exhausts excess credit and creates ₹1,000 in dues
-      final afterSecondPurchase = afterPurchase.copyWith(usedAmount: afterPurchase.usedAmount + 3000.0);
+      final afterSecondPurchase = afterPurchase.copyWith(
+        usedAmount: afterPurchase.usedAmount + 3000.0,
+      );
       expect(afterSecondPurchase.usedAmount, 1000.0);
       expect(afterSecondPurchase.currentDues, 1000.0);
       expect(afterSecondPurchase.excessCredit, 0.0);

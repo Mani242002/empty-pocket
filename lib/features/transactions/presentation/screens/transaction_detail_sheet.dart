@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/category_constants.dart';
@@ -15,6 +16,7 @@ import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../state/transactions_provider.dart';
 import 'add_edit_transaction_sheet.dart';
 import 'pending_shared_expenses_sheet.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 /// Read-only receipt and detail view for a transaction with top-right actions
 class TransactionDetailSheet extends ConsumerWidget {
@@ -22,7 +24,10 @@ class TransactionDetailSheet extends ConsumerWidget {
 
   const TransactionDetailSheet({super.key, required this.transaction});
 
-  static Future<void> show(BuildContext context, {required TransactionEntity transaction}) {
+  static Future<void> show(
+    BuildContext context, {
+    required TransactionEntity transaction,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -40,7 +45,9 @@ class TransactionDetailSheet extends ConsumerWidget {
       createdAt: now,
       updatedAt: now,
       linkedEntityId: null,
-      reimbursedAmount: transaction.isShared ? 0.0 : transaction.reimbursedAmount,
+      reimbursedAmount: transaction.isShared
+          ? 0.0
+          : transaction.reimbursedAmount,
       isSettled: transaction.isShared ? false : transaction.isSettled,
       sharedWith: transaction.isShared
           ? SplitHelper.resetSharesForDuplication(transaction.sharedWith)
@@ -57,13 +64,20 @@ class TransactionDetailSheet extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Duplicated "${cloned.title}" (${CurrencyFormatter.format(cloned.amount)}).'),
+            content: Text(
+              'Duplicated "${cloned.title}" (${CurrencyFormatter.format(cloned.amount)}).',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e, st) {
-      LogService.error('TransactionDetailSheet', 'Failed to duplicate transaction', e, st);
+      LogService.error(
+        'TransactionDetailSheet',
+        'Failed to duplicate transaction',
+        e,
+        st,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -102,11 +116,18 @@ class TransactionDetailSheet extends ConsumerWidget {
                     .deleteTransaction(transaction.id);
                 AppHaptics.deleteAction();
               } catch (e, st) {
-                LogService.error('TransactionDetailSheet', 'Failed to delete transaction', e, st);
+                LogService.error(
+                  'TransactionDetailSheet',
+                  'Failed to delete transaction',
+                  e,
+                  st,
+                );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Failed to delete transaction: ${e.toString()}'),
+                      content: Text(
+                        'Failed to delete transaction: ${e.toString()}',
+                      ),
                       backgroundColor: AppColors.expense,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -123,6 +144,7 @@ class TransactionDetailSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -141,7 +163,8 @@ class TransactionDetailSheet extends ConsumerWidget {
 
     final sign = isExpense ? '-' : (isIncome ? '+' : '↔ ');
 
-    final formattedDate = DateFormat('EEEE, d MMMM yyyy').format(transaction.date);
+    final formattedDate = DateFormat('EEEE, d MMMM yyyy')
+        .format(transaction.date);
     final formattedTime = DateFormat('h:mm a').format(transaction.date);
 
     final bankAccounts = ref.watch(activeBankAccountsProvider);
@@ -152,12 +175,16 @@ class TransactionDetailSheet extends ConsumerWidget {
     if (transaction.accountId != null) {
       final matching = bankAccounts.where((a) => a.id == transaction.accountId);
       if (matching.isNotEmpty) {
-        accountDisplay = '${matching.first.accountName} (${matching.first.bankName})';
+        accountDisplay =
+            '${matching.first.accountName} (${matching.first.bankName})';
       }
     } else if (transaction.creditCardId != null) {
-      final matching = creditCards.where((c) => c.id == transaction.creditCardId);
+      final matching = creditCards.where(
+        (c) => c.id == transaction.creditCardId,
+      );
       if (matching.isNotEmpty) {
-        accountDisplay = '${matching.first.cardName} (${matching.first.bankName})';
+        accountDisplay =
+            '${matching.first.cardName} (${matching.first.bankName})';
       }
     }
 
@@ -165,17 +192,23 @@ class TransactionDetailSheet extends ConsumerWidget {
     IconData? destinationIcon;
     if (transaction.type == TransactionType.transfer) {
       if (transaction.creditCardId != null) {
-        final matching = creditCards.where((c) => c.id == transaction.creditCardId);
+        final matching = creditCards.where(
+          (c) => c.id == transaction.creditCardId,
+        );
         if (matching.isNotEmpty) {
-          destinationDisplay = '${matching.first.cardName} (${matching.first.bankName})';
+          destinationDisplay =
+              '${matching.first.cardName} (${matching.first.bankName})';
         } else {
           destinationDisplay = 'Credit Card';
         }
         destinationIcon = Icons.credit_card_rounded;
       } else if (transaction.toAccountId != null) {
-        final matching = bankAccounts.where((a) => a.id == transaction.toAccountId);
+        final matching = bankAccounts.where(
+          (a) => a.id == transaction.toAccountId,
+        );
         if (matching.isNotEmpty) {
-          destinationDisplay = '${matching.first.accountName} (${matching.first.bankName})';
+          destinationDisplay =
+              '${matching.first.accountName} (${matching.first.bankName})';
         }
         destinationIcon = Icons.account_balance_rounded;
       }
@@ -212,7 +245,10 @@ class TransactionDetailSheet extends ConsumerWidget {
                 children: [
                   Flexible(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: amountColor.withAlpha(isDark ? 40 : 25),
                         borderRadius: BorderRadius.circular(8),
@@ -237,7 +273,10 @@ class TransactionDetailSheet extends ConsumerWidget {
                       IconButton(
                         icon: const Icon(Icons.copy_rounded, size: 19),
                         tooltip: 'Duplicate',
-                        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                        constraints: const BoxConstraints(
+                          minWidth: 34,
+                          minHeight: 34,
+                        ),
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         onPressed: () => _duplicateTransaction(context, ref),
@@ -245,7 +284,10 @@ class TransactionDetailSheet extends ConsumerWidget {
                       IconButton(
                         icon: const Icon(Icons.edit_rounded, size: 19),
                         tooltip: 'Edit Transaction',
-                        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                        constraints: const BoxConstraints(
+                          minWidth: 34,
+                          minHeight: 34,
+                        ),
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         onPressed: () {
@@ -257,9 +299,16 @@ class TransactionDetailSheet extends ConsumerWidget {
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppColors.expense),
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 19,
+                          color: AppColors.expense,
+                        ),
                         tooltip: 'Delete',
-                        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                        constraints: const BoxConstraints(
+                          minWidth: 34,
+                          minHeight: 34,
+                        ),
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         onPressed: () => _confirmDelete(context, ref),
@@ -267,7 +316,10 @@ class TransactionDetailSheet extends ConsumerWidget {
                       IconButton(
                         icon: const Icon(Icons.close_rounded, size: 19),
                         tooltip: 'Close',
-                        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                        constraints: const BoxConstraints(
+                          minWidth: 34,
+                          minHeight: 34,
+                        ),
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         onPressed: () => Navigator.pop(context),
@@ -282,7 +334,9 @@ class TransactionDetailSheet extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.lightSurfaceVariant,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: financialColors.cardBorder),
                 ),
@@ -295,7 +349,11 @@ class TransactionDetailSheet extends ConsumerWidget {
                         color: categoryItem.color.withAlpha(isDark ? 50 : 35),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Icon(categoryItem.icon, color: categoryItem.color, size: 28),
+                      child: Icon(
+                        categoryItem.icon,
+                        color: categoryItem.color,
+                        size: 28,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -344,7 +402,9 @@ class TransactionDetailSheet extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurfaceVariant.withAlpha(120) : AppColors.lightSurfaceVariant.withAlpha(120),
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant.withAlpha(120)
+                      : AppColors.lightSurfaceVariant.withAlpha(120),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: financialColors.cardBorder),
                 ),
@@ -362,20 +422,23 @@ class TransactionDetailSheet extends ConsumerWidget {
                       icon: transaction.type == TransactionType.transfer
                           ? Icons.account_balance_rounded
                           : (transaction.creditCardId != null
-                              ? Icons.credit_card_rounded
-                              : (transaction.accountId != null
-                                  ? Icons.account_balance_rounded
-                                  : Icons.payment_rounded)),
+                                ? Icons.credit_card_rounded
+                                : (transaction.accountId != null
+                                      ? Icons.account_balance_rounded
+                                      : Icons.payment_rounded)),
                       label: transaction.type == TransactionType.income
                           ? 'Deposited To'
-                          : (transaction.type == TransactionType.transfer ? 'Transfer From (Source)' : 'Paid From'),
+                          : (transaction.type == TransactionType.transfer
+                                ? 'Transfer From (Source)'
+                                : 'Paid From'),
                       value: accountDisplay,
                     ),
                     if (destinationDisplay != null) ...[
                       const Divider(height: 20),
                       _buildDetailRow(
                         context,
-                        icon: destinationIcon ?? Icons.arrow_circle_down_rounded,
+                        icon:
+                            destinationIcon ?? Icons.arrow_circle_down_rounded,
                         label: transaction.creditCardId != null
                             ? 'Transfer To (Credit Card)'
                             : 'Transfer To (Destination)',
@@ -387,7 +450,8 @@ class TransactionDetailSheet extends ConsumerWidget {
               ),
 
               // Shared / Loan Expense Details Card
-              if (LoanShareHelper.parseLoan(transaction.sharedWith) != null) ...[
+              if (LoanShareHelper.parseLoan(transaction.sharedWith) !=
+                  null) ...[
                 _buildLoanDetailCard(
                   context,
                   ref,
@@ -404,7 +468,9 @@ class TransactionDetailSheet extends ConsumerWidget {
                     color: AppColors.primaryEmerald.withAlpha(isDark ? 25 : 15),
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: AppColors.primaryEmerald.withAlpha(isDark ? 80 : 50),
+                      color: AppColors.primaryEmerald.withAlpha(
+                        isDark ? 80 : 50,
+                      ),
                     ),
                   ),
                   child: Column(
@@ -416,14 +482,21 @@ class TransactionDetailSheet extends ConsumerWidget {
                           const Expanded(
                             child: Row(
                               children: [
-                                Icon(Icons.people_alt_rounded, color: AppColors.primaryEmerald, size: 20),
+                                Icon(
+                                  Icons.people_alt_rounded,
+                                  color: AppColors.primaryEmerald,
+                                  size: 20,
+                                ),
                                 SizedBox(width: 8),
                                 Flexible(
                                   child: Text(
                                     'Shared / Split Expense',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -431,19 +504,30 @@ class TransactionDetailSheet extends ConsumerWidget {
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: transaction.isSettled
-                                  ? financialColors.income.withAlpha(isDark ? 40 : 25)
-                                  : financialColors.warning.withAlpha(isDark ? 40 : 25),
+                                  ? financialColors.income.withAlpha(
+                                      isDark ? 40 : 25,
+                                    )
+                                  : financialColors.warning.withAlpha(
+                                      isDark ? 40 : 25,
+                                    ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              transaction.isSettled ? 'FULLY SETTLED' : 'PENDING',
+                              transaction.isSettled
+                                  ? 'FULLY SETTLED'
+                                  : 'PENDING',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
-                                color: transaction.isSettled ? financialColors.income : financialColors.warning,
+                                color: transaction.isSettled
+                                    ? financialColors.income
+                                    : financialColors.warning,
                               ),
                             ),
                           ),
@@ -452,17 +536,37 @@ class TransactionDetailSheet extends ConsumerWidget {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          _buildMiniStat(context, 'Total Bill', CurrencyFormatter.format(transaction.amount)),
+                          _buildMiniStat(
+                            context,
+                            'Total Bill',
+                            CurrencyFormatter.format(transaction.amount),
+                          ),
                           const SizedBox(width: 12),
-                          _buildMiniStat(context, 'My Share', CurrencyFormatter.format(transaction.myShareAmount ?? transaction.amount)),
+                          _buildMiniStat(
+                            context,
+                            'My Share',
+                            CurrencyFormatter.format(
+                              transaction.myShareAmount ?? transaction.amount,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          _buildMiniStat(context, 'Friends\' Share', CurrencyFormatter.format(transaction.friendsShare)),
+                          _buildMiniStat(
+                            context,
+                            'Friends\' Share',
+                            CurrencyFormatter.format(transaction.friendsShare),
+                          ),
                           const SizedBox(width: 12),
-                          _buildMiniStat(context, 'Collected', CurrencyFormatter.format(transaction.reimbursedAmount)),
+                          _buildMiniStat(
+                            context,
+                            'Collected',
+                            CurrencyFormatter.format(
+                              transaction.reimbursedAmount,
+                            ),
+                          ),
                         ],
                       ),
                       if (parsedShares.isNotEmpty) ...[
@@ -483,12 +587,23 @@ class TransactionDetailSheet extends ConsumerWidget {
                           children: parsedShares.map((share) {
                             final settled = share.isSettled;
                             return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: (settled ? financialColors.income : financialColors.warning).withAlpha(isDark ? 35 : 20),
+                                color:
+                                    (settled
+                                            ? financialColors.income
+                                            : financialColors.warning)
+                                        .withAlpha(isDark ? 35 : 20),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: (settled ? financialColors.income : financialColors.warning).withAlpha(50),
+                                  color:
+                                      (settled
+                                              ? financialColors.income
+                                              : financialColors.warning)
+                                          .withAlpha(50),
                                 ),
                               ),
                               child: Row(
@@ -499,7 +614,9 @@ class TransactionDetailSheet extends ConsumerWidget {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
-                                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                      color: isDark
+                                          ? AppColors.darkTextPrimary
+                                          : AppColors.lightTextPrimary,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -508,12 +625,18 @@ class TransactionDetailSheet extends ConsumerWidget {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      color: settled ? financialColors.income : financialColors.warning,
+                                      color: settled
+                                          ? financialColors.income
+                                          : financialColors.warning,
                                     ),
                                   ),
                                   if (settled) ...[
                                     const SizedBox(width: 3),
-                                    Icon(Icons.check, size: 12, color: financialColors.income),
+                                    Icon(
+                                      Icons.check,
+                                      size: 12,
+                                      color: financialColors.income,
+                                    ),
                                   ],
                                 ],
                               ),
@@ -527,10 +650,15 @@ class TransactionDetailSheet extends ConsumerWidget {
                         const SizedBox(height: 10),
                         Text(
                           'Shared with: ${transaction.sharedWith}',
-                          style: TextStyle(fontSize: 12, color: financialColors.textMuted, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: financialColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
-                      if (!transaction.isSettled && transaction.pendingReimbursement > 0) ...[
+                      if (!transaction.isSettled &&
+                          transaction.pendingReimbursement > 0) ...[
                         const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
@@ -539,14 +667,19 @@ class TransactionDetailSheet extends ConsumerWidget {
                               backgroundColor: AppColors.primaryEmerald,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                             icon: const Icon(Icons.handshake_rounded, size: 18),
                             label: FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
                                 'Record Reimbursement (${CurrencyFormatter.format(transaction.pendingReimbursement)} pending)',
-                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                             onPressed: () {
@@ -565,13 +698,16 @@ class TransactionDetailSheet extends ConsumerWidget {
               ],
 
               // Notes Card (if present)
-              if (transaction.notes != null && transaction.notes!.isNotEmpty) ...[
+              if (transaction.notes != null &&
+                  transaction.notes!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceVariant.withAlpha(120) : AppColors.lightSurfaceVariant.withAlpha(120),
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant.withAlpha(120)
+                        : AppColors.lightSurfaceVariant.withAlpha(120),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: financialColors.cardBorder),
                   ),
@@ -673,7 +809,9 @@ class TransactionDetailSheet extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.lightTextPrimary,
               ),
             ),
           ),
@@ -725,14 +863,21 @@ class TransactionDetailSheet extends ConsumerWidget {
               Expanded(
                 child: Row(
                   children: [
-                    const Icon(Icons.handshake_rounded, color: AppColors.primaryEmerald, size: 20),
+                    const Icon(
+                      Icons.handshake_rounded,
+                      color: AppColors.primaryEmerald,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
                         'Money Lent to ${loan.borrowerName}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],
@@ -759,7 +904,11 @@ class TransactionDetailSheet extends ConsumerWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildMiniStat(context, 'Principal Lent', CurrencyFormatter.format(loan.principalAmount)),
+              _buildMiniStat(
+                context,
+                'Principal Lent',
+                CurrencyFormatter.format(loan.principalAmount),
+              ),
               const SizedBox(width: 12),
               _buildMiniStat(
                 context,
@@ -773,9 +922,17 @@ class TransactionDetailSheet extends ConsumerWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              _buildMiniStat(context, 'Total Expected', CurrencyFormatter.format(loan.totalExpected)),
+              _buildMiniStat(
+                context,
+                'Total Expected',
+                CurrencyFormatter.format(loan.totalExpected),
+              ),
               const SizedBox(width: 12),
-              _buildMiniStat(context, 'Repaid So Far', CurrencyFormatter.format(loan.repaidAmount)),
+              _buildMiniStat(
+                context,
+                'Repaid So Far',
+                CurrencyFormatter.format(loan.repaidAmount),
+              ),
             ],
           ),
           if (loan.expectedReturnDate != null) ...[
@@ -805,14 +962,19 @@ class TransactionDetailSheet extends ConsumerWidget {
                   backgroundColor: AppColors.primaryEmerald,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
                 label: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
                     'Record Repayment (${CurrencyFormatter.format(loan.pendingAmount)} pending)',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
                 onPressed: () {
@@ -857,10 +1019,12 @@ class _RecordLoanRepaymentSheet extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_RecordLoanRepaymentSheet> createState() => _RecordLoanRepaymentSheetState();
+  ConsumerState<_RecordLoanRepaymentSheet> createState() =>
+      _RecordLoanRepaymentSheetState();
 }
 
-class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentSheet> {
+class _RecordLoanRepaymentSheetState
+    extends ConsumerState<_RecordLoanRepaymentSheet> {
   late TextEditingController _amountController;
   late TextEditingController _notesController;
   String? _selectedAccountId;
@@ -909,12 +1073,16 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
 
     setState(() => _isSaving = true);
     try {
-      await ref.read(transactionListNotifierProvider.notifier).recordLoanRepayment(
+      await ref
+          .read(transactionListNotifierProvider.notifier)
+          .recordLoanRepayment(
             originalTransactionId: widget.transaction.id,
             amountRepaid: amount,
             destinationAccountId: _selectedAccountId!,
             repaymentDate: _selectedDate,
-            notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
+            notes: _notesController.text.trim().isNotEmpty
+                ? _notesController.text.trim()
+                : null,
           );
 
       AppHaptics.success();
@@ -925,7 +1093,9 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Recorded repayment of ${CurrencyFormatter.format(amount)} from ${widget.loan.borrowerName}!'),
+            content: Text(
+              'Recorded repayment of ${CurrencyFormatter.format(amount)} from ${widget.loan.borrowerName}!',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -934,7 +1104,10 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to record repayment: $e'), backgroundColor: AppColors.expense),
+          SnackBar(
+            content: Text('Failed to record repayment: $e'),
+            backgroundColor: AppColors.expense,
+          ),
         );
       }
     }
@@ -983,10 +1156,16 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryEmerald.withAlpha(isDark ? 40 : 25),
+                        color: AppColors.primaryEmerald.withAlpha(
+                          isDark ? 40 : 25,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.handshake_rounded, color: AppColors.primaryEmerald, size: 24),
+                      child: const Icon(
+                        Icons.handshake_rounded,
+                        color: AppColors.primaryEmerald,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1028,7 +1207,9 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: AppColors.primaryEmerald,
@@ -1045,7 +1226,10 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
                         ),
                       ),
                     ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                    prefixIconConstraints: const BoxConstraints(
+                      minWidth: 0,
+                      minHeight: 0,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1073,7 +1257,10 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
                         '${acc.accountName} (${CurrencyFormatter.format(acc.currentBalance)})',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
                       ),
                     );
                   }).toList(),
@@ -1107,9 +1294,14 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      color: isDark
+                          ? AppColors.darkSurfaceVariant
+                          : AppColors.lightSurfaceVariant,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: financialColors.cardBorder),
                     ),
@@ -1120,7 +1312,10 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
                         Expanded(
                           child: Text(
                             DateFormat('dd MMMM yyyy').format(_selectedDate),
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
@@ -1155,12 +1350,27 @@ class _RecordLoanRepaymentSheetState extends ConsumerState<_RecordLoanRepaymentS
                       backgroundColor: AppColors.primaryEmerald,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     onPressed: _isSaving ? null : _submitRepayment,
                     child: _isSaving
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                        : const Text('Confirm Repayment', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          )
+                        : const Text(
+                            'Confirm Repayment',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                   ),
                 ),
               ],

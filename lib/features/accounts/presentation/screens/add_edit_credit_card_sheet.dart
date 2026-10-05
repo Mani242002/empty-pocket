@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/domain/entities/credit_card_entity.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../state/accounts_cards_provider.dart';
+import '../../../settings/presentation/state/backup_provider.dart';
 
 class AddEditCreditCardSheet extends ConsumerStatefulWidget {
   final CreditCardEntity? initialCard;
@@ -47,27 +49,47 @@ class _AddEditCreditCardSheetState
     {
       'id': 'obsidian',
       'name': 'Obsidian',
-      'gradient': [const Color(0xFF1E293B), const Color(0xFF0F172A), const Color(0xFF020617)],
+      'gradient': [
+        const Color(0xFF1E293B),
+        const Color(0xFF0F172A),
+        const Color(0xFF020617),
+      ],
     },
     {
       'id': 'emerald',
       'name': 'Emerald',
-      'gradient': [const Color(0xFF065F46), const Color(0xFF047857), const Color(0xFF064E3B)],
+      'gradient': [
+        const Color(0xFF065F46),
+        const Color(0xFF047857),
+        const Color(0xFF064E3B),
+      ],
     },
     {
       'id': 'midnightBlue',
       'name': 'Midnight',
-      'gradient': [const Color(0xFF1E3A8A), const Color(0xFF1E40AF), const Color(0xFF0F172A)],
+      'gradient': [
+        const Color(0xFF1E3A8A),
+        const Color(0xFF1E40AF),
+        const Color(0xFF0F172A),
+      ],
     },
     {
       'id': 'royalPurple',
       'name': 'Amethyst',
-      'gradient': [const Color(0xFF581C87), const Color(0xFF6B21A8), const Color(0xFF3B0764)],
+      'gradient': [
+        const Color(0xFF581C87),
+        const Color(0xFF6B21A8),
+        const Color(0xFF3B0764),
+      ],
     },
     {
       'id': 'roseGold',
       'name': 'Rose Gold',
-      'gradient': [const Color(0xFF9D174D), const Color(0xFFBE185D), const Color(0xFF831843)],
+      'gradient': [
+        const Color(0xFF9D174D),
+        const Color(0xFFBE185D),
+        const Color(0xFF831843),
+      ],
     },
   ];
 
@@ -81,15 +103,15 @@ class _AddEditCreditCardSheetState
     _limitController = TextEditingController(
       text: c != null
           ? (c.creditLimit == c.creditLimit.roundToDouble()
-              ? c.creditLimit.toInt().toString()
-              : c.creditLimit.toString())
+                ? c.creditLimit.toInt().toString()
+                : c.creditLimit.toString())
           : '',
     );
     _usedController = TextEditingController(
       text: c != null
           ? (c.usedAmount == c.usedAmount.roundToDouble()
-              ? c.usedAmount.toInt().toString()
-              : c.usedAmount.toString())
+                ? c.usedAmount.toInt().toString()
+                : c.usedAmount.toString())
           : '0',
     );
 
@@ -167,7 +189,9 @@ class _AddEditCreditCardSheetState
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Added "${newCard.cardName}" (${CurrencyFormatter.format(newCard.creditLimit)} limit)'),
+              content: Text(
+                'Added "${newCard.cardName}" (${CurrencyFormatter.format(newCard.creditLimit)} limit)',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -212,7 +236,9 @@ class _AddEditCreditCardSheetState
 
     if (confirmed == true && mounted) {
       try {
-        await ref.read(creditCardListProvider.notifier).deleteCard(widget.initialCard!.id);
+        await ref
+            .read(creditCardListProvider.notifier)
+            .deleteCard(widget.initialCard!.id);
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -238,6 +264,7 @@ class _AddEditCreditCardSheetState
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(currencyProvider);
     final theme = Theme.of(context);
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
@@ -288,7 +315,9 @@ class _AddEditCreditCardSheetState
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppColors.investment.withAlpha(isDark ? 40 : 25),
+                                color: AppColors.investment.withAlpha(
+                                  isDark ? 40 : 25,
+                                ),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
@@ -300,7 +329,9 @@ class _AddEditCreditCardSheetState
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                _isEditMode ? 'Edit Credit Card' : 'Add Credit Card',
+                                _isEditMode
+                                    ? 'Edit Credit Card'
+                                    : 'Add Credit Card',
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -313,7 +344,10 @@ class _AddEditCreditCardSheetState
                       ),
                       if (_isEditMode)
                         IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.expense),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: AppColors.expense,
+                          ),
                           onPressed: _delete,
                           tooltip: 'Delete Card',
                         ),
@@ -336,22 +370,29 @@ class _AddEditCreditCardSheetState
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _cardThemes.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         final th = _cardThemes[index];
                         final isSelected = _selectedTheme == th['id'];
                         final gradient = th['gradient'] as List<Color>;
 
                         return GestureDetector(
-                          onTap: () => setState(() => _selectedTheme = th['id']),
+                          onTap: () =>
+                              setState(() => _selectedTheme = th['id']),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(colors: gradient),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isSelected ? Colors.white : Colors.transparent,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.transparent,
                                 width: isSelected ? 2 : 0,
                               ),
                               boxShadow: isSelected
@@ -370,7 +411,9 @@ class _AddEditCreditCardSheetState
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
-                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -431,7 +474,10 @@ class _AddEditCreditCardSheetState
                                 controller: _bankController,
                                 decoration: const InputDecoration(
                                   hintText: 'e.g. HDFC, ICICI, Axis',
-                                  prefixIcon: Icon(Icons.corporate_fare_rounded, size: 18),
+                                  prefixIcon: Icon(
+                                    Icons.corporate_fare_rounded,
+                                    size: 18,
+                                  ),
                                 ),
                                 onChanged: (_) => setState(() {}),
                               ),
@@ -459,7 +505,10 @@ class _AddEditCreditCardSheetState
                                 isExpanded: true,
                                 isDense: true,
                                 decoration: const InputDecoration(
-                                  prefixIcon: Icon(Icons.payment_rounded, size: 18),
+                                  prefixIcon: Icon(
+                                    Icons.payment_rounded,
+                                    size: 18,
+                                  ),
                                 ),
                                 items: CardNetwork.values.map((net) {
                                   return DropdownMenuItem(
@@ -473,7 +522,9 @@ class _AddEditCreditCardSheetState
                                   );
                                 }).toList(),
                                 onChanged: (val) {
-                                  if (val != null) setState(() => _selectedNetwork = val);
+                                  if (val != null) {
+                                    setState(() => _selectedNetwork = val);
+                                  }
                                 },
                               ),
                             ],
@@ -505,17 +556,27 @@ class _AddEditCreditCardSheetState
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _limitController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                  ),
                                 ],
                                 decoration: InputDecoration(
-                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  prefixText:
+                                      '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '200000',
                                 ),
                                 validator: (val) {
-                                  if (val == null || val.trim().isEmpty) return 'Enter limit';
-                                  if ((double.tryParse(val) ?? 0) <= 0) return 'Invalid limit';
+                                  if (val == null || val.trim().isEmpty) {
+                                    return 'Enter limit';
+                                  }
+                                  if ((double.tryParse(val) ?? 0) <= 0) {
+                                    return 'Invalid limit';
+                                  }
                                   return null;
                                 },
                                 onChanged: (_) => setState(() {}),
@@ -540,12 +601,18 @@ class _AddEditCreditCardSheetState
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _usedController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                  ),
                                 ],
                                 decoration: InputDecoration(
-                                  prefixText: '${CurrencyFormatter.activeCurrency.symbol} ',
+                                  prefixText:
+                                      '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '0',
                                 ),
                                 onChanged: (_) => setState(() {}),
@@ -576,7 +643,9 @@ class _AddEditCreditCardSheetState
                             fontWeight: FontWeight.w700,
                             color: ratio <= 30
                                 ? financialColors.income
-                                : (ratio <= 50 ? financialColors.warning : financialColors.expense),
+                                : (ratio <= 50
+                                      ? financialColors.warning
+                                      : financialColors.expense),
                           ),
                         ),
                       ],
@@ -613,7 +682,10 @@ class _AddEditCreditCardSheetState
                             isDense: true,
                             decoration: const InputDecoration(
                               labelText: 'Statement Day',
-                              prefixIcon: Icon(Icons.receipt_long_rounded, size: 18),
+                              prefixIcon: Icon(
+                                Icons.receipt_long_rounded,
+                                size: 18,
+                              ),
                             ),
                             items: List.generate(31, (i) => i + 1).map((day) {
                               return DropdownMenuItem(
@@ -627,7 +699,9 @@ class _AddEditCreditCardSheetState
                               );
                             }).toList(),
                             onChanged: (val) {
-                              if (val != null) setState(() => _selectedStatementDay = val);
+                              if (val != null) {
+                                setState(() => _selectedStatementDay = val);
+                              }
                             },
                           ),
                         ),
@@ -640,7 +714,10 @@ class _AddEditCreditCardSheetState
                             isDense: true,
                             decoration: const InputDecoration(
                               labelText: 'Grace Period',
-                              prefixIcon: Icon(Icons.timelapse_rounded, size: 18),
+                              prefixIcon: Icon(
+                                Icons.timelapse_rounded,
+                                size: 18,
+                              ),
                             ),
                             items: [15, 18, 20, 22, 25, 28, 30].map((days) {
                               return DropdownMenuItem(
@@ -654,7 +731,9 @@ class _AddEditCreditCardSheetState
                               );
                             }).toList(),
                             onChanged: (val) {
-                              if (val != null) setState(() => _selectedGracePeriod = val);
+                              if (val != null) {
+                                setState(() => _selectedGracePeriod = val);
+                              }
                             },
                           ),
                         ),
@@ -674,7 +753,10 @@ class _AddEditCreditCardSheetState
                       onPressed: _save,
                       child: Text(
                         _isEditMode ? 'Save Changes' : 'Add Credit Card',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
