@@ -136,7 +136,7 @@ void main() {
           recurringExpenses: [recurring],
         );
 
-        expect(jsonStr, contains('"schemaVersion": 12'));
+        expect(jsonStr, contains('"schemaVersion": 14'));
         expect(jsonStr, contains('"transactionsCount": 1'));
 
         final parsed = backupService.parseBackupJson(jsonStr);
@@ -175,6 +175,73 @@ void main() {
             contains('newer than supported'),
           ),
         ),
+      );
+    });
+
+    test('parseBackupJson rejects a missing collection before restore can wipe data', () {
+      final decoded = jsonDecode(
+        backupService.exportFullDatabaseJson(
+          transactions: [],
+          budgets: [],
+          savingsGoals: [],
+          savingsContributions: [],
+          debts: [],
+          debtPayments: [],
+          investments: [],
+          recurringExpenses: [],
+        ),
+      ) as Map<String, dynamic>;
+      decoded.remove('transactions');
+
+      expect(
+        () => backupService.parseBackupJson(jsonEncode(decoded)),
+        throwsA(isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          contains('transactions'),
+        )),
+      );
+    });
+
+    test('parseBackupJson rejects collection counts that do not match the data', () {
+      final decoded = jsonDecode(
+        backupService.exportFullDatabaseJson(
+          transactions: [],
+          budgets: [],
+          savingsGoals: [],
+          savingsContributions: [],
+          debts: [],
+          debtPayments: [],
+          investments: [],
+          recurringExpenses: [],
+        ),
+      ) as Map<String, dynamic>;
+      (decoded['metadata'] as Map<String, dynamic>)['transactionsCount'] = 1;
+
+      expect(
+        () => backupService.parseBackupJson(jsonEncode(decoded)),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('parseBackupJson rejects current backups missing integrity counts', () {
+      final decoded = jsonDecode(
+        backupService.exportFullDatabaseJson(
+          transactions: [],
+          budgets: [],
+          savingsGoals: [],
+          savingsContributions: [],
+          debts: [],
+          debtPayments: [],
+          investments: [],
+          recurringExpenses: [],
+        ),
+      ) as Map<String, dynamic>;
+      (decoded['metadata'] as Map<String, dynamic>).remove('transactionsCount');
+
+      expect(
+        () => backupService.parseBackupJson(jsonEncode(decoded)),
+        throwsA(isA<FormatException>()),
       );
     });
 
@@ -340,6 +407,15 @@ invalid-date-string,Corrupt Date Row,Misc,300.00,Expense
 
       // The 3rd transaction date should default to roughly now
       expect(result.transactions[2].date.isAfter(DateTime(2025)), isTrue);
+    });
+
+    test('CSV import rejects an unclosed quoted field', () {
+      expect(
+        () => backupService.parseTransactionsFromCsvWithResult(
+          'Date,Title,Amount,Category\n2026-10-10,"Unclosed,25,Food',
+        ),
+        throwsA(isA<FormatException>()),
+      );
     });
   });
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
@@ -996,6 +997,7 @@ Guidelines:
     }
 
     final url = Uri.parse(rawUrl);
+    _validateCustomEndpointUri(url);
 
     final List<Map<String, String>> messages = [
       {'role': 'system', 'content': systemPrompt},
@@ -1084,6 +1086,53 @@ Guidelines:
     throw Exception(
       'Custom endpoint returned unexpected JSON response structure: ${response.body.substring(0, 200.clamp(0, response.body.length))}',
     );
+  }
+
+  void _validateCustomEndpointUri(Uri uri) {
+    if (!uri.hasAuthority || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
+      throw const FormatException(
+        'Custom endpoint must be a valid URL without embedded credentials.',
+      );
+    }
+    if (uri.scheme == 'https') return;
+    if (uri.scheme != 'http') {
+      throw const FormatException(
+        'Custom endpoint must use HTTPS, or HTTP on a local network host.',
+      );
+    }
+
+    final host = uri.host.toLowerCase();
+    final address = InternetAddress.tryParse(host);
+    final isLocalName = host == 'localhost' ||
+        host.endsWith('.localhost') ||
+        host.endsWith('.local');
+    final isPrivateIpv4 = address != null &&
+        address.type == InternetAddressType.IPv4 &&
+        _isPrivateIpv4(address.address);
+    final ipv6Address = address?.address.toLowerCase() ?? '';
+    final isPrivateIpv6 = address != null &&
+        address.type == InternetAddressType.IPv6 &&
+        (address.isLoopback ||
+            address.isLinkLocal ||
+            ipv6Address.startsWith('fc') ||
+            ipv6Address.startsWith('fd'));
+    if (!isLocalName && !isPrivateIpv4 && !isPrivateIpv6) {
+      throw const FormatException(
+        'HTTP is allowed only for local-network custom endpoints. Use HTTPS for public hosts.',
+      );
+    }
+  }
+
+  bool _isPrivateIpv4(String address) {
+    final parts = address.split('.').map(int.tryParse).toList();
+    if (parts.length != 4 || parts.any((part) => part == null)) return false;
+    final a = parts[0]!;
+    final b = parts[1]!;
+    return a == 10 ||
+        a == 127 ||
+        (a == 172 && b >= 16 && b <= 31) ||
+        (a == 192 && b == 168) ||
+        (a == 169 && b == 254);
   }
 
   /// Parses raw LLM text into a structured AiAuditReport

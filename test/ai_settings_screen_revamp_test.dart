@@ -138,7 +138,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Check presets exist
-        expect(find.text('Ollama (Localhost)'), findsOneWidget);
+        expect(find.text('Ollama (device localhost)'), findsOneWidget);
         expect(find.text('LM Studio'), findsOneWidget);
         expect(find.text('vLLM'), findsOneWidget);
 

@@ -411,6 +411,11 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
   Widget build(BuildContext context) {
     // Re-render navigation tree when user alters the regional currency preference
     ref.watch(currencyProvider);
+    final mediaQuery = MediaQuery.of(context);
+    final textScale = mediaQuery.textScaler.scale(12) / 12;
+    final navLabelBehavior = textScale >= 1.6
+        ? NavigationDestinationLabelBehavior.alwaysHide
+        : NavigationDestinationLabelBehavior.alwaysShow;
 
     final screens = [
       DashboardScreen(
@@ -462,31 +467,37 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
         bottomNavigationBar: NavigationBar(
           selectedIndex: _currentIndex,
           onDestinationSelected: _onTabSelected,
+          labelBehavior: navLabelBehavior,
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
               selectedIcon: Icon(Icons.dashboard_rounded),
               label: 'Dashboard',
+              tooltip: 'Dashboard',
             ),
             NavigationDestination(
               icon: Icon(Icons.receipt_long_outlined),
               selectedIcon: Icon(Icons.receipt_long_rounded),
               label: 'Transactions',
+              tooltip: 'Transactions',
             ),
             NavigationDestination(
               icon: Icon(Icons.pie_chart_outline_rounded),
               selectedIcon: Icon(Icons.pie_chart_rounded),
               label: 'Budgets',
+              tooltip: 'Budgets',
             ),
             NavigationDestination(
               icon: Icon(Icons.insights_outlined),
               selectedIcon: Icon(Icons.insights_rounded),
               label: 'Reports',
+              tooltip: 'Reports',
             ),
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
               selectedIcon: Icon(Icons.settings_rounded),
               label: 'Settings',
+              tooltip: 'Settings',
             ),
           ],
         ),

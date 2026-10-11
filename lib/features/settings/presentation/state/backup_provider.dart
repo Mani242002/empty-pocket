@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../app/theme/theme_provider.dart';
 import '../../../../core/domain/entities/ai_assistant_entity.dart';
 import '../../../../core/domain/entities/bank_account_entity.dart';
 import '../../../../core/domain/entities/budget_entity.dart';
@@ -37,6 +39,10 @@ import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 
 final backupServiceProvider = Provider<BackupService>((ref) => BackupService());
+
+const FlutterSecureStorage _factoryResetSecureStorage = FlutterSecureStorage(
+  aOptions: AndroidOptions(encryptedSharedPreferences: true),
+);
 
 class CsvImportSummary {
   final int totalImported;
@@ -103,7 +109,7 @@ class AppLockNotifier extends AsyncNotifier<bool> {
       return prefs.getBool(_keyAppLock) ?? false;
     } catch (e, st) {
       LogService.error('AppLockNotifier', 'build error', e, st);
-      return false;
+      rethrow;
     }
   }
 
@@ -112,7 +118,10 @@ class AppLockNotifier extends AsyncNotifier<bool> {
     state = await AsyncValue.guard(() async {
       try {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool(_keyAppLock, enabled);
+        final stored = await prefs.setBool(_keyAppLock, enabled);
+        if (!stored) {
+          throw StateError('Failed to persist app lock setting.');
+        }
         return enabled;
       } catch (e, st) {
         LogService.error('AppLockNotifier', 'toggleAppLock error', e, st);
@@ -510,6 +519,9 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
       final chatRepo = ref.read(aiChatRepositoryProvider);
       final aiReportsRepo = ref.read(aiReportsRepositoryProvider);
 
+      // Stop the separate overlay isolate before opening the database wipe
+      // transaction so it cannot race the reset with another write.
+      await OverlayService.closeOverlay(propagateErrors: true);
       await backupService.wipeAllData(
         transactionRepo: txRepo,
         budgetRepo: budgetRepo,
@@ -523,8 +535,25 @@ class BackupOperationsNotifier extends StateNotifier<AsyncValue<String?>> {
         aiReportsRepo: aiReportsRepo,
       );
 
+      // A factory reset includes preferences and API credentials as well as
+      // database rows. Stop the persistent overlay before dropping its saved
+      // state so it cannot outlive the reset.
+      await _factoryResetSecureStorage.deleteAll();
+      final prefs = await SharedPreferences.getInstance();
+      final preferencesCleared = await prefs.clear();
+      if (!preferencesCleared) {
+        throw StateError('Unable to clear local application preferences.');
+      }
+
       _refreshAllProviders();
-      state = const AsyncValue.data('All offline financial data wiped.');
+      ref.invalidate(appLockProvider);
+      ref.invalidate(currencyProvider);
+      ref.invalidate(themeModeProvider);
+      ref.invalidate(aiProviderConfigProvider);
+      ref.invalidate(floatingBubbleProvider);
+      state = const AsyncValue.data(
+        'All local data, preferences, and stored credentials were cleared.',
+      );
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;

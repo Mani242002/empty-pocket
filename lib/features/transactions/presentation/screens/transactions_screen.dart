@@ -46,9 +46,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         setState(() {
           _displayLimit += 50;
         });
-        ref
-            .read(transactionListNotifierProvider.notifier)
-            .loadMore(pageSize: 50);
       }
     }
   }
@@ -454,12 +451,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                       setState(() {
                                         _displayLimit += 50;
                                       });
-                                      ref
-                                          .read(
-                                            transactionListNotifierProvider
-                                                .notifier,
-                                          )
-                                          .loadMore(pageSize: 50);
                                     },
                                     icon: const Icon(
                                       Icons.expand_more_rounded,

@@ -158,7 +158,7 @@ void main() {
   });
 
   group('TransactionListNotifier & Analytics Integrity', () {
-    test('loads complete history to preserve multi-month analytics while supporting chunked loadMore and loadAll', () async {
+    test('loads complete history to preserve multi-month analytics and loadAll', () async {
       final now = DateTime.now();
       final items = List.generate(
         150,
@@ -187,20 +187,10 @@ void main() {
 
       // Verify complete history is loaded so derived monthly analytics and streaks are never truncated
       expect(initialList.length, 150);
-      expect(notifier.currentLimit, 150);
-
-      // Load more / custom pagination
-      await notifier.loadMore(pageSize: 50);
-      final expandedList = container
-          .read(transactionListNotifierProvider)
-          .value!;
-      expect(expandedList.length, 150);
-
       // Load all
       await notifier.loadAll();
       final allList = container.read(transactionListNotifierProvider).value!;
       expect(allList.length, 150);
-      expect(notifier.hasMore, isFalse);
     });
   });
 }

@@ -51,12 +51,15 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
+  final Map<String, Future<void>> _pendingApiKeyWrites = {};
+  int _configurationRevision = 0;
 
   AiProviderConfigNotifier() : super(const AiProviderConfig()) {
     _loadConfig();
   }
 
   Future<void> _loadConfig() async {
+    final revisionWhenLoadStarted = _configurationRevision;
     try {
       final prefs = await SharedPreferences.getInstance();
       final providerStr = prefs.getString(_keyProvider) ?? 'gemini';
@@ -73,7 +76,7 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
           prefs.getString(_keyDeepSeekModel) ?? 'deepseek-flash';
       final customModel = prefs.getString(_keyCustomModel) ?? 'llama-4-scout';
       final customBaseUrl =
-          prefs.getString(_keyCustomBaseUrl) ?? 'http://10.0.2.2:11434/v1';
+          prefs.getString(_keyCustomBaseUrl) ?? '';
       final customSavedModels =
           prefs.getStringList(_keyCustomSavedModels) ??
           const [
@@ -111,15 +114,24 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
       }
 
       // Legacy key fallback & migration
-      if ((geminiKey == null || geminiKey.isEmpty) &&
+      if (revisionWhenLoadStarted == _configurationRevision &&
+          (geminiKey == null || geminiKey.isEmpty) &&
           prefs.containsKey(_keyLegacyApiKey)) {
         final legacyKey = prefs.getString(_keyLegacyApiKey) ?? '';
         if (legacyKey.isNotEmpty) {
-          geminiKey = legacyKey;
           try {
             await _secureStorage.write(key: _keyGeminiApiKey, value: legacyKey);
-          } catch (_) {}
-          await prefs.remove(_keyLegacyApiKey);
+            geminiKey = legacyKey;
+            await prefs.remove(_keyLegacyApiKey);
+          } catch (e, st) {
+            LogService.error(
+              'AiProviderConfigNotifier',
+              'Legacy API key migration failed; keeping the saved value intact',
+              e,
+              st,
+            );
+            geminiKey = legacyKey;
+          }
         }
       }
 
@@ -131,6 +143,7 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
         }
       }
 
+      if (revisionWhenLoadStarted != _configurationRevision) return;
       state = AiProviderConfig(
         providerType: provider,
         geminiApiKey: geminiKey ?? '',
@@ -156,50 +169,80 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
   }
 
   Future<void> updateProvider(AiProviderType provider) async {
+    _configurationRevision++;
     state = state.copyWith(providerType: provider);
     await _saveConfig();
   }
 
   Future<void> updateApiKeyFor(AiProviderType provider, String apiKey) async {
+    _configurationRevision++;
     final key = apiKey.trim().replaceAll(RegExp(r'["\x27\r\n]'), '');
     String storageKey;
     switch (provider) {
       case AiProviderType.gemini:
         storageKey = _keyGeminiApiKey;
-        state = state.copyWith(geminiApiKey: key);
         break;
       case AiProviderType.openAi:
         storageKey = _keyOpenAiApiKey;
-        state = state.copyWith(openAiApiKey: key);
         break;
       case AiProviderType.anthropic:
         storageKey = _keyAnthropicApiKey;
-        state = state.copyWith(anthropicApiKey: key);
         break;
       case AiProviderType.groq:
         storageKey = _keyGroqApiKey;
-        state = state.copyWith(groqApiKey: key);
         break;
       case AiProviderType.openRouter:
         storageKey = _keyOpenRouterApiKey;
-        state = state.copyWith(openRouterApiKey: key);
         break;
       case AiProviderType.deepSeek:
         storageKey = _keyDeepSeekApiKey;
-        state = state.copyWith(deepSeekApiKey: key);
         break;
       case AiProviderType.custom:
         storageKey = _keyCustomApiKey;
-        state = state.copyWith(customApiKey: key);
         break;
     }
 
+    final previousWrite =
+        _pendingApiKeyWrites[storageKey] ?? Future<void>.value();
+    late final Future<void> write;
+    write = previousWrite
+        .catchError((Object _) {})
+        .then((_) async {
+          if (key.isEmpty) {
+            await _secureStorage.delete(key: storageKey);
+          } else {
+            await _secureStorage.write(key: storageKey, value: key);
+          }
+
+          // Apply the key to the latest state so concurrent model/provider
+          // edits are not replaced by a stale snapshot.
+          switch (provider) {
+            case AiProviderType.gemini:
+              state = state.copyWith(geminiApiKey: key);
+              break;
+            case AiProviderType.openAi:
+              state = state.copyWith(openAiApiKey: key);
+              break;
+            case AiProviderType.anthropic:
+              state = state.copyWith(anthropicApiKey: key);
+              break;
+            case AiProviderType.groq:
+              state = state.copyWith(groqApiKey: key);
+              break;
+            case AiProviderType.openRouter:
+              state = state.copyWith(openRouterApiKey: key);
+              break;
+            case AiProviderType.deepSeek:
+              state = state.copyWith(deepSeekApiKey: key);
+              break;
+            case AiProviderType.custom:
+              state = state.copyWith(customApiKey: key);
+              break;
+          }
+        });
+    _pendingApiKeyWrites[storageKey] = write;
     try {
-      if (key.isEmpty) {
-        await _secureStorage.delete(key: storageKey);
-      } else {
-        await _secureStorage.write(key: storageKey, value: key);
-      }
+      await write;
     } catch (e, st) {
       LogService.error(
         'AiProviderConfigNotifier',
@@ -207,10 +250,16 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
         e,
         st,
       );
+      rethrow;
+    } finally {
+      if (identical(_pendingApiKeyWrites[storageKey], write)) {
+        _pendingApiKeyWrites.remove(storageKey);
+      }
     }
   }
 
   Future<void> updateModelFor(AiProviderType provider, String model) async {
+    _configurationRevision++;
     switch (provider) {
       case AiProviderType.gemini:
         state = state.copyWith(geminiModel: model);
@@ -238,6 +287,7 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
   }
 
   Future<void> updateCustomBaseUrl(String url) async {
+    _configurationRevision++;
     state = state.copyWith(customBaseUrl: url.trim());
     await _saveConfig();
   }
@@ -245,12 +295,14 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
   Future<void> addCustomSavedModel(String modelName) async {
     final clean = modelName.trim();
     if (clean.isEmpty || state.customSavedModels.contains(clean)) return;
+    _configurationRevision++;
     final updated = [...state.customSavedModels, clean];
     state = state.copyWith(customSavedModels: updated, customModel: clean);
     await _saveConfig();
   }
 
   Future<void> removeCustomSavedModel(String modelName) async {
+    _configurationRevision++;
     final updated = state.customSavedModels
         .where((m) => m != modelName)
         .toList();

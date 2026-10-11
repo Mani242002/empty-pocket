@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import 'log_service.dart';
 import '../database/app_database.dart';
 import '../domain/entities/ai_assistant_entity.dart';
 import '../domain/entities/backup_entity.dart';
@@ -78,7 +77,7 @@ class _AmountParseOutcome {
 
 class BackupService {
   /// The current schema version supported by this version of EmptyPocket.
-  static const int currentSchemaVersion = 12;
+  static const int currentSchemaVersion = 14;
 
   /// Generate a full structured JSON backup string
   String exportFullDatabaseJson({
@@ -139,6 +138,11 @@ class BackupService {
   FullDatabaseBackup parseBackupJson(String jsonContent) {
     try {
       final decoded = jsonDecode(jsonContent) as Map<String, dynamic>;
+      final metadata = decoded['metadata'];
+      if (metadata != null && metadata is! Map<String, dynamic>) {
+        throw const FormatException('Backup metadata must be a JSON object.');
+      }
+      final metadataJson = metadata as Map<String, dynamic>? ?? const {};
       final backup = FullDatabaseBackup.fromJson(decoded);
       if (backup.metadata.schemaVersion > currentSchemaVersion) {
         throw FormatException(
@@ -146,11 +150,225 @@ class BackupService {
           'Please update EmptyPocket to the latest version to restore this backup.',
         );
       }
-      return backup;
+      if (backup.metadata.schemaVersion < 1) {
+        throw const FormatException('Backup schema version must be positive.');
+      }
+
+      // Core collections are required once they existed in the corresponding
+      // app schema. Treating a missing collection as empty can turn an
+      // incomplete backup into a successful restore that deletes user data.
+      final requiredCollections = <String, int>{
+        'transactions': 1,
+        'budgets': 2,
+        'recurringExpenses': 2,
+        'savingsGoals': 3,
+        'savingsContributions': 3,
+        'debts': 4,
+        'debtPayments': 4,
+        'investments': 5,
+        'chatSessions': 7,
+        'chatMessages': 7,
+        'bankAccounts': 8,
+        'creditCards': 8,
+        'aiReports': 11,
+      };
+      for (final entry in requiredCollections.entries) {
+        if (backup.metadata.schemaVersion >= entry.value &&
+            !decoded.containsKey(entry.key)) {
+          throw FormatException(
+            'Backup is incomplete: required collection "${entry.key}" is missing.',
+          );
+        }
+      }
+
+      const currentCountFields = [
+        'transactionsCount',
+        'budgetsCount',
+        'savingsGoalsCount',
+        'savingsContributionsCount',
+        'debtsCount',
+        'debtPaymentsCount',
+        'investmentsCount',
+        'recurringExpensesCount',
+        'chatSessionsCount',
+        'chatMessagesCount',
+        'bankAccountsCount',
+        'creditCardsCount',
+        'aiReportsCount',
+      ];
+      for (final countField in currentCountFields) {
+        if (backup.metadata.schemaVersion == currentSchemaVersion &&
+            !metadataJson.containsKey(countField)) {
+          throw FormatException(
+            'Backup is incomplete: metadata field "$countField" is missing.',
+          );
+        }
+      }
+
+      if (backup.metadata.schemaVersion >= 14) {
+        _requireFieldOnEveryRecord(decoded, 'savingsContributions', 'transaction_id');
+        _requireFieldOnEveryRecord(decoded, 'debtPayments', 'transaction_id');
+      }
+
+      _validateDeclaredBackupCounts(decoded, metadataJson);
+      return _withActualBackupCounts(backup);
     } on FormatException {
       rethrow;
     } catch (e) {
       throw FormatException('Invalid or corrupted backup JSON file: $e');
+    }
+  }
+
+  void _requireFieldOnEveryRecord(
+    Map<String, dynamic> decoded,
+    String collectionName,
+    String fieldName,
+  ) {
+    final records = decoded[collectionName] as List<dynamic>;
+    for (var index = 0; index < records.length; index++) {
+      final record = records[index] as Map<String, dynamic>;
+      if (!record.containsKey(fieldName)) {
+        throw FormatException(
+          'Backup is incomplete: "$collectionName" record ${index + 1} is missing "$fieldName".',
+        );
+      }
+    }
+  }
+
+  void _validateDeclaredBackupCounts(
+    Map<String, dynamic> decoded,
+    Map<String, dynamic> metadata,
+  ) {
+    const countToCollection = <String, String>{
+      'transactionsCount': 'transactions',
+      'budgetsCount': 'budgets',
+      'savingsGoalsCount': 'savingsGoals',
+      'savingsContributionsCount': 'savingsContributions',
+      'debtsCount': 'debts',
+      'debtPaymentsCount': 'debtPayments',
+      'investmentsCount': 'investments',
+      'recurringExpensesCount': 'recurringExpenses',
+      'chatSessionsCount': 'chatSessions',
+      'chatMessagesCount': 'chatMessages',
+      'bankAccountsCount': 'bankAccounts',
+      'creditCardsCount': 'creditCards',
+      'aiReportsCount': 'aiReports',
+    };
+
+    for (final entry in countToCollection.entries) {
+      if (!metadata.containsKey(entry.key)) continue;
+      final expected = metadata[entry.key];
+      final collection = decoded[entry.value];
+      if (expected is! int || expected < 0) {
+        throw FormatException('Backup metadata "${entry.key}" must be a non-negative integer.');
+      }
+      if (collection != null && collection is! List) {
+        throw FormatException('Backup collection "${entry.value}" must be a list.');
+      }
+      final actual = (collection as List<dynamic>?)?.length ?? 0;
+      if (actual != expected) {
+        throw FormatException(
+          'Backup is incomplete: ${entry.key} says $expected but "${entry.value}" contains $actual records.',
+        );
+      }
+    }
+  }
+
+  FullDatabaseBackup _withActualBackupCounts(FullDatabaseBackup backup) {
+    final old = backup.metadata;
+    final metadata = BackupMetadata(
+      schemaVersion: old.schemaVersion,
+      exportedAt: old.exportedAt,
+      transactionsCount: backup.transactions.length,
+      budgetsCount: backup.budgets.length,
+      savingsGoalsCount: backup.savingsGoals.length,
+      savingsContributionsCount: backup.savingsContributions.length,
+      debtsCount: backup.debts.length,
+      debtPaymentsCount: backup.debtPayments.length,
+      investmentsCount: backup.investments.length,
+      recurringExpensesCount: backup.recurringExpenses.length,
+      chatSessionsCount: backup.chatSessions.length,
+      chatMessagesCount: backup.chatMessages.length,
+      bankAccountsCount: backup.bankAccounts.length,
+      creditCardsCount: backup.creditCards.length,
+      aiReportsCount: backup.aiReports.length,
+    );
+    return FullDatabaseBackup(
+      metadata: metadata,
+      transactions: backup.transactions,
+      budgets: backup.budgets,
+      savingsGoals: backup.savingsGoals,
+      savingsContributions: backup.savingsContributions,
+      debts: backup.debts,
+      debtPayments: backup.debtPayments,
+      investments: backup.investments,
+      recurringExpenses: backup.recurringExpenses,
+      chatSessions: backup.chatSessions,
+      chatMessages: backup.chatMessages,
+      bankAccounts: backup.bankAccounts,
+      creditCards: backup.creditCards,
+      aiReports: backup.aiReports,
+    );
+  }
+
+  void _validateTypedBackupCounts(FullDatabaseBackup backup) {
+    if (backup.metadata.schemaVersion < 1 ||
+        backup.metadata.schemaVersion > currentSchemaVersion) {
+      throw const FormatException('Backup schema version is not supported.');
+    }
+
+    final counts = <String, (int, int)>{
+      'transactionsCount': (backup.metadata.transactionsCount, backup.transactions.length),
+      'budgetsCount': (backup.metadata.budgetsCount, backup.budgets.length),
+      'savingsGoalsCount': (backup.metadata.savingsGoalsCount, backup.savingsGoals.length),
+      'savingsContributionsCount': (backup.metadata.savingsContributionsCount, backup.savingsContributions.length),
+      'debtsCount': (backup.metadata.debtsCount, backup.debts.length),
+      'debtPaymentsCount': (backup.metadata.debtPaymentsCount, backup.debtPayments.length),
+      'investmentsCount': (backup.metadata.investmentsCount, backup.investments.length),
+      'recurringExpensesCount': (backup.metadata.recurringExpensesCount, backup.recurringExpenses.length),
+      'chatSessionsCount': (backup.metadata.chatSessionsCount, backup.chatSessions.length),
+      'chatMessagesCount': (backup.metadata.chatMessagesCount, backup.chatMessages.length),
+      'bankAccountsCount': (backup.metadata.bankAccountsCount, backup.bankAccounts.length),
+      'creditCardsCount': (backup.metadata.creditCardsCount, backup.creditCards.length),
+      'aiReportsCount': (backup.metadata.aiReportsCount, backup.aiReports.length),
+    };
+    for (final entry in counts.entries) {
+      if (entry.value.$1 != entry.value.$2) {
+        throw FormatException(
+          'Backup is inconsistent: ${entry.key} says ${entry.value.$1} but the collection contains ${entry.value.$2} records.',
+        );
+      }
+    }
+
+    _validateUniqueIds('transactions', backup.transactions.map((item) => item.id));
+    _validateUniqueIds('budgets', backup.budgets.map((item) => item.id));
+    _validateUniqueIds('savingsGoals', backup.savingsGoals.map((item) => item.id));
+    _validateUniqueIds(
+      'savingsContributions',
+      backup.savingsContributions.map((item) => item.id),
+    );
+    _validateUniqueIds('debts', backup.debts.map((item) => item.id));
+    _validateUniqueIds('debtPayments', backup.debtPayments.map((item) => item.id));
+    _validateUniqueIds('investments', backup.investments.map((item) => item.id));
+    _validateUniqueIds(
+      'recurringExpenses',
+      backup.recurringExpenses.map((item) => item.id),
+    );
+    _validateUniqueIds('chatSessions', backup.chatSessions.map((item) => item.id));
+    _validateUniqueIds('chatMessages', backup.chatMessages.map((item) => item.id));
+    _validateUniqueIds('bankAccounts', backup.bankAccounts.map((item) => item.id));
+    _validateUniqueIds('creditCards', backup.creditCards.map((item) => item.id));
+    _validateUniqueIds('aiReports', backup.aiReports.map((item) => item.id));
+  }
+
+  void _validateUniqueIds(String collection, Iterable<String> ids) {
+    final seen = <String>{};
+    for (final id in ids) {
+      if (id.trim().isEmpty || !seen.add(id)) {
+        throw FormatException(
+          'Backup collection "$collection" contains an empty or duplicate record ID.',
+        );
+      }
     }
   }
 
@@ -755,6 +973,9 @@ class BackupService {
         }
       }
     }
+    if (inQuotes) {
+      throw const FormatException('CSV contains an unclosed quoted field.');
+    }
     if (currentField.isNotEmpty || currentRow.isNotEmpty) {
       currentRow.add(currentField.toString().trim());
       if (currentRow.isNotEmpty &&
@@ -779,12 +1000,35 @@ class BackupService {
     AiChatRepository? aiChatRepo,
     AiReportsRepository? aiReportsRepo,
   }) async {
+    _validateTypedBackupCounts(backup);
     final isSqlite = transactionRepo is SqliteTransactionRepository;
 
     if (isSqlite) {
       // Perform atomic wipe + restore inside a single ACID SQLite transaction
       await AppDatabase.instance.atomicRestoreBackup(backup);
       return;
+    }
+
+    if (backup.bankAccounts.isNotEmpty && bankAccountRepo == null) {
+      throw StateError(
+        'Cannot restore bank accounts without a bank account repository.',
+      );
+    }
+    if (backup.creditCards.isNotEmpty && creditCardRepo == null) {
+      throw StateError(
+        'Cannot restore credit cards without a credit card repository.',
+      );
+    }
+    if ((backup.chatSessions.isNotEmpty || backup.chatMessages.isNotEmpty) &&
+        aiChatRepo == null) {
+      throw StateError(
+        'Cannot restore AI chat history without an AI chat repository.',
+      );
+    }
+    if (backup.aiReports.isNotEmpty && aiReportsRepo == null) {
+      throw StateError(
+        'Cannot restore AI reports without an AI reports repository.',
+      );
     }
 
     // 1. Wipe existing records to prevent conflicts (in-memory mock repos)
@@ -885,28 +1129,11 @@ class BackupService {
     AiReportsRepository? aiReportsRepo,
   }) async {
     if (transactionRepo is SqliteTransactionRepository) {
-      try {
-        await AppDatabase.instance.clearAllData();
-        return;
-      } catch (e, st) {
-        LogService.warning(
-          'BackupService',
-          'Atomic clearAllData failed, falling back to individual repository deletes: $e',
-        );
-        LogService.error(
-          'BackupService',
-          'clearAllData failure details',
-          e,
-          st,
-        );
-      }
+      await AppDatabase.instance.clearAllData();
+      return;
     }
 
-    try {
-      await transactionRepo.clearAllTransactions();
-    } catch (err, st) {
-      LogService.error('BackupService', 'clearAllTransactions error', err, st);
-    }
+    await transactionRepo.clearAllTransactions();
 
     final allBudgets = await budgetRepo.getAllBudgets();
     for (final b in allBudgets) {
@@ -948,19 +1175,11 @@ class BackupService {
     }
 
     if (aiChatRepo != null) {
-      try {
-        await aiChatRepo.clearAllChatHistory();
-      } catch (err, st) {
-        LogService.error('BackupService', 'clearAllChatHistory error', err, st);
-      }
+      await aiChatRepo.clearAllChatHistory();
     }
 
     if (aiReportsRepo != null) {
-      try {
-        await aiReportsRepo.clearAllReports();
-      } catch (err, st) {
-        LogService.error('BackupService', 'clearAllReports error', err, st);
-      }
+      await aiReportsRepo.clearAllReports();
     }
   }
 }

@@ -177,7 +177,7 @@ class OverlayService {
   }
 
   /// Close the overlay completely
-  static Future<void> closeOverlay() async {
+  static Future<void> closeOverlay({bool propagateErrors = false}) async {
     try {
       try {
         const overlayChannel = MethodChannel('dev.emptypocket.app/overlay');
@@ -193,6 +193,7 @@ class OverlayService {
       LogService.info(_tag, 'Overlay closed.');
     } catch (e, stack) {
       LogService.error(_tag, 'closeOverlay error', e, stack);
+      if (propagateErrors) rethrow;
     }
   }
 }

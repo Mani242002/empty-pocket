@@ -52,29 +52,24 @@ We believe personal financial management should never require surrendering your 
 EmptyPocket features an optional AI insights engine designed with complete privacy transparency:
 
 - **100% User-Initiated**: No background or automated AI requests are ever executed. An AI request occurs only when you manually initiate a financial audit or ask a question in the PocketAI tab.
-- **Direct HTTPS Connection**: All AI calls travel directly from your device to the official endpoint of your chosen provider (**Google Gemini API** or **Groq Cloud API**). There is **no intermediate server, proxy, or relay**.
+- **Direct Connection**: Cloud AI calls use the provider selected in Settings. Custom endpoints can use HTTPS, or HTTP for local/private hosts. EmptyPocket does not relay requests through an app server.
 - **Transparent Data Preview**: Before any payload leaves your device, EmptyPocket presents an interactive **Data Preview Modal** displaying the exact JSON string to be sent. You have full discretion to inspect or cancel the transmission.
 - **Redaction of Raw Notes**: Granular notes, merchant specifics, and personal labels are redacted by default; only aggregate numerical metrics (monthly income, category spending totals, savings rates) are provided to the model.
-- **Local Key Storage**: Your private API keys are saved locally in private app preferences and never transmitted anywhere other than the authenticated authorization header of your chosen AI provider.
+- **Secure Local Key Storage**: API keys are stored using the platform secure-storage facility. A key is sent only with a request to the configured provider or custom endpoint.
 
 ---
 
 ## 7. Data Portability, Backups & Deletion
 
-- **Unencrypted/Encrypted JSON Snapshots**: Export your entire database across all 6 SQLite tables to a structured, schema-validated JSON backup file at any time.
+- **JSON Backup**: Export supported financial, account, chat, and report data to a schema-validated JSON file. The exported file is not encrypted by EmptyPocket.
 - **RFC 4180 CSV Export**: Export your complete transaction ledger to a standard spreadsheet-ready CSV file with quotation and delimiter escaping.
-- **2-Step Factory Wipe**: Permanently erase all local database records and preferences from **Settings > Danger Zone > Factory Reset** by typing the confirmation code `"DELETE"`.
+- **2-Step Factory Wipe**: Permanently erase local database records, app preferences, and stored API credentials from **Settings > Danger Zone > Factory Reset** by typing the confirmation code `"DELETE"`.
 
 ---
 
 ## 8. Compliance & Jurisdiction
 
-EmptyPocket's local-first architecture inherently complies with global privacy benchmarks, including:
-- **General Data Protection Regulation (GDPR)** (EU)
-- **Digital Personal Data Protection Act (DPDP)** (India)
-- **California Consumer Privacy Act (CCPA)** (USA)
-
-Because no personal data is collected, stored, processed, or transferred by the developer, your right to privacy, data minimization, and erasure is physically guaranteed by design.
+Local storage and optional user-initiated AI requests do not by themselves certify compliance with a legal or industry privacy standard. Users remain responsible for protecting exported backup files and reviewing the privacy terms of any AI provider or custom endpoint they choose.
 
 ---
 

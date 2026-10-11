@@ -4,9 +4,9 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.13+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Architecture](https://img.shields.io/badge/Architecture-Clean%20%2B%20Riverpod%202.x-0553B1)](https://riverpod.dev)
-[![Database](https://img.shields.io/badge/Database-SQLite%20(Schema%20v10)-003B57?logo=sqlite&logoColor=white)](https://sqlite.org)
+[![Database](https://img.shields.io/badge/Database-SQLite%20(Schema%20v14)-003B57?logo=sqlite&logoColor=white)](https://sqlite.org)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device-10B981)](PRIVACY.md)
-[![Tests](https://img.shields.io/badge/Tests-140%2F140%20Passing-brightgreen)](test/)
+[![Tests](https://img.shields.io/badge/Tests-Automated-brightgreen)](test/)
 [![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%2012%20--%2016+-3DDC84?logo=android&logoColor=white)](android/)
 
@@ -29,7 +29,7 @@
   - [11. 🤖 Optional BYOK AI Financial Advisor](#11--optional-byok-ai-financial-advisor)
   - [12. 💾 Enterprise Data Portability & Security](#12--enterprise-data-portability--security)
 - [Architecture & Technology Stack](#️-architecture--technology-stack)
-- [Database Schema (Version 10)](#-database-schema-version-10)
+- [Database Schema (Version 14)](#-database-schema-version-14)
 - [Getting Started & Local Setup](#-getting-started--local-setup)
 - [Running Automated Tests](#-running-automated-tests)
 - [Security & Privacy](#-security--privacy)
@@ -40,7 +40,7 @@
 
 ## 💡 Overview
 
-**EmptyPocket** is engineered for individuals who want complete control over their financial reality without sacrificing data sovereignty. Unlike cloud-dependent budgeting apps that scrape SMS messages or upload sensitive statements to third-party servers, EmptyPocket executes **100% locally on-device**. 
+**EmptyPocket** is engineered for individuals who want complete control over their financial reality without sacrificing data sovereignty. Unlike cloud-dependent budgeting apps that scrape SMS messages or upload sensitive statements to third-party servers, EmptyPocket stores financial records in a local SQLite database. Optional AI requests use the provider and endpoint configured by the user.
 
 From high-precision double-entry style ledger adjustments to complex roommate dinner bill splits, recurring subscriptions, and SIP allocations across specific bank accounts, EmptyPocket brings enterprise-grade financial precision directly into your pocket.
 
@@ -136,7 +136,7 @@ Tailored specifically for modern real-world multi-bank setups:
 - **Transparent Data Preview**: Inspect the exact JSON payload before sending. Raw transaction notes and sensitive identifiers are redacted by default.
 
 ### 12. 💾 Enterprise Data Portability & Security
-- **JSON Full-State Backup**: Lossless schema-validated snapshot across all 6 SQLite tables.
+- **JSON Full-State Backup**: Schema-validated snapshot across supported local financial, account, chat, and report data.
 - **RFC 4180 CSV Export**: Standard spreadsheet export with full escape compliance.
 - **Biometric / PIN App Lock**: Protect financial data using fingerprint or device credentials.
 - **2-Step Factory Reset**: Requires typing confirmation code `"DELETE"` to permanently erase all records.
@@ -153,7 +153,7 @@ lib/
 │   ├── app.dart                   # MaterialApp, Route Configuration & Riverpod Scope
 │   └── theme/                     # Emerald Dark & Light Theme System
 ├── core/
-│   ├── database/                  # AppDatabase (Local SQLite Engine, Version 10 Migration)
+│   ├── database/                  # AppDatabase (Local SQLite Engine, Version 14 Migration)
 │   ├── domain/entities/           # Immutable Domain Models (Transactions, Accounts, Goals, etc.)
 │   ├── repositories/              # Abstract Repositories & In-Memory Test Doubles
 │   ├── calculation/               # Pure Math Engines (FinancialCalculator, ReportsCalculator)
@@ -175,9 +175,9 @@ lib/
 
 ---
 
-## 🗄️ Database Schema (Version 10)
+## 🗄️ Database Schema (Version 14)
 
-EmptyPocket stores all financial data inside an encrypted local SQLite database:
+EmptyPocket stores financial data in a local SQLite database:
 
 | Table Name | Key Columns | Purpose |
 | :--- | :--- | :--- |
@@ -223,6 +223,16 @@ flutter test
 ```
 
 ### 5. Build Release APK
+
+Release builds must use a private release keystore. Create `android/key.properties` locally and set `storePassword`, `keyPassword`, `keyAlias`, and `storeFile` (relative to the `android/` directory). The file and keystore are ignored by Git; never commit signing credentials. A release build will fail until a valid release key is configured.
+
+```properties
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=YOUR_KEY_ALIAS
+storeFile=app/YOUR_RELEASE_KEY.jks
+```
+
 ```bash
 flutter build apk --release
 ```

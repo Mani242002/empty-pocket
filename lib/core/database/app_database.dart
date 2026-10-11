@@ -304,212 +304,134 @@ class AppDatabase {
     if (oldVersion < 8) {
       await _createBankAccountsTable(db);
       await _createCreditCardsTable(db);
-      try {
-        await db.execute(
-          'ALTER TABLE $tableTransactions ADD COLUMN account_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug('AppDatabase', 'account_id column migration: $e');
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableTransactions ADD COLUMN to_account_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug('AppDatabase', 'to_account_id column migration: $e');
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableTransactions ADD COLUMN credit_card_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug('AppDatabase', 'credit_card_id column migration: $e');
-      }
-      try {
-        await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_transactions_account ON $tableTransactions(account_id)',
-        );
-        await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_transactions_card ON $tableTransactions(credit_card_id)',
-        );
-      } catch (e) {
-        LogService.debug('AppDatabase', 'Transaction indexes migration: $e');
-      }
+      await _addColumnIfNotExists(db, tableTransactions, 'account_id', 'TEXT');
+      await _addColumnIfNotExists(
+        db,
+        tableTransactions,
+        'to_account_id',
+        'TEXT',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableTransactions,
+        'credit_card_id',
+        'TEXT',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_transactions_account ON $tableTransactions(account_id)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_transactions_card ON $tableTransactions(credit_card_id)',
+      );
     }
     if (oldVersion < 9) {
-      try {
-        await db.execute(
-          'ALTER TABLE $tableTransactions ADD COLUMN is_shared INTEGER NOT NULL DEFAULT 0',
-        );
-      } catch (e) {
-        LogService.debug('AppDatabase', 'is_shared column migration: $e');
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableTransactions ADD COLUMN my_share_amount REAL',
-        );
-      } catch (e) {
-        LogService.debug('AppDatabase', 'my_share_amount column migration: $e');
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableTransactions ADD COLUMN reimbursed_amount REAL NOT NULL DEFAULT 0.0',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'reimbursed_amount column migration: $e',
-        );
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableTransactions ADD COLUMN is_settled INTEGER NOT NULL DEFAULT 0',
-        );
-      } catch (e) {
-        LogService.debug('AppDatabase', 'is_settled column migration: $e');
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableTransactions ADD COLUMN shared_with TEXT',
-        );
-      } catch (e) {
-        LogService.debug('AppDatabase', 'shared_with column migration: $e');
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableTransactions ADD COLUMN linked_entity_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'linked_entity_id column migration: $e',
-        );
-      }
-      try {
-        await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_transactions_shared ON $tableTransactions(is_shared, is_settled)',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'Shared transaction index migration: $e',
-        );
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableRecurring ADD COLUMN account_id TEXT',
-        );
-        await db.execute(
-          'ALTER TABLE $tableRecurring ADD COLUMN credit_card_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'Recurring accounts column migration: $e',
-        );
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableSavingsGoals ADD COLUMN linked_account_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'Savings goal linked_account_id migration: $e',
-        );
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableGoalContributions ADD COLUMN source_account_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'Goal contribution source_account_id migration: $e',
-        );
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableDebts ADD COLUMN linked_account_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'Debts linked_account_id migration: $e',
-        );
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableDebtPayments ADD COLUMN source_account_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'Debt payments source_account_id migration: $e',
-        );
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableInvestments ADD COLUMN source_account_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'Investments source_account_id migration: $e',
-        );
-      }
+      await _addColumnIfNotExists(
+        db,
+        tableTransactions,
+        'is_shared',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableTransactions,
+        'my_share_amount',
+        'REAL',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableTransactions,
+        'reimbursed_amount',
+        'REAL NOT NULL DEFAULT 0.0',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableTransactions,
+        'is_settled',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableTransactions,
+        'shared_with',
+        'TEXT',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableTransactions,
+        'linked_entity_id',
+        'TEXT',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_transactions_shared ON $tableTransactions(is_shared, is_settled)',
+      );
+      await _addColumnIfNotExists(db, tableRecurring, 'account_id', 'TEXT');
+      await _addColumnIfNotExists(
+        db,
+        tableRecurring,
+        'credit_card_id',
+        'TEXT',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableSavingsGoals,
+        'linked_account_id',
+        'TEXT',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableGoalContributions,
+        'source_account_id',
+        'TEXT',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableDebts,
+        'linked_account_id',
+        'TEXT',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableDebtPayments,
+        'source_account_id',
+        'TEXT',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableInvestments,
+        'source_account_id',
+        'TEXT',
+      );
     }
     if (oldVersion < 10) {
-      try {
-        await db.execute(
-          'ALTER TABLE $tableSavingsGoals ADD COLUMN allocation_percentage REAL NOT NULL DEFAULT 100.0',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'allocation_percentage column migration: $e',
-        );
-      }
-      try {
-        await db.execute(
-          'ALTER TABLE $tableSavingsGoals ADD COLUMN auto_sync_account INTEGER NOT NULL DEFAULT 0',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'auto_sync_account column migration: $e',
-        );
-      }
+      await _addColumnIfNotExists(
+        db,
+        tableSavingsGoals,
+        'allocation_percentage',
+        'REAL NOT NULL DEFAULT 100.0',
+      );
+      await _addColumnIfNotExists(
+        db,
+        tableSavingsGoals,
+        'auto_sync_account',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
     }
     if (oldVersion < 11) {
       await _createAiReportsTable(db);
     }
     if (oldVersion < 12) {
-      try {
-        await db.execute(
-          'ALTER TABLE $tableCreditCards ADD COLUMN initial_used_amount REAL NOT NULL DEFAULT 0.0',
-        );
-        await db.execute(
-          'UPDATE $tableCreditCards SET initial_used_amount = used_amount WHERE initial_used_amount = 0.0',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'initial_used_amount column migration: $e',
-        );
-      }
+      await _addColumnIfNotExists(
+        db,
+        tableCreditCards,
+        'initial_used_amount',
+        'REAL NOT NULL DEFAULT 0.0',
+      );
+      await db.execute(
+        'UPDATE $tableCreditCards SET initial_used_amount = used_amount WHERE initial_used_amount = 0.0',
+      );
     }
     if (oldVersion < 13) {
-      try {
-        await db.execute(
-          'ALTER TABLE $tableBudgets ADD COLUMN account_id TEXT',
-        );
-      } catch (e) {
-        LogService.debug(
-          'AppDatabase',
-          'account_id column migration for budgets: $e',
-        );
-      }
+      await _addColumnIfNotExists(db, tableBudgets, 'account_id', 'TEXT');
     }
     if (oldVersion < 14) {
       await _addColumnIfNotExists(

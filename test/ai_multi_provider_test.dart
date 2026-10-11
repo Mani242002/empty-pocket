@@ -95,6 +95,50 @@ void main() {
   });
 
   group('AiProviderConfig Independent Key Storage & Switching', () {
+    test('custom endpoint permits local HTTP but rejects public HTTP hosts', () async {
+      var requestCount = 0;
+      final client = MockClient((request) async {
+        requestCount++;
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {'role': 'assistant', 'content': 'OK'},
+              },
+            ],
+          }),
+          200,
+        );
+      });
+      final service = AiService(httpClient: client);
+
+      await service.sendChatMessage(
+        config: const AiProviderConfig(
+          providerType: AiProviderType.custom,
+          customBaseUrl: 'http://192.168.1.20:11434/v1',
+        ),
+        history: const [],
+        userMessage: 'Ping',
+        financialContext: '',
+      );
+      expect(requestCount, 1);
+
+      await expectLater(
+        service.sendChatMessage(
+          config: const AiProviderConfig(
+            providerType: AiProviderType.custom,
+            customBaseUrl: 'http://example.com/v1',
+          ),
+          history: const [],
+          userMessage: 'Ping',
+          financialContext: '',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+      expect(requestCount, 1);
+      service.close();
+    });
+
     test('maintains independent API keys and models for all providers without overwriting', () {
       const config = AiProviderConfig(
         providerType: AiProviderType.gemini,

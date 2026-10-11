@@ -30,7 +30,7 @@ lib/
 │   │                                 # Budgets, Savings, Debts, Investments, Health Score & AI Context
 │   │
 │   ├── database/                     # SQLite Engine & Migrations
-│   │   └── app_database.dart         # Singleton Database, Schema v12 DDL & Alter logic
+│   │   └── app_database.dart         # Singleton Database, Schema v14 DDL & Alter logic
 │   │
 │   ├── domain/entities/              # Enterprise Domain Entities
 │   │   ├── transaction_entity.dart   # TransactionType, Split parameters
@@ -47,8 +47,8 @@ lib/
 │   │   └── ... (In-memory mock doubles for automated tests)
 │   │
 │   ├── services/                     # Device & Platform Services
-│   │   ├── backup_service.dart       # JSON Schema v11 & CSV RFC 4180 export/import
-│   │   ├── ai_service.dart           # BYOK client-side Gemini / Groq caller
+│   │   ├── backup_service.dart       # JSON Schema v14 & CSV RFC 4180 export/import
+│   │   ├── ai_service.dart           # BYOK multi-provider client and local endpoint caller
 │   │   ├── overlay_service.dart      # PlatformChannel for floating quick-add
 │   │   └── security_service.dart     # Local biometric authentication & AppLock
 │   │
@@ -83,6 +83,9 @@ graph LR
     v8 --> v9[Version 9<br/>Shared Expenses & Splits]
     v9 --> v10[Version 10<br/>Account Purpose & Goal Allocations]
     v10 --> v11[Version 11<br/>AI Markdown Reports Persistence]
+    v11 --> v12[Version 12<br/>Credit Card Opening Balance]
+    v12 --> v13[Version 13<br/>Budget Account Linking]
+    v13 --> v14[Version 14<br/>Transaction Links for Goal and Debt Payments]
 ```
 
 ### Schema Version 11 Additions
@@ -94,6 +97,11 @@ graph LR
   - `timestamp INTEGER NOT NULL`
   - `provider TEXT NOT NULL`
   - `model TEXT NOT NULL`
+
+### Schema Versions 12–14 Additions
+- **Version 12** adds `initial_used_amount` to credit cards and backfills existing balances.
+- **Version 13** adds account linking to budgets.
+- **Version 14** adds transaction references to savings contributions and debt payments, including safe backfill for unambiguous linked records.
 
 ### Schema Version 10 Additions
 - **`savings_goals` Table**:
@@ -109,8 +117,8 @@ graph LR
 - **Linking Columns across entities**:
   - `source_account_id` added to `goal_contributions`, `investments`, `debt_payments`, and `recurring_expenses`.
 
-### Zero-Data-Loss Migration Contract
-Every schema bump executes non-destructive `ALTER TABLE ... ADD COLUMN` statements wrapped inside safe database transactions. Existing user data is never dropped or altered destructively during app upgrades.
+### Migration Error Handling
+Column additions check the table schema before changing it, and schema/index errors stop the upgrade so the app cannot silently open a partially migrated database. Existing user rows are retained during version upgrades.
 
 ---
 

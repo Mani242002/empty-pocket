@@ -406,7 +406,7 @@ class AiProviderConfig {
     this.openRouterModel = 'meta-llama/llama-4-maverick',
     this.deepSeekModel = 'deepseek-flash',
     this.customModel = 'llama-4-scout',
-    this.customBaseUrl = 'http://10.0.2.2:11434/v1',
+    this.customBaseUrl = '',
     this.customSavedModels = const [
       'llama-4-scout',
       'qwen3.8',

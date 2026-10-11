@@ -916,6 +916,7 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         title: const Row(
           children: [
             Icon(Icons.warning_amber_rounded, color: AppColors.expense),
@@ -934,7 +935,7 @@ class SettingsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'This will PERMANENTLY ERASE all transactions, budgets, savings goals, loans, investments, and recurring expenses from your device.',
+              'This will PERMANENTLY ERASE all local financial records, accounts, cards, AI chat and reports, app settings, and stored AI credentials from this device.',
               style: TextStyle(fontSize: 13, height: 1.4),
             ),
             const SizedBox(height: 14),
@@ -964,17 +965,39 @@ class SettingsScreen extends ConsumerWidget {
               final input = confirmController.text.trim().toUpperCase();
               if (input == 'DELETE') {
                 Navigator.pop(ctx);
-                await ref.read(backupOperationsProvider.notifier).wipeAllData();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'All local data wiped. App reset to factory state.',
+                try {
+                  await ref
+                      .read(backupOperationsProvider.notifier)
+                      .wipeAllData();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'All local data, settings, and stored credentials were cleared.',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: AppColors.primaryEmerald,
                       ),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: AppColors.primaryEmerald,
-                    ),
+                    );
+                  }
+                } catch (error, stackTrace) {
+                  LogService.error(
+                    'SettingsScreen',
+                    'Factory reset failed',
+                    error,
+                    stackTrace,
                   );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Factory reset did not finish. Some local data may already be cleared; retry the reset.',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: AppColors.expense,
+                      ),
+                    );
+                  }
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1164,7 +1187,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.shield_outlined,
                         iconColor: financialColors.income,
                         title: 'Data Storage',
-                        subtitle: '100% On-Device (Encrypted SQLite)',
+                        subtitle: 'On-Device SQLite Storage',
                         trailing: const Icon(
                           Icons.check_circle_rounded,
                           color: AppColors.income,
@@ -1252,9 +1275,30 @@ class SettingsScreen extends ConsumerWidget {
                             }
                           }
 
-                          await ref
-                              .read(appLockProvider.notifier)
-                              .toggleAppLock(val);
+                          try {
+                            await ref
+                                .read(appLockProvider.notifier)
+                                .toggleAppLock(val);
+                          } catch (error, stackTrace) {
+                            LogService.error(
+                              'SettingsScreen',
+                              'Could not persist app lock setting',
+                              error,
+                              stackTrace,
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Could not save the app lock setting. Retry before continuing.',
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                  backgroundColor: AppColors.expense,
+                                ),
+                              );
+                            }
+                            return;
+                          }
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(

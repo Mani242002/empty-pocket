@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +28,7 @@ class AiSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
+  late AiProviderConfigNotifier _configNotifier;
   final TextEditingController _geminiKeyController = TextEditingController();
   final TextEditingController _openAiKeyController = TextEditingController();
   final TextEditingController _anthropicKeyController = TextEditingController();
@@ -57,10 +60,12 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
   final Map<AiProviderType, int?> _testLatencies = {
     for (final p in AiProviderType.values) p: null,
   };
+  final Map<AiProviderType, Timer> _pendingKeySaves = {};
 
   @override
   void initState() {
     super.initState();
+    _configNotifier = ref.read(aiProviderConfigProvider.notifier);
     final config = ref.read(aiProviderConfigProvider);
     _geminiKeyController.text = config.geminiApiKey;
     _openAiKeyController.text = config.openAiApiKey;
@@ -76,6 +81,18 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
 
   @override
   void dispose() {
+    final pendingProviders = _pendingKeySaves.keys.toList();
+    for (final timer in _pendingKeySaves.values) {
+      timer.cancel();
+    }
+    for (final provider in pendingProviders) {
+      unawaited(
+        _configNotifier
+            .updateApiKeyFor(provider, _controllerFor(provider).text)
+            .catchError((Object _) {}),
+      );
+    }
+    _pendingKeySaves.clear();
     _geminiKeyController.dispose();
     _openAiKeyController.dispose();
     _anthropicKeyController.dispose();
@@ -105,6 +122,25 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
       case AiProviderType.custom:
         return _customKeyController;
     }
+  }
+
+  void _scheduleApiKeySave(AiProviderType provider, String value) {
+    _pendingKeySaves.remove(provider)?.cancel();
+    _pendingKeySaves[provider] = Timer(const Duration(milliseconds: 450), () async {
+      _pendingKeySaves.remove(provider);
+      try {
+        await _configNotifier.updateApiKeyFor(provider, value);
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('API key could not be saved securely.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
+    });
   }
 
   Color _colorFor(AiProviderType provider) {
@@ -202,9 +238,21 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
 
     AppHaptics.buttonPress();
     final notifier = ref.read(aiProviderConfigProvider.notifier);
-    await notifier.updateApiKeyFor(provider, key);
-    if (provider == AiProviderType.custom) {
-      await notifier.updateCustomBaseUrl(_customBaseUrlController.text.trim());
+    _pendingKeySaves.remove(provider)?.cancel();
+    try {
+      await notifier.updateApiKeyFor(provider, key);
+      if (provider == AiProviderType.custom) {
+        await notifier.updateCustomBaseUrl(_customBaseUrlController.text.trim());
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isTesting[provider] = false;
+          _testStatuses[provider] =
+              'Could not securely save the key or endpoint. The key was not sent.';
+        });
+      }
+      return;
     }
 
     final config = ref
@@ -259,10 +307,11 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
         return;
       }
 
-      _controllerFor(provider).text = text;
+      _pendingKeySaves.remove(provider)?.cancel();
       await ref
           .read(aiProviderConfigProvider.notifier)
           .updateApiKeyFor(provider, text);
+      _controllerFor(provider).text = text;
       AppHaptics.success();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -280,7 +329,7 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
         AppHaptics.warning();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Clipboard error: $e'),
+            content: Text('Could not paste or securely save the API key: $e'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: AppColors.expense,
           ),
@@ -310,23 +359,36 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _controllerFor(provider).clear();
-              ref
-                  .read(aiProviderConfigProvider.notifier)
-                  .updateApiKeyFor(provider, '');
-              setState(() {
-                _testStatuses[provider] = null;
-                _testLatencies[provider] = null;
-              });
-              AppHaptics.deleteAction();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Cleared ${provider.displayName} API Key'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+            onPressed: () async {
+              _pendingKeySaves.remove(provider)?.cancel();
+              try {
+                await ref
+                    .read(aiProviderConfigProvider.notifier)
+                    .updateApiKeyFor(provider, '');
+                if (!ctx.mounted || !mounted) return;
+                Navigator.pop(ctx);
+                _controllerFor(provider).clear();
+                setState(() {
+                  _testStatuses[provider] = null;
+                  _testLatencies[provider] = null;
+                });
+                AppHaptics.deleteAction();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Cleared ${provider.displayName} API Key'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              } catch (_) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Stored API key could not be cleared.'),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppColors.expense,
+                  ),
+                );
+              }
             },
             child: const Text('Clear Key'),
           ),
@@ -1366,7 +1428,7 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               TextFormField(
                 controller: _customBaseUrlController,
                 decoration: InputDecoration(
-                  hintText: 'http://10.0.2.2:11434/v1',
+                  hintText: 'https://server.example/v1',
                   prefixIcon: Icon(Icons.link_rounded, color: providerColor),
                   suffixIcon: _customBaseUrlController.text.isNotEmpty
                       ? IconButton(
@@ -1401,12 +1463,12 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                 runSpacing: 6,
                 children: [
                   _buildPresetChip(
-                    'Ollama (Emulator)',
+                    'Ollama (Android emulator)',
                     'http://10.0.2.2:11434/v1',
                     providerColor,
                   ),
                   _buildPresetChip(
-                    'Ollama (Localhost)',
+                    'Ollama (device localhost)',
                     'http://localhost:11434/v1',
                     providerColor,
                   ),
@@ -1421,6 +1483,17 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                     providerColor,
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'On a physical phone, use the server computer’s private Wi-Fi IP (for example, http://192.168.1.20:11434/v1) and allow LAN access in that server. HTTP is limited to local network hosts; use HTTPS for public endpoints.',
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.35,
+                  color: isDark
+                      ? AppColors.darkTextMuted
+                      : AppColors.lightTextMuted,
+                ),
               ),
               const SizedBox(height: 16),
             ],
@@ -1503,11 +1576,7 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              onChanged: (val) {
-                ref
-                    .read(aiProviderConfigProvider.notifier)
-                    .updateApiKeyFor(provider, val);
-              },
+              onChanged: (val) => _scheduleApiKeySave(provider, val),
             ),
             const SizedBox(height: 6),
             Text(
