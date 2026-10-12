@@ -349,12 +349,7 @@ class AppDatabase {
         'is_settled',
         'INTEGER NOT NULL DEFAULT 0',
       );
-      await _addColumnIfNotExists(
-        db,
-        tableTransactions,
-        'shared_with',
-        'TEXT',
-      );
+      await _addColumnIfNotExists(db, tableTransactions, 'shared_with', 'TEXT');
       await _addColumnIfNotExists(
         db,
         tableTransactions,
@@ -365,12 +360,7 @@ class AppDatabase {
         'CREATE INDEX IF NOT EXISTS idx_transactions_shared ON $tableTransactions(is_shared, is_settled)',
       );
       await _addColumnIfNotExists(db, tableRecurring, 'account_id', 'TEXT');
-      await _addColumnIfNotExists(
-        db,
-        tableRecurring,
-        'credit_card_id',
-        'TEXT',
-      );
+      await _addColumnIfNotExists(db, tableRecurring, 'credit_card_id', 'TEXT');
       await _addColumnIfNotExists(
         db,
         tableSavingsGoals,
@@ -383,12 +373,7 @@ class AppDatabase {
         'source_account_id',
         'TEXT',
       );
-      await _addColumnIfNotExists(
-        db,
-        tableDebts,
-        'linked_account_id',
-        'TEXT',
-      );
+      await _addColumnIfNotExists(db, tableDebts, 'linked_account_id', 'TEXT');
       await _addColumnIfNotExists(
         db,
         tableDebtPayments,

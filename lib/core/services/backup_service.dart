@@ -206,7 +206,11 @@ class BackupService {
       }
 
       if (backup.metadata.schemaVersion >= 14) {
-        _requireFieldOnEveryRecord(decoded, 'savingsContributions', 'transaction_id');
+        _requireFieldOnEveryRecord(
+          decoded,
+          'savingsContributions',
+          'transaction_id',
+        );
         _requireFieldOnEveryRecord(decoded, 'debtPayments', 'transaction_id');
       }
 
@@ -260,10 +264,14 @@ class BackupService {
       final expected = metadata[entry.key];
       final collection = decoded[entry.value];
       if (expected is! int || expected < 0) {
-        throw FormatException('Backup metadata "${entry.key}" must be a non-negative integer.');
+        throw FormatException(
+          'Backup metadata "${entry.key}" must be a non-negative integer.',
+        );
       }
       if (collection != null && collection is! List) {
-        throw FormatException('Backup collection "${entry.value}" must be a list.');
+        throw FormatException(
+          'Backup collection "${entry.value}" must be a list.',
+        );
       }
       final actual = (collection as List<dynamic>?)?.length ?? 0;
       if (actual != expected) {
@@ -318,19 +326,52 @@ class BackupService {
     }
 
     final counts = <String, (int, int)>{
-      'transactionsCount': (backup.metadata.transactionsCount, backup.transactions.length),
+      'transactionsCount': (
+        backup.metadata.transactionsCount,
+        backup.transactions.length,
+      ),
       'budgetsCount': (backup.metadata.budgetsCount, backup.budgets.length),
-      'savingsGoalsCount': (backup.metadata.savingsGoalsCount, backup.savingsGoals.length),
-      'savingsContributionsCount': (backup.metadata.savingsContributionsCount, backup.savingsContributions.length),
+      'savingsGoalsCount': (
+        backup.metadata.savingsGoalsCount,
+        backup.savingsGoals.length,
+      ),
+      'savingsContributionsCount': (
+        backup.metadata.savingsContributionsCount,
+        backup.savingsContributions.length,
+      ),
       'debtsCount': (backup.metadata.debtsCount, backup.debts.length),
-      'debtPaymentsCount': (backup.metadata.debtPaymentsCount, backup.debtPayments.length),
-      'investmentsCount': (backup.metadata.investmentsCount, backup.investments.length),
-      'recurringExpensesCount': (backup.metadata.recurringExpensesCount, backup.recurringExpenses.length),
-      'chatSessionsCount': (backup.metadata.chatSessionsCount, backup.chatSessions.length),
-      'chatMessagesCount': (backup.metadata.chatMessagesCount, backup.chatMessages.length),
-      'bankAccountsCount': (backup.metadata.bankAccountsCount, backup.bankAccounts.length),
-      'creditCardsCount': (backup.metadata.creditCardsCount, backup.creditCards.length),
-      'aiReportsCount': (backup.metadata.aiReportsCount, backup.aiReports.length),
+      'debtPaymentsCount': (
+        backup.metadata.debtPaymentsCount,
+        backup.debtPayments.length,
+      ),
+      'investmentsCount': (
+        backup.metadata.investmentsCount,
+        backup.investments.length,
+      ),
+      'recurringExpensesCount': (
+        backup.metadata.recurringExpensesCount,
+        backup.recurringExpenses.length,
+      ),
+      'chatSessionsCount': (
+        backup.metadata.chatSessionsCount,
+        backup.chatSessions.length,
+      ),
+      'chatMessagesCount': (
+        backup.metadata.chatMessagesCount,
+        backup.chatMessages.length,
+      ),
+      'bankAccountsCount': (
+        backup.metadata.bankAccountsCount,
+        backup.bankAccounts.length,
+      ),
+      'creditCardsCount': (
+        backup.metadata.creditCardsCount,
+        backup.creditCards.length,
+      ),
+      'aiReportsCount': (
+        backup.metadata.aiReportsCount,
+        backup.aiReports.length,
+      ),
     };
     for (final entry in counts.entries) {
       if (entry.value.$1 != entry.value.$2) {
@@ -340,24 +381,48 @@ class BackupService {
       }
     }
 
-    _validateUniqueIds('transactions', backup.transactions.map((item) => item.id));
+    _validateUniqueIds(
+      'transactions',
+      backup.transactions.map((item) => item.id),
+    );
     _validateUniqueIds('budgets', backup.budgets.map((item) => item.id));
-    _validateUniqueIds('savingsGoals', backup.savingsGoals.map((item) => item.id));
+    _validateUniqueIds(
+      'savingsGoals',
+      backup.savingsGoals.map((item) => item.id),
+    );
     _validateUniqueIds(
       'savingsContributions',
       backup.savingsContributions.map((item) => item.id),
     );
     _validateUniqueIds('debts', backup.debts.map((item) => item.id));
-    _validateUniqueIds('debtPayments', backup.debtPayments.map((item) => item.id));
-    _validateUniqueIds('investments', backup.investments.map((item) => item.id));
+    _validateUniqueIds(
+      'debtPayments',
+      backup.debtPayments.map((item) => item.id),
+    );
+    _validateUniqueIds(
+      'investments',
+      backup.investments.map((item) => item.id),
+    );
     _validateUniqueIds(
       'recurringExpenses',
       backup.recurringExpenses.map((item) => item.id),
     );
-    _validateUniqueIds('chatSessions', backup.chatSessions.map((item) => item.id));
-    _validateUniqueIds('chatMessages', backup.chatMessages.map((item) => item.id));
-    _validateUniqueIds('bankAccounts', backup.bankAccounts.map((item) => item.id));
-    _validateUniqueIds('creditCards', backup.creditCards.map((item) => item.id));
+    _validateUniqueIds(
+      'chatSessions',
+      backup.chatSessions.map((item) => item.id),
+    );
+    _validateUniqueIds(
+      'chatMessages',
+      backup.chatMessages.map((item) => item.id),
+    );
+    _validateUniqueIds(
+      'bankAccounts',
+      backup.bankAccounts.map((item) => item.id),
+    );
+    _validateUniqueIds(
+      'creditCards',
+      backup.creditCards.map((item) => item.id),
+    );
     _validateUniqueIds('aiReports', backup.aiReports.map((item) => item.id));
   }
 

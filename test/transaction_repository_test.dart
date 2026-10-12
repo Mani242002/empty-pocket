@@ -158,39 +158,46 @@ void main() {
   });
 
   group('TransactionListNotifier & Analytics Integrity', () {
-    test('loads complete history to preserve multi-month analytics and loadAll', () async {
-      final now = DateTime.now();
-      final items = List.generate(
-        150,
-        (i) => TransactionEntity(
-          id: 'bulk-$i',
-          title: 'Bulk $i',
-          amount: 100.0,
-          type: TransactionType.expense,
-          category: 'Shopping',
-          date: now.subtract(Duration(minutes: i)),
-          paymentSource: 'UPI',
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
+    test(
+      'loads complete history to preserve multi-month analytics and loadAll',
+      () async {
+        final now = DateTime.now();
+        final items = List.generate(
+          150,
+          (i) => TransactionEntity(
+            id: 'bulk-$i',
+            title: 'Bulk $i',
+            amount: 100.0,
+            type: TransactionType.expense,
+            category: 'Shopping',
+            date: now.subtract(Duration(minutes: i)),
+            paymentSource: 'UPI',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
 
-      final mockRepo = InMemoryTransactionRepository(items);
-      final container = ProviderContainer(
-        overrides: [transactionRepositoryProvider.overrideWithValue(mockRepo)],
-      );
+        final mockRepo = InMemoryTransactionRepository(items);
+        final container = ProviderContainer(
+          overrides: [
+            transactionRepositoryProvider.overrideWithValue(mockRepo),
+          ],
+        );
 
-      final notifier = container.read(transactionListNotifierProvider.notifier);
-      final initialList = await container.read(
-        transactionListNotifierProvider.future,
-      );
+        final notifier = container.read(
+          transactionListNotifierProvider.notifier,
+        );
+        final initialList = await container.read(
+          transactionListNotifierProvider.future,
+        );
 
-      // Verify complete history is loaded so derived monthly analytics and streaks are never truncated
-      expect(initialList.length, 150);
-      // Load all
-      await notifier.loadAll();
-      final allList = container.read(transactionListNotifierProvider).value!;
-      expect(allList.length, 150);
-    });
+        // Verify complete history is loaded so derived monthly analytics and streaks are never truncated
+        expect(initialList.length, 150);
+        // Load all
+        await notifier.loadAll();
+        final allList = container.read(transactionListNotifierProvider).value!;
+        expect(allList.length, 150);
+      },
+    );
   });
 }

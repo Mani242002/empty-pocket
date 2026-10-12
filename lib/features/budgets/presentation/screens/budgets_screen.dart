@@ -10,7 +10,9 @@ import '../widgets/shared_splits_tab.dart';
 import '../../../settings/presentation/state/backup_provider.dart';
 
 class BudgetsScreen extends ConsumerStatefulWidget {
-  const BudgetsScreen({super.key});
+  final int initialTab;
+
+  const BudgetsScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<BudgetsScreen> createState() => _BudgetsScreenState();
@@ -23,7 +25,21 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 3).toInt(),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant BudgetsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final safeIndex = widget.initialTab.clamp(0, 3).toInt();
+    if (oldWidget.initialTab != widget.initialTab &&
+        _tabController.index != safeIndex) {
+      _tabController.animateTo(safeIndex);
+    }
   }
 
   @override

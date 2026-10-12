@@ -195,55 +195,65 @@ void main() {
 
       expect(
         () => backupService.parseBackupJson(jsonEncode(decoded)),
-        throwsA(isA<FormatException>().having(
-          (error) => error.message,
-          'message',
-          contains('transactions'),
-        )),
-      );
-    });
-
-    test('parseBackupJson rejects collection counts that do not match the data', () {
-      final decoded = jsonDecode(
-        backupService.exportFullDatabaseJson(
-          transactions: [],
-          budgets: [],
-          savingsGoals: [],
-          savingsContributions: [],
-          debts: [],
-          debtPayments: [],
-          investments: [],
-          recurringExpenses: [],
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('transactions'),
+          ),
         ),
-      ) as Map<String, dynamic>;
-      (decoded['metadata'] as Map<String, dynamic>)['transactionsCount'] = 1;
-
-      expect(
-        () => backupService.parseBackupJson(jsonEncode(decoded)),
-        throwsA(isA<FormatException>()),
       );
     });
 
-    test('parseBackupJson rejects current backups missing integrity counts', () {
-      final decoded = jsonDecode(
-        backupService.exportFullDatabaseJson(
-          transactions: [],
-          budgets: [],
-          savingsGoals: [],
-          savingsContributions: [],
-          debts: [],
-          debtPayments: [],
-          investments: [],
-          recurringExpenses: [],
-        ),
-      ) as Map<String, dynamic>;
-      (decoded['metadata'] as Map<String, dynamic>).remove('transactionsCount');
+    test(
+      'parseBackupJson rejects collection counts that do not match the data',
+      () {
+        final decoded = jsonDecode(
+          backupService.exportFullDatabaseJson(
+            transactions: [],
+            budgets: [],
+            savingsGoals: [],
+            savingsContributions: [],
+            debts: [],
+            debtPayments: [],
+            investments: [],
+            recurringExpenses: [],
+          ),
+        ) as Map<String, dynamic>;
+        (decoded['metadata'] as Map<String, dynamic>)['transactionsCount'] = 1;
 
-      expect(
-        () => backupService.parseBackupJson(jsonEncode(decoded)),
-        throwsA(isA<FormatException>()),
-      );
-    });
+        expect(
+          () => backupService.parseBackupJson(jsonEncode(decoded)),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
+
+    test(
+      'parseBackupJson rejects current backups missing integrity counts',
+      () {
+        final decoded = jsonDecode(
+          backupService.exportFullDatabaseJson(
+            transactions: [],
+            budgets: [],
+            savingsGoals: [],
+            savingsContributions: [],
+            debts: [],
+            debtPayments: [],
+            investments: [],
+            recurringExpenses: [],
+          ),
+        ) as Map<String, dynamic>;
+        (decoded['metadata'] as Map<String, dynamic>).remove(
+          'transactionsCount',
+        );
+
+        expect(
+          () => backupService.parseBackupJson(jsonEncode(decoded)),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
     test(
       'restoreAll and wipeAllData work accurately with repositories',

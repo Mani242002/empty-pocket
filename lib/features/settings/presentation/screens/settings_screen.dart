@@ -16,6 +16,9 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/utilities/app_haptics.dart';
 import '../../../../core/utilities/currency_formatter.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
+import '../../../budgets/presentation/state/budgets_provider.dart';
+import '../../../budgets/presentation/state/recurring_provider.dart';
+import '../../../savings/presentation/state/savings_goals_provider.dart';
 import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../../../../core/services/backup_service.dart';
 import '../state/backup_provider.dart';
@@ -35,6 +38,140 @@ final appVersionProvider = FutureProvider<String>((ref) async {
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  Future<bool> _requestNotificationPermission(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final service = ref.read(notificationServiceProvider);
+    if (await service.hasNotificationPermission()) return true;
+    if (!context.mounted) return false;
+    final shouldRequest = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Stay on top of your money'),
+        content: const Text(
+          'EmptyPocket can send gentle expense check-ins, upcoming bill reminders, and optional budget alerts. You can change or pause each type at any time in Settings.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (shouldRequest != true || !context.mounted) return false;
+    final granted = await service.requestPermission();
+    if (!granted && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Notifications are still off. You can enable them in device settings.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: service.openNotificationSettings,
+          ),
+        ),
+      );
+    }
+    return granted;
+  }
+
+  Future<void> _pickQuietHour(
+    BuildContext context,
+    WidgetRef ref,
+    RoutineReminderSettings settings, {
+    required bool pickStart,
+  }) async {
+    final currentMinute = pickStart
+        ? settings.quietHoursStartMinute
+        : settings.quietHoursEndMinute;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: currentMinute ~/ 60,
+        minute: currentMinute % 60,
+      ),
+    );
+    if (picked == null || !context.mounted) return;
+    final newMinute = picked.hour * 60 + picked.minute;
+    final otherMinute = pickStart
+        ? settings.quietHoursEndMinute
+        : settings.quietHoursStartMinute;
+    if (newMinute == otherMinute) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Choose different start and end times.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    await ref
+        .read(routineReminderSettingsProvider.notifier)
+        .setQuietHours(
+          startMinute: pickStart ? newMinute : settings.quietHoursStartMinute,
+          endMinute: pickStart ? settings.quietHoursEndMinute : newMinute,
+        );
+  }
+
+  Future<void> _enableNotifications(BuildContext context, WidgetRef ref) async {
+    if (!await _requestNotificationPermission(context, ref) ||
+        !context.mounted) {
+      return;
+    }
+    final service = ref.read(notificationServiceProvider);
+    final transactions = ref
+        .read(transactionListNotifierProvider)
+        .asData
+        ?.value;
+    if (ref.read(dailyStreakReminderNotifierProvider)) {
+      await service.scheduleDailyLogReminders();
+      if (transactions != null) {
+        await service.scheduleDailySummaries(transactions);
+      }
+    }
+    if (ref.read(billDueAlertNotifierProvider)) {
+      final recurring = ref.read(recurringListNotifierProvider).asData?.value;
+      if (recurring != null) {
+        await service.scheduleRecurringPaymentReminders(recurring);
+      }
+    }
+    if (ref.read(monthlyMoneyCheckInNotifierProvider)) {
+      final budgets = ref.read(budgetListNotifierProvider).asData?.value;
+      final goals = ref.read(savingsGoalsListNotifierProvider).asData?.value;
+      if (budgets != null && goals != null) {
+        await service.scheduleMonthlyMoneyCheckIns(
+          budgets: budgets,
+          goals: goals,
+        );
+      }
+    }
+    if (ref.read(budgetAlertSettingsProvider).enabled) {
+      final budgets = ref.read(budgetListNotifierProvider).asData?.value;
+      if (budgets != null && transactions != null) {
+        await service.updateBudgetThresholdAlerts(
+          budgets: budgets,
+          transactions: transactions,
+        );
+      }
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('EmptyPocket notifications are enabled.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   void _showExportJsonDialog(BuildContext context, WidgetRef ref) async {
     try {
@@ -1028,6 +1165,9 @@ class SettingsScreen extends ConsumerWidget {
     final isAppLockEnabled = ref.watch(appLockProvider).valueOrNull ?? false;
     final isBubbleEnabled = ref.watch(floatingBubbleProvider);
     final aiConfig = ref.watch(aiProviderConfigProvider);
+    final routineSettings = ref.watch(routineReminderSettingsProvider);
+    final hideNotificationAmounts = ref.watch(hideNotificationAmountsProvider);
+    final budgetAlertSettings = ref.watch(budgetAlertSettingsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings & Privacy')),
@@ -1129,6 +1269,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.currency_exchange_rounded,
                         iconColor: AppColors.primaryEmerald,
                         title: 'Currency',
+                        isThreeLine: true,
                         subtitle:
                             '${currentCurrency.code} (${currentCurrency.symbol}) — ${currentCurrency.name}',
                         onTap: () => _showCurrencySelectorDialog(context, ref),
@@ -1150,6 +1291,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.key_rounded,
                         iconColor: financialColors.investment,
                         title: 'AI Providers & BYOK Keys',
+                        isThreeLine: true,
                         subtitle: aiConfig.isConfigured
                             ? 'Active: ${aiConfig.providerType.displayName} (${aiConfig.activeModelDisplayName})'
                             : 'Configure Gemini & Groq keys on device',
@@ -1187,6 +1329,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.shield_outlined,
                         iconColor: financialColors.income,
                         title: 'Data Storage',
+                        isThreeLine: true,
                         subtitle: 'On-Device SQLite Storage',
                         trailing: const Icon(
                           Icons.check_circle_rounded,
@@ -1200,6 +1343,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.wifi_off_rounded,
                         iconColor: financialColors.info,
                         title: 'Network Activity',
+                        isThreeLine: true,
                         subtitle: 'Zero analytics / Zero background telemetry',
                         trailing: const Icon(
                           Icons.check_circle_rounded,
@@ -1414,7 +1558,25 @@ class SettingsScreen extends ConsumerWidget {
                 Card(
                   child: Column(
                     children: [
+                      ListTile(
+                        isThreeLine: true,
+                        leading: const Icon(
+                          Icons.notifications_active_outlined,
+                        ),
+                        title: const Text(
+                          'Enable notifications on this device',
+                        ),
+                        subtitle: const Text(
+                          'Choose which reminders you want below, then allow EmptyPocket to show them here.',
+                        ),
+                        trailing: OutlinedButton(
+                          onPressed: () => _enableNotifications(context, ref),
+                          child: const Text('Enable'),
+                        ),
+                      ),
+                      const Divider(),
                       SwitchListTile.adaptive(
+                        isThreeLine: true,
                         activeTrackColor: AppColors.primaryEmerald,
                         secondary: Container(
                           width: 36,
@@ -1432,14 +1594,14 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                         ),
                         title: const Text(
-                          'Daily Streak Reminder',
+                          'Daily Expense Check-ins',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
                         ),
                         subtitle: Text(
-                          'Prompt at 8:00 PM to log daily expenses & maintain tracking streak',
+                          'Morning, afternoon & evening prompts, plus a 10:00 PM income and expense summary',
                           style: TextStyle(
                             color: financialColors.textMuted,
                             fontSize: 12,
@@ -1449,9 +1611,12 @@ class SettingsScreen extends ConsumerWidget {
                         onChanged: (val) async {
                           AppHaptics.selectionClick();
                           if (val) {
-                            await ref
-                                .read(notificationServiceProvider)
-                                .requestPermission();
+                            if (!await _requestNotificationPermission(
+                              context,
+                              ref,
+                            )) {
+                              return;
+                            }
                           }
                           await ref
                               .read(
@@ -1461,7 +1626,156 @@ class SettingsScreen extends ConsumerWidget {
                         },
                       ),
                       const Divider(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.notifications_none_rounded,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Routine reminder frequency',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 32),
+                              child: Text(
+                                'Choose three check-ins a day or just the morning reminder',
+                                style: TextStyle(
+                                  color: financialColors.textMuted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 32),
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  ChoiceChip(
+                                    selected:
+                                        routineSettings.remindersPerDay == 3,
+                                    onSelected: (selected) {
+                                      if (selected) {
+                                        AppHaptics.selectionClick();
+                                        ref
+                                            .read(
+                                              routineReminderSettingsProvider
+                                                  .notifier,
+                                            )
+                                            .setRemindersPerDay(3);
+                                      }
+                                    },
+                                    avatar: const Icon(
+                                      Icons.repeat_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('3 / day (All prompts)'),
+                                  ),
+                                  ChoiceChip(
+                                    selected:
+                                        routineSettings.remindersPerDay == 1,
+                                    onSelected: (selected) {
+                                      if (selected) {
+                                        AppHaptics.selectionClick();
+                                        ref
+                                            .read(
+                                              routineReminderSettingsProvider
+                                                  .notifier,
+                                            )
+                                            .setRemindersPerDay(1);
+                                      }
+                                    },
+                                    avatar: const Icon(
+                                      Icons.wb_sunny_outlined,
+                                      size: 18,
+                                    ),
+                                    label: const Text('1 / day (Morning only)'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       SwitchListTile.adaptive(
+                        isThreeLine: true,
+                        activeTrackColor: AppColors.primaryEmerald,
+                        secondary: const Icon(Icons.bedtime_outlined),
+                        title: const Text('Quiet hours'),
+                        subtitle: const Text(
+                          'Pause routine check-ins and the nightly summary during this window. Bill alerts stay controlled separately.',
+                        ),
+                        value: routineSettings.quietHoursEnabled,
+                        onChanged: (enabled) {
+                          AppHaptics.selectionClick();
+                          ref
+                              .read(routineReminderSettingsProvider.notifier)
+                              .setQuietHoursEnabled(enabled);
+                        },
+                      ),
+                      if (routineSettings.quietHoursEnabled) ...[
+                        ListTile(
+                          dense: true,
+                          title: const Text('Quiet hours start'),
+                          trailing: TextButton(
+                            onPressed: () => _pickQuietHour(
+                              context,
+                              ref,
+                              routineSettings,
+                              pickStart: true,
+                            ),
+                            child: Text(
+                              TimeOfDay(
+                                hour:
+                                    routineSettings.quietHoursStartMinute ~/ 60,
+                                minute:
+                                    routineSettings.quietHoursStartMinute % 60,
+                              ).format(context),
+                            ),
+                          ),
+                        ),
+                        ListTile(
+                          dense: true,
+                          title: const Text('Quiet hours end'),
+                          trailing: TextButton(
+                            onPressed: () => _pickQuietHour(
+                              context,
+                              ref,
+                              routineSettings,
+                              pickStart: false,
+                            ),
+                            child: Text(
+                              TimeOfDay(
+                                hour: routineSettings.quietHoursEndMinute ~/ 60,
+                                minute:
+                                    routineSettings.quietHoursEndMinute % 60,
+                              ).format(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const Divider(),
+                      SwitchListTile.adaptive(
+                        isThreeLine: true,
                         activeTrackColor: AppColors.primaryEmerald,
                         secondary: Container(
                           width: 36,
@@ -1486,7 +1800,7 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                         ),
                         subtitle: Text(
-                          'Morning alert when recurring bills, subscriptions, and EMIs are due',
+                          'Reminders two days before, on the due date, and the next day if still unlogged',
                           style: TextStyle(
                             color: financialColors.textMuted,
                             fontSize: 12,
@@ -1496,14 +1810,204 @@ class SettingsScreen extends ConsumerWidget {
                         onChanged: (val) async {
                           AppHaptics.selectionClick();
                           if (val) {
-                            await ref
-                                .read(notificationServiceProvider)
-                                .requestPermission();
+                            if (!await _requestNotificationPermission(
+                              context,
+                              ref,
+                            )) {
+                              return;
+                            }
                           }
                           await ref
                               .read(billDueAlertNotifierProvider.notifier)
                               .setEnabled(val);
+                          if (val) {
+                            final recurring = ref
+                                .read(recurringListNotifierProvider)
+                                .asData
+                                ?.value;
+                            if (recurring != null) {
+                              await ref
+                                  .read(notificationServiceProvider)
+                                  .scheduleRecurringPaymentReminders(recurring);
+                            }
+                          }
                         },
+                      ),
+                      const Divider(),
+                      SwitchListTile.adaptive(
+                        isThreeLine: true,
+                        activeTrackColor: AppColors.primaryEmerald,
+                        secondary: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryEmerald.withAlpha(
+                              isDark ? 45 : 25,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.savings_outlined,
+                            color: AppColors.primaryEmerald,
+                            size: 20,
+                          ),
+                        ),
+                        title: const Text(
+                          'Monthly Budget & Savings Check-in',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'A gentle start-of-month plan and month-end review for your budgets and active goals',
+                          style: TextStyle(
+                            color: financialColors.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                        value: ref.watch(monthlyMoneyCheckInNotifierProvider),
+                        onChanged: (val) async {
+                          AppHaptics.selectionClick();
+                          if (val) {
+                            if (!await _requestNotificationPermission(
+                              context,
+                              ref,
+                            )) {
+                              return;
+                            }
+                          }
+                          await ref
+                              .read(
+                                monthlyMoneyCheckInNotifierProvider.notifier,
+                              )
+                              .setEnabled(val);
+                          if (val) {
+                            final budgets = ref
+                                .read(budgetListNotifierProvider)
+                                .asData
+                                ?.value;
+                            final goals = ref
+                                .read(savingsGoalsListNotifierProvider)
+                                .asData
+                                ?.value;
+                            if (budgets != null && goals != null) {
+                              await ref
+                                  .read(notificationServiceProvider)
+                                  .scheduleMonthlyMoneyCheckIns(
+                                    budgets: budgets,
+                                    goals: goals,
+                                  );
+                            }
+                          }
+                        },
+                      ),
+                      const Divider(),
+                      SwitchListTile.adaptive(
+                        isThreeLine: true,
+                        activeTrackColor: AppColors.primaryEmerald,
+                        secondary: const Icon(Icons.pie_chart_outline_rounded),
+                        title: const Text('Budget threshold alerts'),
+                        subtitle: const Text(
+                          'Optional alerts as a monthly category budget approaches its limit and when it is reached',
+                        ),
+                        value: budgetAlertSettings.enabled,
+                        onChanged: (enabled) async {
+                          AppHaptics.selectionClick();
+                          if (enabled &&
+                              !await _requestNotificationPermission(
+                                context,
+                                ref,
+                              )) {
+                            return;
+                          }
+                          await ref
+                              .read(budgetAlertSettingsProvider.notifier)
+                              .setEnabled(enabled);
+                        },
+                      ),
+                      if (budgetAlertSettings.enabled)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.tune_rounded, size: 20),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Early warning threshold',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 32),
+                                child: Text(
+                                  'A second alert is sent when spending reaches 100% of budget',
+                                  style: TextStyle(
+                                    color: financialColors.textMuted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 32),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    for (final threshold in const [70, 80, 90])
+                                      ChoiceChip(
+                                        selected:
+                                            budgetAlertSettings
+                                                .approachThreshold ==
+                                            threshold,
+                                        onSelected: (selected) {
+                                          if (selected) {
+                                            AppHaptics.selectionClick();
+                                            ref
+                                                .read(
+                                                  budgetAlertSettingsProvider
+                                                      .notifier,
+                                                )
+                                                .setApproachThreshold(
+                                                  threshold,
+                                                );
+                                          }
+                                        },
+                                        label: Text('$threshold% limit'),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const Divider(),
+                      SwitchListTile.adaptive(
+                        isThreeLine: true,
+                        activeTrackColor: AppColors.primaryEmerald,
+                        secondary: const Icon(Icons.visibility_off_outlined),
+                        title: const Text('Hide amounts in notifications'),
+                        subtitle: const Text(
+                          'Keep expense totals and payment amounts out of notification previews',
+                        ),
+                        value: hideNotificationAmounts,
+                        onChanged: (enabled) => ref
+                            .read(hideNotificationAmountsProvider.notifier)
+                            .setEnabled(enabled),
                       ),
                       const Divider(),
                       _buildListTile(
@@ -1511,12 +2015,16 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.notifications_active_outlined,
                         iconColor: financialColors.income,
                         title: 'Send Instant Test Notification',
+                        isThreeLine: true,
                         subtitle: 'Verify notification display on this device immediately',
                         onTap: () async {
                           AppHaptics.buttonPress();
-                          await ref
-                              .read(notificationServiceProvider)
-                              .requestPermission();
+                          if (!await _requestNotificationPermission(
+                            context,
+                            ref,
+                          )) {
+                            return;
+                          }
                           await ref
                               .read(notificationServiceProvider)
                               .sendTestNotification();
@@ -1538,12 +2046,16 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.alarm_on_rounded,
                         iconColor: AppColors.primaryTeal,
                         title: 'Test Offline Alarm (Fires in 10s)',
+                        isThreeLine: true,
                         subtitle: 'Schedule background alarm; close or lock phone to test delivery',
                         onTap: () async {
                           AppHaptics.buttonPress();
-                          await ref
-                              .read(notificationServiceProvider)
-                              .requestPermission();
+                          if (!await _requestNotificationPermission(
+                            context,
+                            ref,
+                          )) {
+                            return;
+                          }
                           final ok = await ref
                               .read(notificationServiceProvider)
                               .scheduleTestDelayedNotification(seconds: 10);
@@ -1579,6 +2091,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.file_download_rounded,
                         iconColor: financialColors.info,
                         title: 'Export Full Backup (JSON)',
+                        isThreeLine: true,
                         subtitle:
                             'Export complete offline database for safe keeping',
                         onTap: () => _showExportJsonDialog(context, ref),
@@ -1589,6 +2102,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.file_upload_rounded,
                         iconColor: financialColors.investment,
                         title: 'Restore Database (JSON)',
+                        isThreeLine: true,
                         subtitle: 'Restore financial records from a backup JSON string',
                         onTap: () => _showRestoreSheet(context, ref),
                       ),
@@ -1598,6 +2112,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.table_chart_rounded,
                         iconColor: AppColors.primaryEmerald,
                         title: 'Export Transactions (CSV)',
+                        isThreeLine: true,
                         subtitle:
                             'Export spreadsheet-ready log for Excel / Sheets',
                         onTap: () => _showExportCsvDialog(context, ref),
@@ -1608,6 +2123,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.file_open_rounded,
                         iconColor: financialColors.warning,
                         title: 'Import Transactions (CSV)',
+                        isThreeLine: true,
                         subtitle: 'Ingest transactions from CSV file or spreadsheet export',
                         onTap: () => _showImportCsvSheet(context, ref),
                       ),
@@ -1617,6 +2133,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.sync_rounded,
                         iconColor: financialColors.income,
                         title: 'Reconcile Account Balances',
+                        isThreeLine: true,
                         subtitle: 'Audit & align bank & card balances with transaction ledger',
                         onTap: () => _showReconcileBalancesDialog(context, ref),
                       ),
@@ -1642,6 +2159,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.delete_forever_rounded,
                         iconColor: AppColors.expense,
                         title: 'Factory Reset / Wipe All Data',
+                        isThreeLine: true,
                         subtitle: 'Permanently erase all local financial data',
                         onTap: () => _showFactoryResetDialog(context, ref),
                       ),
@@ -1726,6 +2244,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.code_rounded,
                         iconColor: financialColors.investment,
                         title: 'License',
+                        isThreeLine: true,
                         subtitle: 'GNU General Public License v3.0 (GPLv3)',
                       ),
                       const Divider(),
@@ -1734,6 +2253,7 @@ class SettingsScreen extends ConsumerWidget {
                         icon: Icons.favorite_border_rounded,
                         iconColor: financialColors.expense,
                         title: 'Tagline',
+                        isThreeLine: true,
                         subtitle: 'Because they don\'t have to stay empty.',
                       ),
                     ],
@@ -1769,39 +2289,49 @@ class SettingsScreen extends ConsumerWidget {
     required Color iconColor,
     required String title,
     required String subtitle,
+    bool? isThreeLine,
     Widget? trailing,
     VoidCallback? onTap,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final effectiveThreeLine = isThreeLine ?? (subtitle.length > 32);
 
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: iconColor.withAlpha(isDark ? 40 : 25),
-          borderRadius: BorderRadius.circular(10),
+    return Semantics(
+      label: '$title: $subtitle',
+      child: ListTile(
+        isThreeLine: effectiveThreeLine,
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withAlpha(isDark ? 40 : 25),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: iconColor, size: 20),
         ),
-        child: Icon(icon, color: iconColor, size: 20),
-      ),
-      title: Text(
-        title,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          fontWeight: FontWeight.w600,
+        title: Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: context.financialColors.textMuted,
+        subtitle: Text(
+          subtitle,
+          maxLines: effectiveThreeLine ? 2 : 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: context.financialColors.textMuted,
+          ),
         ),
+        trailing:
+            trailing ??
+            (onTap != null
+                ? const Icon(Icons.chevron_right_rounded, size: 20)
+                : null),
+        onTap: onTap,
       ),
-      trailing:
-          trailing ??
-          (onTap != null
-              ? const Icon(Icons.chevron_right_rounded, size: 20)
-              : null),
-      onTap: onTap,
     );
   }
 }

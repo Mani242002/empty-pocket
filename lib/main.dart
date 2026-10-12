@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -20,14 +21,16 @@ void main() async {
     LogService.debug('Main', 'Failed to pre-load currency preference: $e');
   }
 
-  // Initialize offline local notifications service and ensure scheduled reminders are active
+  // Initialize and restore schedules without prompting before the user opts in.
   try {
-    await NotificationService.instance.initialize();
+    final notificationService = NotificationService.instance;
+    await notificationService.initialize();
     final prefs = await SharedPreferences.getInstance();
     final streakEnabled = prefs.getBool(kPrefDailyStreakReminder) ?? true;
     if (streakEnabled) {
-      await NotificationService.instance.requestPermission();
-      await NotificationService.instance.scheduleDailyStreakReminder();
+      unawaited(notificationService.scheduleDailyLogReminders());
+    } else {
+      await notificationService.cancelDailyStreakReminder();
     }
   } catch (e) {
     LogService.debug('Main', 'Failed to initialize NotificationService: $e');

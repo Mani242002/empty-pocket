@@ -241,11 +241,12 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                         child: Image.asset(
                           'assets/icon/app_icon.png',
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
-                            Icons.shield_rounded,
-                            size: 48,
-                            color: AppColors.primaryEmerald,
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.shield_rounded,
+                                size: 48,
+                                color: AppColors.primaryEmerald,
+                              ),
                         ),
                       ),
                     ),
@@ -276,7 +277,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                           color: AppColors.warning.withAlpha(isDark ? 35 : 20),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: AppColors.warning.withAlpha(isDark ? 80 : 50),
+                            color: AppColors.warning.withAlpha(
+                              isDark ? 80 : 50,
+                            ),
                           ),
                         ),
                         child: Row(
@@ -335,7 +338,8 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                                 ),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.of(ctx).pop(false),
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(false),
                                     child: const Text('Cancel'),
                                   ),
                                   FilledButton(
@@ -343,7 +347,8 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                                       backgroundColor: AppColors.warning,
                                       foregroundColor: Colors.black,
                                     ),
-                                    onPressed: () => Navigator.of(ctx).pop(true),
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(true),
                                     child: const Text('Confirm Disable'),
                                   ),
                                 ],
@@ -370,7 +375,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.primaryEmerald,
-                            side: const BorderSide(color: AppColors.primaryEmerald),
+                            side: const BorderSide(
+                              color: AppColors.primaryEmerald,
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),

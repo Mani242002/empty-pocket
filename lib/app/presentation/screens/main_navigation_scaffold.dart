@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui';
 
@@ -10,7 +11,9 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../../core/domain/entities/transaction_entity.dart';
 import '../../../core/services/log_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/utilities/app_haptics.dart';
+import '../../../core/utilities/currency_formatter.dart';
 import '../../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../features/transactions/presentation/screens/add_edit_transaction_sheet.dart';
 import '../../../features/transactions/presentation/screens/transactions_screen.dart';
@@ -41,7 +44,9 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
     'dev.emptypocket.app/overlay',
   );
   int _currentIndex = 0;
+  int _budgetInitialTabIndex = 0;
   final Set<int> _visitedTabs = {0};
+  final Set<String> _billPaymentsBeingLogged = {};
   DateTime? _lastPausedTime;
   ReceivePort? _crossIsolateReceivePort;
 
@@ -51,6 +56,10 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
     WidgetsBinding.instance.addObserver(this);
     _setupOverlayListener();
     _setupCrossIsolateSync();
+    notificationIntentEvents.addListener(_consumeNotificationIntent);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _consumeNotificationIntent();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         if (!mounted) return;
@@ -108,11 +117,206 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    notificationIntentEvents.removeListener(_consumeNotificationIntent);
     try {
       IsolateNameServer.removePortNameMapping('empty_pocket_main_isolate');
       _crossIsolateReceivePort?.close();
     } catch (_) {}
     super.dispose();
+  }
+
+  void _consumeNotificationIntent() {
+    final intent = notificationIntentEvents.value;
+    if (intent == null) return;
+    notificationIntentEvents.value = null;
+    if (!mounted) return;
+
+    final payload = intent.payload.startsWith('snooze:')
+        ? intent.payload.substring('snooze:'.length)
+        : intent.payload;
+    final action = intent.actionId;
+    if (action == kNotificationActionRemindLater) {
+      unawaited(_scheduleNotificationSnooze(payload));
+      return;
+    }
+
+    if (payload.startsWith('bill:')) {
+      final parts = payload.split(':');
+      String? billId;
+      if (parts.length >= 4) {
+        try {
+          billId = Uri.decodeComponent(parts[1]);
+        } on FormatException {
+          billId = null;
+        }
+      }
+      final dueDateKey = parts.length >= 4 ? parts[2] : null;
+      setState(() {
+        _currentIndex = 2;
+        _visitedTabs.add(2);
+        _budgetInitialTabIndex = 2;
+      });
+      if (action == kNotificationActionMarkBillPaid &&
+          billId != null &&
+          dueDateKey != null) {
+        final targetBillId = billId;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          unawaited(_confirmAndLogBillPayment(targetBillId, dueDateKey));
+        });
+      }
+      return;
+    }
+
+    if (payload.startsWith('budget:') ||
+        payload.startsWith('monthly:') ||
+        action == kNotificationActionReviewBudget) {
+      setState(() {
+        _currentIndex = 2;
+        _visitedTabs.add(2);
+        _budgetInitialTabIndex = 0;
+      });
+      return;
+    }
+
+    if (payload.startsWith('daily:') ||
+        payload.startsWith('daily_summary:') ||
+        action == kNotificationActionLogExpense) {
+      setState(() {
+        _currentIndex = 1;
+        _visitedTabs.add(1);
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          AddEditTransactionSheet.show(
+            context,
+            initialType: TransactionType.expense,
+          );
+        }
+      });
+    }
+  }
+
+  Future<void> _scheduleNotificationSnooze(String payload) async {
+    final scheduled = await ref
+        .read(notificationServiceProvider)
+        .scheduleRemindLater(payload);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          scheduled ? 'Okay, I’ll remind you later.' : 'Could not schedule that reminder. Check notification settings and try again.',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _confirmAndLogBillPayment(
+    String billId,
+    String scheduledDateKey,
+  ) async {
+    if (_billPaymentsBeingLogged.contains(billId)) return;
+    _billPaymentsBeingLogged.add(billId);
+    try {
+      var recurringItems = ref
+          .read(recurringListNotifierProvider)
+          .asData
+          ?.value;
+      for (var attempt = 0; recurringItems == null && attempt < 15; attempt++) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        if (!mounted) return;
+        recurringItems = ref.read(recurringListNotifierProvider).asData?.value;
+      }
+      final item = recurringItems
+          ?.where((recurring) => recurring.id == billId && recurring.isActive)
+          .firstOrNull;
+      if (!mounted) return;
+      if (item == null || _billDateKey(item.nextDueDate) != scheduledDateKey) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'This bill reminder is out of date. Review the current bill details before logging a payment.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Log this bill payment?'),
+          content: Text(
+            'This adds ${CurrencyFormatter.format(item.amount)} for “${item.title}” as an expense and advances its next due date.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Log payment'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      await ref
+          .read(recurringListNotifierProvider.notifier)
+          .logPaymentAsTransaction(item);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logged ${item.title} as paid.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not log this payment: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      _billPaymentsBeingLogged.remove(billId);
+    }
+  }
+
+  String _billDateKey(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  void _syncMonthlyNotifications() {
+    final budgets = ref.read(budgetListNotifierProvider).asData?.value;
+    final goals = ref.read(savingsGoalsListNotifierProvider).asData?.value;
+    if (budgets == null || goals == null) return;
+    unawaited(
+      ref
+          .read(notificationServiceProvider)
+          .scheduleMonthlyMoneyCheckIns(budgets: budgets, goals: goals),
+    );
+  }
+
+  void _syncBudgetThresholdAlerts() {
+    final budgets = ref.read(budgetListNotifierProvider).asData?.value;
+    final transactions = ref
+        .read(transactionListNotifierProvider)
+        .asData
+        ?.value;
+    if (budgets == null || transactions == null) return;
+    unawaited(
+      ref
+          .read(notificationServiceProvider)
+          .updateBudgetThresholdAlerts(
+            budgets: budgets,
+            transactions: transactions,
+          ),
+    );
   }
 
   @override
@@ -127,6 +331,10 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
       if (pausedDuration != null && pausedDuration.inMilliseconds < 500) {
         return;
       }
+
+      unawaited(
+        ref.read(notificationServiceProvider).scheduleDailyLogReminders(),
+      );
 
       // Refresh core transactional & balance providers immediately
       ref.invalidate(transactionListNotifierProvider);
@@ -411,6 +619,125 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
   Widget build(BuildContext context) {
     // Re-render navigation tree when user alters the regional currency preference
     ref.watch(currencyProvider);
+    ref.listen(currencyProvider, (previous, next) {
+      final transactions = ref
+          .read(transactionListNotifierProvider)
+          .asData
+          ?.value;
+      if (transactions != null) {
+        unawaited(
+          ref
+              .read(notificationServiceProvider)
+              .scheduleDailySummaries(transactions),
+        );
+      }
+      final recurring = ref.read(recurringListNotifierProvider).asData?.value;
+      if (recurring != null) {
+        unawaited(
+          ref
+              .read(notificationServiceProvider)
+              .scheduleRecurringPaymentReminders(recurring),
+        );
+      }
+    });
+    ref.listen(transactionListNotifierProvider, (previous, next) {
+      final transactions = next.asData?.value;
+      if (transactions != null) {
+        unawaited(
+          ref
+              .read(notificationServiceProvider)
+              .scheduleDailySummaries(transactions),
+        );
+        _syncBudgetThresholdAlerts();
+      }
+    });
+    ref.listen(dailyStreakReminderNotifierProvider, (previous, enabled) {
+      final service = ref.read(notificationServiceProvider);
+      if (!enabled) {
+        unawaited(service.cancelDailyStreakReminder());
+        return;
+      }
+      final transactions = ref
+          .read(transactionListNotifierProvider)
+          .asData
+          ?.value;
+      if (transactions != null) {
+        unawaited(service.scheduleDailySummaries(transactions));
+      }
+    });
+    ref.listen(recurringListNotifierProvider, (previous, next) {
+      final recurring = next.asData?.value;
+      if (recurring != null) {
+        unawaited(
+          ref
+              .read(notificationServiceProvider)
+              .scheduleRecurringPaymentReminders(recurring),
+        );
+      }
+    });
+    ref.listen(routineReminderSettingsProvider, (previous, settings) {
+      unawaited(
+        ref.read(notificationServiceProvider).scheduleDailyLogReminders(),
+      );
+      final transactions = ref
+          .read(transactionListNotifierProvider)
+          .asData
+          ?.value;
+      if (transactions != null) {
+        unawaited(
+          ref
+              .read(notificationServiceProvider)
+              .scheduleDailySummaries(transactions),
+        );
+      }
+    });
+    ref.listen(hideNotificationAmountsProvider, (previous, hideAmounts) {
+      final service = ref.read(notificationServiceProvider);
+      if (hideAmounts) unawaited(service.hideSensitiveActiveNotifications());
+      unawaited(service.scheduleDailyLogReminders());
+      final transactions = ref
+          .read(transactionListNotifierProvider)
+          .asData
+          ?.value;
+      if (transactions != null) {
+        unawaited(service.scheduleDailySummaries(transactions));
+      }
+      final recurring = ref.read(recurringListNotifierProvider).asData?.value;
+      if (recurring != null) {
+        unawaited(service.scheduleRecurringPaymentReminders(recurring));
+      }
+      _syncMonthlyNotifications();
+    });
+    ref.listen(budgetAlertSettingsProvider, (previous, settings) {
+      if (!settings.enabled) {
+        unawaited(
+          ref.read(notificationServiceProvider).cancelBudgetAlertReminders(),
+        );
+      }
+      _syncBudgetThresholdAlerts();
+    });
+    ref.listen(billDueAlertNotifierProvider, (previous, enabled) {
+      if (!enabled) {
+        unawaited(ref.read(notificationServiceProvider).cancelBillDueAlerts());
+      }
+    });
+    ref.listen(budgetListNotifierProvider, (previous, next) {
+      if (next.asData != null) {
+        _syncMonthlyNotifications();
+        _syncBudgetThresholdAlerts();
+      }
+    });
+    ref.listen(savingsGoalsListNotifierProvider, (previous, next) {
+      if (next.asData != null) _syncMonthlyNotifications();
+    });
+    ref.listen(monthlyMoneyCheckInNotifierProvider, (previous, enabled) {
+      if (!enabled) {
+        unawaited(
+          ref.read(notificationServiceProvider).cancelMonthlyMoneyCheckIns(),
+        );
+      }
+    });
+
     final mediaQuery = MediaQuery.of(context);
     final textScale = mediaQuery.textScaler.scale(12) / 12;
     final navLabelBehavior = textScale >= 1.6
@@ -423,7 +750,7 @@ class _MainNavigationScaffoldState extends ConsumerState<MainNavigationScaffold>
         onSetBudget: () => _onTabSelected(2),
       ),
       const TransactionsScreen(),
-      const BudgetsScreen(),
+      BudgetsScreen(initialTab: _budgetInitialTabIndex),
       const ReportsAnalyticsScreen(),
       const SettingsScreen(),
     ];

@@ -1103,14 +1103,17 @@ Guidelines:
 
     final host = uri.host.toLowerCase();
     final address = InternetAddress.tryParse(host);
-    final isLocalName = host == 'localhost' ||
+    final isLocalName =
+        host == 'localhost' ||
         host.endsWith('.localhost') ||
         host.endsWith('.local');
-    final isPrivateIpv4 = address != null &&
+    final isPrivateIpv4 =
+        address != null &&
         address.type == InternetAddressType.IPv4 &&
         _isPrivateIpv4(address.address);
     final ipv6Address = address?.address.toLowerCase() ?? '';
-    final isPrivateIpv6 = address != null &&
+    final isPrivateIpv6 =
+        address != null &&
         address.type == InternetAddressType.IPv6 &&
         (address.isLoopback ||
             address.isLinkLocal ||

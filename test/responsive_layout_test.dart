@@ -35,6 +35,7 @@ import 'package:empty_pocket/features/transactions/presentation/screens/transact
 import 'package:empty_pocket/features/budgets/presentation/widgets/shared_splits_tab.dart';
 import 'package:empty_pocket/app/presentation/screens/main_navigation_scaffold.dart';
 import 'package:empty_pocket/app/theme/app_theme.dart';
+import 'package:empty_pocket/core/services/notification_service.dart';
 
 void main() {
   setUp(() {
@@ -246,6 +247,273 @@ void main() {
         expect(find.text('System'), findsOneWidget);
         expect(find.text('Light'), findsOneWidget);
         expect(find.text('Dark'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'SettingsScreen Notifications & Reminders section renders with accessible chips on 320dp width with 1.8x font scale without overflow',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        SharedPreferences.setMockInitialValues({
+          kPrefBudgetAlertsEnabled: true,
+          kPrefBudgetAlertThreshold: 80,
+          kPrefRoutineReminderFrequency: 3,
+        });
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              theme: AppTheme.lightTheme,
+              home: const MediaQuery(
+                data: MediaQueryData(
+                  size: Size(320, 800),
+                  textScaler: TextScaler.linear(1.8),
+                ),
+                child: SettingsScreen(),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        final notificationsHeader = find.text('NOTIFICATIONS & REMINDERS');
+        await tester.scrollUntilVisible(notificationsHeader, 200);
+        expect(notificationsHeader, findsOneWidget);
+
+        // 1. Verify routine frequency chips and their minimum 48dp accessible tap targets
+        final routineChipAll = find.widgetWithText(
+          ChoiceChip,
+          '3 / day (All prompts)',
+        );
+        await tester.scrollUntilVisible(routineChipAll, 200);
+        expect(routineChipAll, findsOneWidget);
+        final routineAllSize = tester.getSize(routineChipAll);
+        expect(routineAllSize.height, greaterThanOrEqualTo(48.0));
+
+        final routineChipMorning = find.widgetWithText(
+          ChoiceChip,
+          '1 / day (Morning only)',
+        );
+        expect(routineChipMorning, findsOneWidget);
+        final routineMorningSize = tester.getSize(routineChipMorning);
+        expect(routineMorningSize.height, greaterThanOrEqualTo(48.0));
+
+        // 2. Verify early warning threshold chips and their minimum 48dp accessible tap targets
+        final threshold70 = find.widgetWithText(ChoiceChip, '70% limit');
+        await tester.scrollUntilVisible(threshold70, 200);
+        expect(threshold70, findsOneWidget);
+        expect(tester.getSize(threshold70).height, greaterThanOrEqualTo(48.0));
+
+        final threshold80 = find.widgetWithText(ChoiceChip, '80% limit');
+        expect(threshold80, findsOneWidget);
+        expect(tester.getSize(threshold80).height, greaterThanOrEqualTo(48.0));
+
+        final threshold90 = find.widgetWithText(ChoiceChip, '90% limit');
+        await tester.ensureVisible(threshold90);
+        await tester.pumpAndSettle();
+        expect(threshold90, findsOneWidget);
+        expect(tester.getSize(threshold90).height, greaterThanOrEqualTo(48.0));
+
+        // 3. Tap to select and verify interaction succeeds without error or layout overflow
+        await tester.tap(threshold90);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        // 4. Assert that the selected value changed in both the UI and state/persistence
+        final chip90 = tester.widget<ChoiceChip>(
+          find.widgetWithText(ChoiceChip, '90% limit'),
+        );
+        expect(chip90.selected, isTrue);
+
+        final chip80 = tester.widget<ChoiceChip>(
+          find.widgetWithText(ChoiceChip, '80% limit'),
+        );
+        expect(chip80.selected, isFalse);
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(SettingsScreen)),
+        );
+        expect(
+          container.read(budgetAlertSettingsProvider).approachThreshold,
+          equals(90),
+        );
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getInt(kPrefBudgetAlertThreshold), equals(90));
+      },
+    );
+
+    testWidgets(
+      'SettingsScreen descriptive list tiles render multi-line subtitles and semantics without overflow at 320dp width with 1.8x font scale',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        SharedPreferences.setMockInitialValues({
+          kPrefBudgetAlertsEnabled: true,
+          kPrefBudgetAlertThreshold: 80,
+          kPrefRoutineReminderFrequency: 3,
+        });
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              theme: AppTheme.lightTheme,
+              home: const MediaQuery(
+                data: MediaQueryData(
+                  size: Size(320, 800),
+                  textScaler: TextScaler.linear(1.8),
+                ),
+                child: SettingsScreen(),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        // Helper to scroll to and verify a tile's title, subtitle, isThreeLine, and maxLines configuration
+        Future<void> scrollToAndVerify(
+          String titleText, {
+          required int expectedSubtitleMaxLines,
+          required bool expectedThreeLine,
+        }) async {
+          final titleFinder = find.text(titleText);
+          await tester.scrollUntilVisible(titleFinder, 300, maxScrolls: 150);
+          await tester.pumpAndSettle();
+
+          expect(titleFinder, findsOneWidget);
+
+          final tileFinder = find.ancestor(
+            of: titleFinder,
+            matching: find.byType(ListTile),
+          );
+          expect(tileFinder, findsOneWidget);
+          final listTile = tester.widget<ListTile>(tileFinder);
+          expect(listTile.isThreeLine, equals(expectedThreeLine));
+
+          final subtitleTextWidget = listTile.subtitle as Text;
+          expect(subtitleTextWidget.maxLines, equals(expectedSubtitleMaxLines));
+          expect(subtitleTextWidget.overflow, equals(TextOverflow.ellipsis));
+
+          final semanticsFinder = find.ancestor(
+            of: tileFinder,
+            matching: find.byType(Semantics),
+          );
+          expect(semanticsFinder, findsAtLeastNWidgets(1));
+          final semantics = tester.widget<Semantics>(semanticsFinder.first);
+          expect(
+            semantics.properties.label,
+            equals('$titleText: ${subtitleTextWidget.data}'),
+          );
+        }
+
+        // 1. Verify Currency tile near the top
+        await scrollToAndVerify(
+          'Currency',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        // 2. Verify PocketAI BYOK keys tile
+        await scrollToAndVerify(
+          'AI Providers & BYOK Keys',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        // 3. Verify Privacy & Security tiles
+        await scrollToAndVerify(
+          'Data Storage',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        await scrollToAndVerify(
+          'Network Activity',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        // 4. Verify Notifications test tiles
+        await scrollToAndVerify(
+          'Send Instant Test Notification',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        await scrollToAndVerify(
+          'Test Offline Alarm (Fires in 10s)',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        // 5. Verify Data & Backup tiles
+        await scrollToAndVerify(
+          'Export Full Backup (JSON)',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        await scrollToAndVerify(
+          'Restore Database (JSON)',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        await scrollToAndVerify(
+          'Export Transactions (CSV)',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        await scrollToAndVerify(
+          'Import Transactions (CSV)',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        await scrollToAndVerify(
+          'Reconcile Account Balances',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        // 6. Verify Danger Zone
+        await scrollToAndVerify(
+          'Factory Reset / Wipe All Data',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        // 7. Verify About section: License, Tagline (descriptive -> 2 lines) and Version (concise -> 1 line)
+        await scrollToAndVerify(
+          'License',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        await scrollToAndVerify(
+          'Tagline',
+          expectedSubtitleMaxLines: 2,
+          expectedThreeLine: true,
+        );
+
+        await scrollToAndVerify(
+          'Version',
+          expectedSubtitleMaxLines: 1,
+          expectedThreeLine: false,
+        );
+
+        // Entire pass on ultra-compact 320dp width with 1.8x font scale ran without any layout exceptions
+        expect(tester.takeException(), isNull);
       },
     );
 

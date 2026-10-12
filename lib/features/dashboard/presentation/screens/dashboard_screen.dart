@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_theme.dart';
-import '../../../../core/services/notification_service.dart';
 import '../../../accounts/presentation/state/accounts_cards_provider.dart';
 import '../../../budgets/presentation/state/budgets_provider.dart';
 import '../../../budgets/presentation/state/recurring_provider.dart';
@@ -59,12 +58,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final recentTransactions = ref.watch(recentTransactionsProvider);
     final dailySafeToSpend = ref.watch(dailySafeToSpendProvider);
     final dueBills = ref.watch(recurringBillsDueTodayProvider);
-
-    ref.listen(recurringBillsDueTodayProvider, (previous, next) {
-      if (next.isNotEmpty) {
-        ref.read(notificationServiceProvider).checkAndNotifyBillsDueToday(next);
-      }
-    });
 
     return Scaffold(
       body: SafeArea(

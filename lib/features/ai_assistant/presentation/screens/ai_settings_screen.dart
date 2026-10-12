@@ -126,21 +126,24 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
 
   void _scheduleApiKeySave(AiProviderType provider, String value) {
     _pendingKeySaves.remove(provider)?.cancel();
-    _pendingKeySaves[provider] = Timer(const Duration(milliseconds: 450), () async {
-      _pendingKeySaves.remove(provider);
-      try {
-        await _configNotifier.updateApiKeyFor(provider, value);
-      } catch (_) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('API key could not be saved securely.'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.expense,
-          ),
-        );
-      }
-    });
+    _pendingKeySaves[provider] = Timer(
+      const Duration(milliseconds: 450),
+      () async {
+        _pendingKeySaves.remove(provider);
+        try {
+          await _configNotifier.updateApiKeyFor(provider, value);
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('API key could not be saved securely.'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.expense,
+            ),
+          );
+        }
+      },
+    );
   }
 
   Color _colorFor(AiProviderType provider) {
@@ -242,14 +245,15 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     try {
       await notifier.updateApiKeyFor(provider, key);
       if (provider == AiProviderType.custom) {
-        await notifier.updateCustomBaseUrl(_customBaseUrlController.text.trim());
+        await notifier.updateCustomBaseUrl(
+          _customBaseUrlController.text.trim(),
+        );
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           _isTesting[provider] = false;
-          _testStatuses[provider] =
-              'Could not securely save the key or endpoint. The key was not sent.';
+          _testStatuses[provider] = 'Could not securely save the key or endpoint. The key was not sent.';
         });
       }
       return;

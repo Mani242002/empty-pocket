@@ -75,8 +75,7 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
       final deepSeekModel =
           prefs.getString(_keyDeepSeekModel) ?? 'deepseek-flash';
       final customModel = prefs.getString(_keyCustomModel) ?? 'llama-4-scout';
-      final customBaseUrl =
-          prefs.getString(_keyCustomBaseUrl) ?? '';
+      final customBaseUrl = prefs.getString(_keyCustomBaseUrl) ?? '';
       final customSavedModels =
           prefs.getStringList(_keyCustomSavedModels) ??
           const [
@@ -205,41 +204,39 @@ class AiProviderConfigNotifier extends StateNotifier<AiProviderConfig> {
     final previousWrite =
         _pendingApiKeyWrites[storageKey] ?? Future<void>.value();
     late final Future<void> write;
-    write = previousWrite
-        .catchError((Object _) {})
-        .then((_) async {
-          if (key.isEmpty) {
-            await _secureStorage.delete(key: storageKey);
-          } else {
-            await _secureStorage.write(key: storageKey, value: key);
-          }
+    write = previousWrite.catchError((Object _) {}).then((_) async {
+      if (key.isEmpty) {
+        await _secureStorage.delete(key: storageKey);
+      } else {
+        await _secureStorage.write(key: storageKey, value: key);
+      }
 
-          // Apply the key to the latest state so concurrent model/provider
-          // edits are not replaced by a stale snapshot.
-          switch (provider) {
-            case AiProviderType.gemini:
-              state = state.copyWith(geminiApiKey: key);
-              break;
-            case AiProviderType.openAi:
-              state = state.copyWith(openAiApiKey: key);
-              break;
-            case AiProviderType.anthropic:
-              state = state.copyWith(anthropicApiKey: key);
-              break;
-            case AiProviderType.groq:
-              state = state.copyWith(groqApiKey: key);
-              break;
-            case AiProviderType.openRouter:
-              state = state.copyWith(openRouterApiKey: key);
-              break;
-            case AiProviderType.deepSeek:
-              state = state.copyWith(deepSeekApiKey: key);
-              break;
-            case AiProviderType.custom:
-              state = state.copyWith(customApiKey: key);
-              break;
-          }
-        });
+      // Apply the key to the latest state so concurrent model/provider
+      // edits are not replaced by a stale snapshot.
+      switch (provider) {
+        case AiProviderType.gemini:
+          state = state.copyWith(geminiApiKey: key);
+          break;
+        case AiProviderType.openAi:
+          state = state.copyWith(openAiApiKey: key);
+          break;
+        case AiProviderType.anthropic:
+          state = state.copyWith(anthropicApiKey: key);
+          break;
+        case AiProviderType.groq:
+          state = state.copyWith(groqApiKey: key);
+          break;
+        case AiProviderType.openRouter:
+          state = state.copyWith(openRouterApiKey: key);
+          break;
+        case AiProviderType.deepSeek:
+          state = state.copyWith(deepSeekApiKey: key);
+          break;
+        case AiProviderType.custom:
+          state = state.copyWith(customApiKey: key);
+          break;
+      }
+    });
     _pendingApiKeyWrites[storageKey] = write;
     try {
       await write;
