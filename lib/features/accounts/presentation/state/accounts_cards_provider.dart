@@ -19,6 +19,31 @@ class BankAccountListNotifier extends AsyncNotifier<List<BankAccountEntity>> {
   FutureOr<List<BankAccountEntity>> build() async {
     final repository = ref.watch(bankAccountRepositoryProvider);
     final accounts = await repository.getAllAccounts();
+
+    // Auto-ensure default "Cash in Hand" wallet if no cash account exists
+    final hasCash = accounts.any((a) => a.accountType == AccountType.cash);
+    if (!hasCash) {
+      final defaultCash = BankAccountEntity(
+        id: const Uuid().v4(),
+        accountName: 'Cash in Hand',
+        bankName: 'Physical Cash',
+        accountType: AccountType.cash,
+        usedFor: AccountPurposeTags.dailySpending,
+        initialBalance: 0.0,
+        currentBalance: 0.0,
+        isDefault: false,
+        isArchived: false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      try {
+        await repository.saveAccount(defaultCash);
+        return [...accounts, defaultCash];
+      } catch (_) {
+        return [...accounts, defaultCash];
+      }
+    }
+
     return accounts;
   }
 
@@ -84,7 +109,7 @@ final bankAccountListProvider =
       BankAccountListNotifier.new,
     );
 
-/// Active (non-archived) Bank Accounts
+/// Active (non-archived) Bank & Cash Accounts
 final activeBankAccountsProvider = Provider<List<BankAccountEntity>>((ref) {
   final accountsAsync = ref.watch(bankAccountListProvider);
   return accountsAsync.maybeWhen(
@@ -93,15 +118,52 @@ final activeBankAccountsProvider = Provider<List<BankAccountEntity>>((ref) {
   );
 });
 
-/// Default Bank Account for quick selections
-final defaultBankAccountProvider = Provider<BankAccountEntity?>((ref) {
+/// Pure Bank Accounts (excluding physical cash accounts)
+final pureBankAccountsProvider = Provider<List<BankAccountEntity>>((ref) {
   final accounts = ref.watch(activeBankAccountsProvider);
-  if (accounts.isEmpty) return null;
-  final def = accounts.where((a) => a.isDefault);
-  return def.isNotEmpty ? def.first : accounts.first;
+  return accounts.where((a) => a.accountType != AccountType.cash).toList();
 });
 
-/// Combined Total Liquid Cash across all active accounts
+/// Active Physical Cash Accounts / Wallets
+final activeCashAccountsProvider = Provider<List<BankAccountEntity>>((ref) {
+  final accounts = ref.watch(activeBankAccountsProvider);
+  return accounts.where((a) => a.accountType == AccountType.cash).toList();
+});
+
+/// Primary Cash Account (default or first cash wallet)
+final primaryCashAccountProvider = Provider<BankAccountEntity?>((ref) {
+  final cashAccounts = ref.watch(activeCashAccountsProvider);
+  if (cashAccounts.isEmpty) return null;
+  final def = cashAccounts.where((a) => a.isDefault);
+  return def.isNotEmpty ? def.first : cashAccounts.first;
+});
+
+/// Total Bank Balance across all non-archived bank accounts
+final totalBankBalanceProvider = Provider<double>((ref) {
+  final bankAccounts = ref.watch(pureBankAccountsProvider);
+  return bankAccounts.fold(0.0, (sum, a) => sum + a.currentBalance);
+});
+
+/// Total Physical Cash in Hand across all cash wallets
+final totalPhysicalCashBalanceProvider = Provider<double>((ref) {
+  final cashAccounts = ref.watch(activeCashAccountsProvider);
+  return cashAccounts.fold(0.0, (sum, a) => sum + a.currentBalance);
+});
+
+/// Default Bank Account for quick selections (excludes cash accounts where possible)
+final defaultBankAccountProvider = Provider<BankAccountEntity?>((ref) {
+  final bankAccounts = ref.watch(pureBankAccountsProvider);
+  if (bankAccounts.isEmpty) {
+    final all = ref.watch(activeBankAccountsProvider);
+    if (all.isEmpty) return null;
+    final def = all.where((a) => a.isDefault);
+    return def.isNotEmpty ? def.first : all.first;
+  }
+  final def = bankAccounts.where((a) => a.isDefault);
+  return def.isNotEmpty ? def.first : bankAccounts.first;
+});
+
+/// Combined Total Liquid Cash across all active accounts (Banks + Physical Cash)
 final combinedLiquidCashProvider = Provider<double>((ref) {
   final accounts = ref.watch(activeBankAccountsProvider);
   return FinancialCalculator.calculateCombinedLiquidCash(accounts);
@@ -198,19 +260,42 @@ class AccountOperationsNotifier {
     if (amount <= 0) return;
     final now = date ?? DateTime.now();
 
+    final isAtmWithdrawal = fromAccount.accountType != AccountType.cash &&
+        toAccount.accountType == AccountType.cash;
+    final isCashDeposit = fromAccount.accountType == AccountType.cash &&
+        toAccount.accountType != AccountType.cash;
+
+    final defaultTitle = isAtmWithdrawal
+        ? 'ATM Cash Withdrawal'
+        : isCashDeposit
+            ? 'Cash Deposit: ${toAccount.accountName}'
+            : 'Transfer: ${fromAccount.accountName} → ${toAccount.accountName}';
+
+    final defaultCategory = isAtmWithdrawal
+        ? 'ATM / Cash Withdrawal'
+        : isCashDeposit
+            ? 'Cash Deposit'
+            : CategoryConstants.categoryAccountTransfer;
+
+    final defaultNotes = isAtmWithdrawal
+        ? 'Cash withdrawn from ${fromAccount.accountName} into ${toAccount.accountName}'
+        : isCashDeposit
+            ? 'Physical cash deposited from ${fromAccount.accountName} into ${toAccount.accountName}'
+            : 'Transfer to ${toAccount.accountName} (${toAccount.usedFor})';
+
     final tx = TransactionEntity(
       id: const Uuid().v4(),
-      title: 'Transfer: ${fromAccount.accountName} → ${toAccount.accountName}',
+      title: (notes != null && notes.isNotEmpty && !notes.startsWith('Transfer:'))
+          ? notes
+          : defaultTitle,
       amount: amount,
       type: TransactionType.transfer,
-      category: CategoryConstants.categoryAccountTransfer,
+      category: defaultCategory,
       date: now,
       paymentSource: fromAccount.accountName,
       accountId: fromAccount.id,
       toAccountId: toAccount.id,
-      notes:
-          notes ??
-          'Transfer to ${toAccount.accountName} (${toAccount.usedFor})',
+      notes: notes ?? defaultNotes,
       createdAt: now,
       updatedAt: now,
     );

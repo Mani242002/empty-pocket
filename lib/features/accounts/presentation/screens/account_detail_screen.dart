@@ -11,6 +11,7 @@ import '../../../transactions/presentation/state/transactions_provider.dart';
 import '../../../transactions/presentation/widgets/transaction_list_item.dart';
 import 'account_transfer_sheet.dart';
 import 'add_edit_bank_account_sheet.dart';
+import 'add_edit_cash_account_sheet.dart';
 import 'add_edit_credit_card_sheet.dart';
 import 'pay_credit_card_sheet.dart';
 import 'smart_inflow_distribution_sheet.dart';
@@ -69,10 +70,12 @@ class AccountDetailScreen extends ConsumerWidget {
     // Filter transactions linked to this account or card
     final filteredTransactions = allTransactions.where((tx) {
       if (liveAccount != null) {
+        final isCash = liveAccount.accountType == AccountType.cash;
         return tx.accountId == liveAccount.id ||
             tx.toAccountId == liveAccount.id ||
             tx.paymentSource.toLowerCase() ==
-                liveAccount.accountName.toLowerCase();
+                liveAccount.accountName.toLowerCase() ||
+            (isCash && tx.paymentSource.toLowerCase() == 'cash');
       } else if (liveCard != null) {
         return tx.creditCardId == liveCard.id ||
             tx.paymentSource.toLowerCase() == liveCard.cardName.toLowerCase();
@@ -115,10 +118,16 @@ class AccountDetailScreen extends ConsumerWidget {
                   Navigator.pop(context);
                 }
               } else if (liveAccount != null) {
-                final deleted = await AddEditBankAccountSheet.show(
-                  context,
-                  account: liveAccount,
-                );
+                final isCash = liveAccount.accountType == AccountType.cash;
+                final deleted = isCash
+                    ? await AddEditCashAccountSheet.show(
+                        context,
+                        account: liveAccount,
+                      )
+                    : await AddEditBankAccountSheet.show(
+                        context,
+                        account: liveAccount,
+                      );
                 if (deleted == true && context.mounted) {
                   Navigator.pop(context);
                 }
@@ -214,44 +223,84 @@ class AccountDetailScreen extends ConsumerWidget {
                         physics: const BouncingScrollPhysics(),
                         child: Row(
                           children: [
-                            FilledButton.tonalIcon(
-                              style: FilledButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              icon: const Icon(
-                                Icons.pie_chart_rounded,
-                                size: 16,
-                              ),
-                              label: const Text('Smart Split'),
-                              onPressed: () =>
-                                  SmartInflowDistributionSheet.show(
-                                    context,
-                                    account: liveAccount!,
+                            if (liveAccount!.accountType == AccountType.cash) ...[
+                              FilledButton.tonalIcon(
+                                style: FilledButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
                                   ),
-                            ),
-                            const SizedBox(width: 8),
-                            FilledButton.tonalIcon(
-                              style: FilledButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
+                                ),
+                                icon: const Icon(
+                                  Icons.tune_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('Adjust Balance'),
+                                onPressed: () => AddEditCashAccountSheet.show(
+                                  context,
+                                  account: liveAccount,
                                 ),
                               ),
-                              icon: const Icon(
-                                Icons.swap_horiz_rounded,
-                                size: 16,
+                              const SizedBox(width: 8),
+                              FilledButton.tonalIcon(
+                                style: FilledButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                icon: const Icon(
+                                  Icons.swap_horiz_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('Transfer / Deposit'),
+                                onPressed: () => AccountTransferSheet.show(
+                                  context,
+                                  fromAccount: liveAccount,
+                                ),
                               ),
-                              label: const Text('Transfer'),
-                              onPressed: () => AccountTransferSheet.show(
-                                context,
-                                fromAccount: liveAccount,
+                            ] else ...[
+                              FilledButton.tonalIcon(
+                                style: FilledButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                icon: const Icon(
+                                  Icons.pie_chart_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('Smart Split'),
+                                onPressed: () =>
+                                    SmartInflowDistributionSheet.show(
+                                      context,
+                                      account: liveAccount,
+                                    ),
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              FilledButton.tonalIcon(
+                                style: FilledButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                icon: const Icon(
+                                  Icons.swap_horiz_rounded,
+                                  size: 16,
+                                ),
+                                label: const Text('Transfer'),
+                                onPressed: () => AccountTransferSheet.show(
+                                  context,
+                                  fromAccount: liveAccount,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

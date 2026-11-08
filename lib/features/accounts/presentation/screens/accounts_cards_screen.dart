@@ -11,9 +11,12 @@ import '../state/accounts_cards_provider.dart';
 import 'account_detail_screen.dart';
 import 'account_transfer_sheet.dart';
 import 'add_edit_bank_account_sheet.dart';
+import 'add_edit_cash_account_sheet.dart';
 import 'add_edit_credit_card_sheet.dart';
 import 'pay_credit_card_sheet.dart';
 import '../../../settings/presentation/state/backup_provider.dart';
+import '../../../transactions/presentation/screens/add_edit_transaction_sheet.dart';
+import '../../../../core/domain/entities/transaction_entity.dart';
 
 class AccountsCardsScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
@@ -33,9 +36,9 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 2,
+      length: 3,
       vsync: this,
-      initialIndex: widget.initialTabIndex,
+      initialIndex: widget.initialTabIndex.clamp(0, 2),
     );
   }
 
@@ -52,9 +55,13 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
     final financialColors = context.financialColors;
     final isDark = theme.brightness == Brightness.dark;
 
-    final accounts = ref.watch(activeBankAccountsProvider);
+    final bankAccounts = ref.watch(pureBankAccountsProvider);
+    final cashAccounts = ref.watch(activeCashAccountsProvider);
+    final primaryCash = ref.watch(primaryCashAccountProvider);
+    final defaultBank = ref.watch(defaultBankAccountProvider);
+    final totalBankBalance = ref.watch(totalBankBalanceProvider);
+    final totalCash = ref.watch(totalPhysicalCashBalanceProvider);
     final cards = ref.watch(activeCreditCardsProvider);
-    final combinedCash = ref.watch(combinedLiquidCashProvider);
     final creditSummary = ref.watch(combinedCreditSummaryProvider);
 
     return Scaffold(
@@ -75,11 +82,15 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
           tabs: [
             Tab(
               icon: const Icon(Icons.account_balance_rounded, size: 20),
-              text: 'Bank Accounts (${accounts.length})',
+              text: 'Bank Accounts (${bankAccounts.length})',
             ),
             Tab(
               icon: const Icon(Icons.credit_card_rounded, size: 20),
               text: 'Credit Cards (${cards.length})',
+            ),
+            Tab(
+              icon: const Icon(Icons.payments_rounded, size: 20),
+              text: 'Cash in Hand (${cashAccounts.length})',
             ),
           ],
         ),
@@ -94,8 +105,8 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                 // Tab 1: Bank Accounts
                 _buildBankAccountsTab(
                   context,
-                  accounts,
-                  combinedCash,
+                  bankAccounts,
+                  totalBankBalance,
                   isDark,
                   financialColors,
                 ),
@@ -104,6 +115,16 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                   context,
                   cards,
                   creditSummary,
+                  isDark,
+                  financialColors,
+                ),
+                // Tab 3: Cash in Hand
+                _buildCashTab(
+                  context,
+                  cashAccounts,
+                  totalCash,
+                  defaultBank,
+                  primaryCash,
                   isDark,
                   financialColors,
                 ),
@@ -155,7 +176,7 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                     children: [
                       Flexible(
                         child: Text(
-                          'COMBINED LIQUID BALANCE',
+                          'COMBINED BANK BALANCE',
                           style: theme.textTheme.labelSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.2,
@@ -178,7 +199,7 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '${accounts.length} Accounts',
+                          '${accounts.length} Bank Account${accounts.length == 1 ? '' : 's'}',
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -1018,6 +1039,559 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCashTab(
+    BuildContext context,
+    List<BankAccountEntity> cashAccounts,
+    double totalCash,
+    BankAccountEntity? defaultBank,
+    BankAccountEntity? primaryCash,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    final theme = Theme.of(context);
+    final isDeficit = totalCash < 0;
+
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        // Cash in Hand Hero Card
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [const Color(0xFF0D251C), const Color(0xFF14241B)]
+                      : [const Color(0xFFE8FDF3), const Color(0xFFF0FDF5)],
+                ),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: (isDeficit
+                          ? financialColors.expense
+                          : AppColors.primaryEmerald)
+                      .withAlpha(isDark ? 80 : 50),
+                  width: 1.5,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.payments_rounded,
+                              size: 16,
+                              color: isDeficit
+                                  ? financialColors.expense
+                                  : AppColors.primaryEmerald,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'TOTAL CASH IN HAND',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
+                                  color: financialColors.textMuted,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: (isDeficit
+                                  ? financialColors.expense
+                                  : AppColors.primaryEmerald)
+                              .withAlpha(isDark ? 40 : 25),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isDeficit
+                              ? 'Deficit'
+                              : '${cashAccounts.length} Wallet${cashAccounts.length == 1 ? '' : 's'}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: isDeficit
+                                ? financialColors.expense
+                                : AppColors.primaryEmerald,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      CurrencyFormatter.format(totalCash),
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: isDeficit
+                            ? financialColors.expense
+                            : financialColors.income,
+                      ),
+                    ),
+                  ),
+                  if (isDeficit) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Cash spending exceeds recorded cash balance. Log an ATM withdrawal or adjust balance.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: financialColors.expense,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  // Row 1: ATM Withdrawal (Bank -> Cash) & Deposit (Cash -> Bank)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 11,
+                              horizontal: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.local_atm_rounded, size: 18),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('ATM Withdraw'),
+                          ),
+                          onPressed: () {
+                            if (defaultBank == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please add a bank account first to withdraw cash from.',
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              return;
+                            }
+                            AccountTransferSheet.show(
+                              context,
+                              fromAccount: defaultBank,
+                              toAccount: primaryCash,
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 11,
+                              horizontal: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.upload_rounded, size: 18),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Deposit to Bank'),
+                          ),
+                          onPressed: () {
+                            if (defaultBank == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please add a bank account first to deposit cash into.',
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              return;
+                            }
+                            AccountTransferSheet.show(
+                              context,
+                              fromAccount: primaryCash,
+                              toAccount: defaultBank,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Row 2: + Cash In, - Cash Out, Adjust Balance
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primaryEmerald,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 11,
+                              horizontal: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Cash In'),
+                          ),
+                          onPressed: () => AddEditTransactionSheet.show(
+                            context,
+                            initialType: TransactionType.income,
+                            initialPaymentMode: PaymentMode.cash,
+                            initialAccountId: primaryCash?.id,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            foregroundColor: financialColors.expense,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 11,
+                              horizontal: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.remove_rounded, size: 18),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Cash Out'),
+                          ),
+                          onPressed: () => AddEditTransactionSheet.show(
+                            context,
+                            initialType: TransactionType.expense,
+                            initialPaymentMode: PaymentMode.cash,
+                            initialAccountId: primaryCash?.id,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 11,
+                              horizontal: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.tune_rounded, size: 16),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Adjust'),
+                          ),
+                          onPressed: () => AddEditCashAccountSheet.show(
+                            context,
+                            account: primaryCash,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Cash Wallets List Header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Physical Cash Wallets (${cashAccounts.length})',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add Wallet'),
+                  onPressed: () => AddEditCashAccountSheet.show(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Wallets Cards
+        if (cashAccounts.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.lightSurfaceVariant,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: financialColors.cardBorder),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.payments_rounded,
+                      size: 44,
+                      color: AppColors.primaryEmerald.withAlpha(180),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No Cash Wallet Set Up',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Keep track of physical money in your wallet, pocket, or home cash drawer.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: financialColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primaryEmerald,
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Add Cash in Hand'),
+                      onPressed: () => AddEditCashAccountSheet.show(context),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final wallet = cashAccounts[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildCashWalletCard(
+                      context,
+                      wallet,
+                      isDark,
+                      financialColors,
+                    ),
+                  );
+                },
+                childCount: cashAccounts.length,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCashWalletCard(
+    BuildContext context,
+    BankAccountEntity wallet,
+    bool isDark,
+    AppFinancialColors financialColors,
+  ) {
+    final theme = Theme.of(context);
+    final isDeficit = wallet.currentBalance < 0;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (ctx) => AccountDetailScreen.forAccount(
+                account: wallet,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.darkSurfaceVariant
+                : AppColors.lightSurfaceVariant,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: financialColors.cardBorder,
+              width: 1.2,
+            ),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryEmerald.withAlpha(
+                        isDark ? 40 : 25,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.payments_rounded,
+                      color: AppColors.primaryEmerald,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          wallet.accountName,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryEmerald.withAlpha(
+                              isDark ? 30 : 20,
+                            ),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            wallet.usedFor,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryEmerald,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          CurrencyFormatter.format(wallet.currentBalance),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: isDeficit
+                                ? financialColors.expense
+                                : financialColors.income,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    icon: const Icon(Icons.tune_rounded, size: 15),
+                    label: const Text(
+                      'Adjust Balance',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () => AddEditCashAccountSheet.show(
+                      context,
+                      account: wallet,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 15),
+                    label: const Text(
+                      'Transfer',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () => AccountTransferSheet.show(
+                      context,
+                      fromAccount: wallet,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

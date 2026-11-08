@@ -55,17 +55,23 @@ class _PersonSplitEntry {
 class AddEditTransactionSheet extends ConsumerStatefulWidget {
   final TransactionEntity? initialTransaction;
   final TransactionType initialType;
+  final PaymentMode? initialPaymentMode;
+  final String? initialAccountId;
 
   const AddEditTransactionSheet({
     super.key,
     this.initialTransaction,
     this.initialType = TransactionType.expense,
+    this.initialPaymentMode,
+    this.initialAccountId,
   });
 
   static Future<void> show(
     BuildContext context, {
     TransactionEntity? transaction,
     TransactionType initialType = TransactionType.expense,
+    PaymentMode? initialPaymentMode,
+    String? initialAccountId,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -74,6 +80,8 @@ class AddEditTransactionSheet extends ConsumerStatefulWidget {
       builder: (ctx) => AddEditTransactionSheet(
         initialTransaction: transaction,
         initialType: transaction?.type ?? initialType,
+        initialPaymentMode: initialPaymentMode,
+        initialAccountId: initialAccountId,
       ),
     );
   }
@@ -234,7 +242,11 @@ class _AddEditTransactionSheetState
         _selectedPaymentMode = PaymentMode.creditCard;
       }
     } else {
-      _selectedPaymentMode = PaymentMode.bankAccount;
+      _selectedPaymentMode =
+          widget.initialPaymentMode ?? PaymentMode.bankAccount;
+      if (widget.initialAccountId != null) {
+        _selectedAccountId = widget.initialAccountId;
+      }
     }
 
     _amountController.addListener(_onAmountChanged);
@@ -517,9 +529,13 @@ class _AddEditTransactionSheetState
             .where((a) => a.accountType == AccountType.cash)
             .toList();
         if (cashAccounts.isNotEmpty) {
-          _selectedAccountId = cashAccounts.first.id;
+          final target = (widget.initialAccountId != null &&
+                  cashAccounts.any((a) => a.id == widget.initialAccountId))
+              ? cashAccounts.firstWhere((a) => a.id == widget.initialAccountId)
+              : cashAccounts.first;
+          _selectedAccountId = target.id;
           _selectedCreditCardId = null;
-          _selectedPaymentSource = cashAccounts.first.accountName;
+          _selectedPaymentSource = target.accountName;
         } else {
           _selectedAccountId = null;
           _selectedCreditCardId = null;
@@ -862,6 +878,22 @@ class _AddEditTransactionSheetState
           ? (amount - (myShare ?? 0.0)).clamp(0.0, amount)
           : 0.0;
 
+      if (_selectedPaymentMode == PaymentMode.cash) {
+        final cashAccounts = ref
+            .read(activeBankAccountsProvider)
+            .where((a) => a.accountType == AccountType.cash)
+            .toList();
+        if (cashAccounts.isNotEmpty) {
+          if (_selectedAccountId == null ||
+              !cashAccounts.any((a) => a.id == _selectedAccountId)) {
+            _selectedAccountId = cashAccounts.first.id;
+          }
+          final chosen =
+              cashAccounts.firstWhere((a) => a.id == _selectedAccountId);
+          _selectedPaymentSource = chosen.accountName;
+        }
+      }
+
       final updated = prevTx.copyWith(
         title: title,
         amount: amount,
@@ -1059,6 +1091,22 @@ class _AddEditTransactionSheetState
         } else {
           final rawNames = _sharedWithController.text.trim();
           sharedWith = rawNames.isNotEmpty ? rawNames : null;
+        }
+      }
+
+      if (_selectedPaymentMode == PaymentMode.cash) {
+        final cashAccounts = ref
+            .read(activeBankAccountsProvider)
+            .where((a) => a.accountType == AccountType.cash)
+            .toList();
+        if (cashAccounts.isNotEmpty) {
+          if (_selectedAccountId == null ||
+              !cashAccounts.any((a) => a.id == _selectedAccountId)) {
+            _selectedAccountId = cashAccounts.first.id;
+          }
+          final chosen =
+              cashAccounts.firstWhere((a) => a.id == _selectedAccountId);
+          _selectedPaymentSource = chosen.accountName;
         }
       }
 
