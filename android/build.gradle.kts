@@ -15,15 +15,18 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+
 subprojects {
-    project.evaluationDependsOn(":app")
-}
-subprojects {
-    if (project.name == "file_picker") {
-        tasks.matching { it.name.contains("AarMetadata") }.configureEach {
-            enabled = false
+    afterEvaluate {
+        val android = project.extensions.findByName("android")
+        if (android is com.android.build.gradle.BaseExtension) {
+            android.compileSdkVersion(36)
         }
     }
+}
+
+subprojects {
+    project.evaluationDependsOn(":app")
 }
 
 tasks.register<Delete>("clean") {
