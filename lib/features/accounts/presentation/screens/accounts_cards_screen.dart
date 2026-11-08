@@ -1259,7 +1259,7 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                               vertical: 11,
-                              horizontal: 8,
+                              horizontal: 6,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -1268,7 +1268,10 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                           icon: const Icon(Icons.add_rounded, size: 18),
                           label: const FittedBox(
                             fit: BoxFit.scaleDown,
-                            child: Text('Cash In'),
+                            child: Text(
+                              'Cash In',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                           ),
                           onPressed: () => AddEditTransactionSheet.show(
                             context,
@@ -1282,10 +1285,13 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                       Expanded(
                         child: FilledButton.tonalIcon(
                           style: FilledButton.styleFrom(
+                            backgroundColor: financialColors.expense.withAlpha(
+                              isDark ? 40 : 25,
+                            ),
                             foregroundColor: financialColors.expense,
                             padding: const EdgeInsets.symmetric(
                               vertical: 11,
-                              horizontal: 8,
+                              horizontal: 6,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -1294,7 +1300,10 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                           icon: const Icon(Icons.remove_rounded, size: 18),
                           label: const FittedBox(
                             fit: BoxFit.scaleDown,
-                            child: Text('Cash Out'),
+                            child: Text(
+                              'Cash Out',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                           ),
                           onPressed: () => AddEditTransactionSheet.show(
                             context,
@@ -1308,9 +1317,14 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: isDark
+                                  ? AppColors.darkBorder
+                                  : AppColors.lightBorder,
+                            ),
                             padding: const EdgeInsets.symmetric(
                               vertical: 11,
-                              horizontal: 8,
+                              horizontal: 6,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -1342,13 +1356,22 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Physical Cash Wallets (${cashAccounts.length})',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                Expanded(
+                  child: Text(
+                    'Physical Cash Wallets (${cashAccounts.length})',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 8),
                 TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
                   icon: const Icon(Icons.add_rounded, size: 18),
                   label: const Text('Add Wallet'),
                   onPressed: () => AddEditCashAccountSheet.show(context),
@@ -1527,28 +1550,30 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          CurrencyFormatter.format(wallet.currentBalance),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: isDeficit
-                                ? financialColors.expense
-                                : financialColors.income,
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            CurrencyFormatter.format(wallet.currentBalance),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: isDeficit
+                                  ? financialColors.expense
+                                  : financialColors.income,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 18,
-                        color: Colors.grey,
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

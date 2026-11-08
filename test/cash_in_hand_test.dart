@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:empty_pocket/core/domain/entities/bank_account_entity.dart';
-import 'package:empty_pocket/core/domain/entities/category_constants.dart';
 import 'package:empty_pocket/core/domain/entities/transaction_entity.dart';
 import 'package:empty_pocket/core/repositories/bank_account_repository.dart';
 import 'package:empty_pocket/core/repositories/transaction_repository.dart';
