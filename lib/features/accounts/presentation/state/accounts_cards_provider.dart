@@ -19,32 +19,33 @@ class BankAccountListNotifier extends AsyncNotifier<List<BankAccountEntity>> {
   FutureOr<List<BankAccountEntity>> build() async {
     final repository = ref.watch(bankAccountRepositoryProvider);
     final accounts = await repository.getAllAccounts();
-
-    // Auto-ensure default "Cash in Hand" wallet if no cash account exists
-    final hasCash = accounts.any((a) => a.accountType == AccountType.cash);
-    if (!hasCash) {
-      final defaultCash = BankAccountEntity(
-        id: const Uuid().v4(),
-        accountName: 'Cash in Hand',
-        bankName: 'Physical Cash',
-        accountType: AccountType.cash,
-        usedFor: AccountPurposeTags.dailySpending,
-        initialBalance: 0.0,
-        currentBalance: 0.0,
-        isDefault: false,
-        isArchived: false,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      try {
-        await repository.saveAccount(defaultCash);
-        return [...accounts, defaultCash];
-      } catch (_) {
-        return [...accounts, defaultCash];
-      }
-    }
-
     return accounts;
+  }
+
+  /// Ensures a default "Cash in Hand" wallet exists
+  Future<BankAccountEntity> ensureDefaultCashAccount() async {
+    final current = state.valueOrNull ?? [];
+    final existing = current
+        .where((a) => !a.isArchived && a.accountType == AccountType.cash)
+        .firstOrNull;
+    if (existing != null) return existing;
+
+    final defaultCash = BankAccountEntity(
+      id: const Uuid().v4(),
+      accountName: 'Cash in Hand',
+      bankName: 'Physical Cash',
+      accountType: AccountType.cash,
+      usedFor: AccountPurposeTags.dailySpending,
+      initialBalance: 0.0,
+      currentBalance: 0.0,
+      isDefault: false,
+      isArchived: false,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await saveAccount(defaultCash);
+    return defaultCash;
   }
 
   Future<void> saveAccount(BankAccountEntity account) async {

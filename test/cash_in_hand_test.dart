@@ -133,12 +133,15 @@ void main() {
       );
       addTearDown(container.dispose);
 
+      await container.read(bankAccountListProvider.future);
+
+      final cashAccount = await container
+          .read(bankAccountListProvider.notifier)
+          .ensureDefaultCashAccount();
+
       final accounts = await container.read(bankAccountListProvider.future);
 
       expect(accounts.length, 2);
-      final cashAccount = accounts.firstWhere(
-        (a) => a.accountType == AccountType.cash,
-      );
       expect(cashAccount.accountName, 'Cash in Hand');
       expect(cashAccount.bankName, 'Physical Cash');
       expect(cashAccount.currentBalance, 0.0);
