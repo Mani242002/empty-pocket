@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -271,7 +273,7 @@ class _AddEditCreditCardSheetState
 
     final limitVal = double.tryParse(_limitController.text) ?? 0.0;
     final usedVal = double.tryParse(_usedController.text) ?? 0.0;
-    final ratio = limitVal > 0 ? (usedVal / limitVal) * 100 : 0.0;
+    final ratio = limitVal > 0 ? (max(0.0, usedVal) / limitVal) * 100 : 0.0;
 
     return Material(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
@@ -604,16 +606,25 @@ class _AddEditCreditCardSheetState
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
                                       decimal: true,
+                                      signed: true,
                                     ),
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
-                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                    RegExp(r'^-?\d*\.?\d{0,2}'),
                                   ),
                                 ],
                                 decoration: InputDecoration(
                                   prefixText:
                                       '${CurrencyFormatter.activeCurrency.symbol} ',
                                   hintText: '0',
+                                  helperText: usedVal < 0
+                                      ? 'Advance credit: +${CurrencyFormatter.format(usedVal.abs())}'
+                                      : null,
+                                  helperStyle: TextStyle(
+                                    color: financialColors.income,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
                                 ),
                                 onChanged: (_) => setState(() {}),
                               ),
@@ -628,14 +639,23 @@ class _AddEditCreditCardSheetState
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Available: ${CurrencyFormatter.format(limitVal - usedVal)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: financialColors.textMuted,
+                        Flexible(
+                          child: Text(
+                            usedVal < 0
+                                ? 'Available: ${CurrencyFormatter.format(limitVal - usedVal)} (Advance: +${CurrencyFormatter.format(usedVal.abs())})'
+                                : 'Available: ${CurrencyFormatter.format(limitVal - usedVal)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: usedVal < 0
+                                  ? financialColors.income
+                                  : financialColors.textMuted,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           'Utilization: ${ratio.toStringAsFixed(1)}% (${ratio <= 30 ? 'Safe' : (ratio <= 50 ? 'Moderate' : 'High')})',
                           style: TextStyle(

@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:uuid/uuid.dart';
 
+import '../calculation/financial_calculator.dart';
 import '../domain/entities/ai_assistant_entity.dart';
 import '../domain/entities/backup_entity.dart';
 import '../domain/entities/bank_account_entity.dart';
@@ -2766,7 +2767,7 @@ class AppDatabase {
       );
     }
     final card = CreditCardEntity.fromMap(rows.first);
-    final newUsed = (card.usedAmount + delta).clamp(0.0, double.infinity);
+    final newUsed = FinancialCalculator.roundMoney(card.usedAmount + delta);
     await txn.update(
       tableCreditCards,
       card.copyWith(usedAmount: newUsed, updatedAt: DateTime.now()).toMap(),
@@ -3544,8 +3545,8 @@ class AppDatabase {
   }) async {
     final client = executor ?? (await database);
     return await client.rawUpdate(
-      'UPDATE $tableCreditCards SET used_amount = CASE WHEN used_amount + ? < 0 THEN 0.0 ELSE used_amount + ? END, updated_at = ? WHERE id = ?',
-      [delta, delta, DateTime.now().millisecondsSinceEpoch, cardId],
+      'UPDATE $tableCreditCards SET used_amount = used_amount + ?, updated_at = ? WHERE id = ?',
+      [delta, DateTime.now().millisecondsSinceEpoch, cardId],
     );
   }
 

@@ -902,12 +902,18 @@ class _AccountsCardsScreenState extends ConsumerState<AccountsCardsScreen>
                           if (card.excessCredit > 0)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                'Advance: +${CurrencyFormatter.format(card.excessCredit)}',
-                                style: const TextStyle(
-                                  color: Color(0xFF10B981),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Advance: +${CurrencyFormatter.format(card.excessCredit)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF10B981),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ),
